@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GradleSettings">
+    <option name="linkedExternalProjectsSettings">
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/api-gateway" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/api-gateway" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/auth-service" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/auth-service" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/contribution-service" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/contribution-service" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/discovery-service" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/discovery-service" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/github-sync-service" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/github-sync-service" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/messaging-service" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/messaging-service" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/notification-service" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/notification-service" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/project-service" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/project-service" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/social-service" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/social-service" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/user-profile-service" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/user-profile-service" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+    </option>
+  </component>
+</project>
