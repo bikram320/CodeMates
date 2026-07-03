@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ExternalStorageConfigurationManager" enabled="true" />
+  <component name="FrameworkDetectionExcludesConfiguration">
+    <file type="web" url="file://$PROJECT_DIR$/api-gateway" />
+    <file type="web" url="file://$PROJECT_DIR$/auth-service" />
+    <file type="web" url="file://$PROJECT_DIR$/contribution-service" />
+    <file type="web" url="file://$PROJECT_DIR$/discovery-service" />
+    <file type="web" url="file://$PROJECT_DIR$/github-sync-service" />
+    <file type="web" url="file://$PROJECT_DIR$/messaging-service" />
+    <file type="web" url="file://$PROJECT_DIR$/notification-service" />
+    <file type="web" url="file://$PROJECT_DIR$/project-service" />
+    <file type="web" url="file://$PROJECT_DIR$/social-service" />
+    <file type="web" url="file://$PROJECT_DIR$/user-profile-service" />
+  </component>
+  <component name="ProjectRootManager" version="2" project-jdk-name="openjdk-21" project-jdk-type="JavaSDK">
+    <output url="file://$PROJECT_DIR$/out" />
+  </component>
+</project>
