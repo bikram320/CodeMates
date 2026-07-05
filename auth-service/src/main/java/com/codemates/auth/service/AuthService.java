@@ -35,15 +35,20 @@ public class AuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request, String ipAddress) {
 
-        // 1. check if email already taken
+        // check email
         if (userRepository.existsByEmailAndIsDeletedFalse(request.getEmail())) {
             throw new UserAlreadyExistsException("Email already registered: " + request.getEmail());
         }
 
-        // 2. build and save user
+        // check username — this is the fix
+        if (userRepository.existsByUsernameAndIsDeletedFalse(request.getUsername())) {
+            throw new UserAlreadyExistsException("Username already taken: " + request.getUsername());
+        }
+
         User user = User.builder()
                 .email(request.getEmail())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .username(request.getUsername())
                 .authProvider("LOCAL")
                 .isActive(true)
                 .isDeleted(false)
@@ -52,17 +57,11 @@ public class AuthService {
         User savedUser = userRepository.save(user);
         log.info("New user registered: {}", savedUser.getEmail());
 
-        // 3. publish Kafka event — user-profile-service will consume this
-        //    and auto-create a profile row
         publishUserRegisteredEvent(savedUser, request.getUsername(), request.getFullName());
 
-        // 4. generate tokens
         String accessToken = jwtService.generateAccessToken(savedUser.getId(), savedUser.getEmail());
         String refreshToken = refreshTokenService.createRefreshToken(
-                savedUser.getId(),
-                "Registration",
-                ipAddress
-        );
+                savedUser.getId(), "Registration", ipAddress);
 
         return AuthResponse.builder()
                 .accessToken(accessToken)

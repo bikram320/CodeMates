@@ -30,6 +30,10 @@ public class User {
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
+    @Size(max = 50)
+    @Column(name = "username", length = 50, unique = true)
+    private String username;
+
     @Size(max = 255)
     @Column(name = "password_hash")
     private String passwordHash;

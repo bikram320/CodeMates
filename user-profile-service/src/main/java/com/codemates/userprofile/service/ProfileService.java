@@ -32,11 +32,8 @@ public class ProfileService {
     @Transactional
     public void createProfileFromEvent(UserRegisteredEvent event) {
 
-        // check if profile already exists — idempotency guard
-        // if Kafka delivers the same event twice, we don't create duplicates
         if (profileRepository.existsByUserIdAndIsDeletedFalse(event.getUserId())) {
-            log.warn("Profile already exists for userId: {} — skipping",
-                    event.getUserId());
+            log.warn("Profile already exists for userId: {} — skipping", event.getUserId());
             return;
         }
 
