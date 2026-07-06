@@ -2,15 +2,19 @@ package com.codemates.auth.controller;
 
 import com.codemates.auth.dto.*;
 import com.codemates.auth.service.AuthService;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.UUID;
 
 @Slf4j
@@ -21,143 +25,220 @@ public class AuthController {
 
     private final AuthService authService;
 
+    @Value("${jwt.expiration}")
+    private long accessTokenExpiration;
+
+    @Value("${jwt.refresh-expiration}")
+    private long refreshTokenExpiration;
+
+    // ─────────────────────────────────────
     // REGISTER
-    // POST /api/auth/register
+    // ─────────────────────────────────────
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<AuthResponse>> register(
+    public ResponseEntity<ApiResponse<UserInfoResponse>> register(
             @Valid @RequestBody RegisterRequest request,
-            HttpServletRequest httpRequest) {
+            HttpServletRequest httpRequest,
+            HttpServletResponse response) {
 
         String ipAddress = getClientIp(httpRequest);
-        AuthResponse response = authService.register(request, ipAddress);
+        AuthResponse authResponse = authService.register(request, ipAddress);
+
+        setAuthCookies(response, authResponse);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Registration successful", response));
+                .body(ApiResponse.success("Registration successful",
+                        toUserInfo(authResponse)));
     }
 
+    // ─────────────────────────────────────
     // LOGIN
-    // POST /api/auth/login
+    // ─────────────────────────────────────
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthResponse>> login(
+    public ResponseEntity<ApiResponse<UserInfoResponse>> login(
             @Valid @RequestBody LoginRequest request,
-            HttpServletRequest httpRequest) {
+            HttpServletRequest httpRequest,
+            HttpServletResponse response) {
 
         String ipAddress = getClientIp(httpRequest);
         String deviceInfo = httpRequest.getHeader("User-Agent");
-        AuthResponse response = authService.login(request, ipAddress, deviceInfo);
+        AuthResponse authResponse = authService.login(request, ipAddress, deviceInfo);
 
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(ApiResponse.success("Login successful", response));
+        setAuthCookies(response, authResponse);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Login successful", toUserInfo(authResponse)));
     }
 
+    // ─────────────────────────────────────
     // REFRESH TOKEN
-    // POST /api/auth/refresh
+    // ─────────────────────────────────────
     @PostMapping("/refresh")
-    public ResponseEntity<ApiResponse<AuthResponse>> refresh(
-            @Valid @RequestBody RefreshTokenRequest request,
-            HttpServletRequest httpRequest) {
+    public ResponseEntity<ApiResponse<Void>> refresh(
+            HttpServletRequest httpRequest,
+            HttpServletResponse response) {
+
+        // read refresh token from cookie — not request body
+        String refreshToken = getCookieValue(httpRequest, "refresh_token");
+        if (refreshToken == null) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("Refresh token not found"));
+        }
 
         String ipAddress = getClientIp(httpRequest);
-        AuthResponse response = authService.refresh(request, ipAddress);
+        RefreshTokenRequest request2 = new RefreshTokenRequest();
+        request2.setRefreshToken(refreshToken);
 
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(ApiResponse.success("Token refreshed successfully", response));
+        AuthResponse authResponse = authService.refresh(request2, ipAddress);
+        setAuthCookies(response, authResponse);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Token refreshed successfully", null));
     }
 
+    // ─────────────────────────────────────
     // LOGOUT
-    // POST /api/auth/logout
+    // ─────────────────────────────────────
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(
-            @Valid @RequestBody RefreshTokenRequest request) {
+            HttpServletRequest httpRequest,
+            HttpServletResponse response) {
 
-        authService.logout(request);
+        String refreshToken = getCookieValue(httpRequest, "refresh_token");
+        if (refreshToken != null) {
+            RefreshTokenRequest request2 = new RefreshTokenRequest();
+            request2.setRefreshToken(refreshToken);
+            authService.logout(request2);
+        }
 
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(ApiResponse.success("Logged out successfully", null));
+        clearAuthCookies(response);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Logged out successfully", null));
     }
 
-    // LOGOUT FROM ALL DEVICES
-    // POST /api/auth/logout-all
+    // ─────────────────────────────────────
+    // LOGOUT ALL DEVICES
+    // ─────────────────────────────────────
     @PostMapping("/logout-all")
     public ResponseEntity<ApiResponse<Void>> logoutAllDevices(
-            @AuthenticationPrincipal UUID userId) {
+            @AuthenticationPrincipal UUID userId,
+            HttpServletResponse response) {
 
         authService.logoutAllDevices(userId);
+        clearAuthCookies(response);
 
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(ApiResponse.success("Logged out from all devices", null));
+        return ResponseEntity.ok(
+                ApiResponse.success("Logged out from all devices", null));
     }
 
-
+    // ─────────────────────────────────────
     // FORGOT PASSWORD
-    // POST /api/auth/forgot-password
+    // ─────────────────────────────────────
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<Void>> forgotPassword(
             @Valid @RequestBody ForgotPasswordRequest request) {
 
         authService.forgotPassword(request);
-
-        // always return success — never reveal if email exists
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(ApiResponse.success(
+        return ResponseEntity.ok(
+                ApiResponse.success(
                         "If this email is registered you will receive a reset link",
-                        null
-                ));
+                        null));
     }
 
+    // ─────────────────────────────────────
     // RESET PASSWORD
-    // POST /api/auth/reset-password
+    // ─────────────────────────────────────
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<Void>> resetPassword(
-            @Valid @RequestBody ResetPasswordRequest request) {
+            @Valid @RequestBody ResetPasswordRequest request,
+            HttpServletResponse response) {
 
         authService.resetPassword(request);
+        clearAuthCookies(response);
 
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(ApiResponse.success("Password reset successful", null));
+        return ResponseEntity.ok(
+                ApiResponse.success("Password reset successful", null));
     }
 
-    // GITHUB OAUTH — redirect to GitHub
-    // GET /api/auth/github
-    @GetMapping("/github")
-    public ResponseEntity<ApiResponse<String>> githubLogin() {
-
-        // placeholder — full OAuth flow in Phase 5
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(ApiResponse.success("GitHub OAuth coming in Phase 5", null));
-    }
-
-    // GITHUB OAUTH — callback handler
-    // GET /api/auth/github/callback
-    @GetMapping("/github/callback")
-    public ResponseEntity<ApiResponse<String>> githubCallback(
-            @RequestParam String code) {
-
-        // placeholder — full OAuth flow in Phase 5
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(ApiResponse.success("GitHub OAuth callback coming in Phase 5", null));
-    }
-
+    // ─────────────────────────────────────
     // HEALTH CHECK
-    // GET /api/auth/health
+    // ─────────────────────────────────────
     @GetMapping("/health")
     public ResponseEntity<ApiResponse<String>> health() {
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(ApiResponse.success("Auth service is running", null));
+        return ResponseEntity.ok(
+                ApiResponse.success("Auth service is running", null));
     }
 
-    // INTERNAL — extract real client IP
-    // handles proxies and load balancers
+    // ─────────────────────────────────────
+    // INTERNAL — set both cookies
+    // ─────────────────────────────────────
+    private void setAuthCookies(HttpServletResponse response,
+                                AuthResponse authResponse) {
+
+        // access token cookie — short lived
+        Cookie accessCookie = new Cookie("access_token",
+                authResponse.getAccessToken());
+        accessCookie.setHttpOnly(true);
+        accessCookie.setSecure(false); // set true in production (HTTPS only)
+        accessCookie.setPath("/");
+        accessCookie.setMaxAge((int) (accessTokenExpiration / 1000));
+
+        // refresh token cookie — long lived, restricted path
+        Cookie refreshCookie = new Cookie("refresh_token",
+                authResponse.getRefreshToken());
+        refreshCookie.setHttpOnly(true);
+        refreshCookie.setSecure(false); // set true in production
+        refreshCookie.setPath("/api/auth/refresh");
+        refreshCookie.setMaxAge((int) (refreshTokenExpiration / 1000));
+
+        response.addCookie(accessCookie);
+        response.addCookie(refreshCookie);
+    }
+
+    // ─────────────────────────────────────
+    // INTERNAL — clear both cookies on logout
+    // ─────────────────────────────────────
+    private void clearAuthCookies(HttpServletResponse response) {
+        Cookie accessCookie = new Cookie("access_token", "");
+        accessCookie.setHttpOnly(true);
+        accessCookie.setPath("/");
+        accessCookie.setMaxAge(0);
+
+        Cookie refreshCookie = new Cookie("refresh_token", "");
+        refreshCookie.setHttpOnly(true);
+        refreshCookie.setPath("/api/auth/refresh");
+        refreshCookie.setMaxAge(0);
+
+        response.addCookie(accessCookie);
+        response.addCookie(refreshCookie);
+    }
+
+    // ─────────────────────────────────────
+    // INTERNAL — read a cookie value by name
+    // ─────────────────────────────────────
+    private String getCookieValue(HttpServletRequest request, String name) {
+        if (request.getCookies() == null) return null;
+        return Arrays.stream(request.getCookies())
+                .filter(c -> c.getName().equals(name))
+                .map(Cookie::getValue)
+                .findFirst()
+                .orElse(null);
+    }
+
+    // ─────────────────────────────────────
+    // INTERNAL — only return non-sensitive
+    // user info in response body
+    // ─────────────────────────────────────
+    private UserInfoResponse toUserInfo(AuthResponse authResponse) {
+        return UserInfoResponse.builder()
+                .userId(authResponse.getUserId())
+                .email(authResponse.getEmail())
+                .authProvider(authResponse.getAuthProvider())
+                .build();
+    }
+
     private String getClientIp(HttpServletRequest request) {
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
