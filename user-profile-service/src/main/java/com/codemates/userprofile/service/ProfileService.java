@@ -15,7 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -249,6 +251,61 @@ public class ProfileService {
         interest.setDeletedAt(java.time.LocalDateTime.now());
         interestRepository.save(interest);
         log.info("Interest removed: {} for userId: {}", interestId, userId);
+    }
+
+    // ── added for discovery-service ──────────────────────
+    // Search profiles by skills, experience level, interests,
+    // and open-to-collaborate flag. All filters optional and
+    // combinable. Capped at 50 results (no pagination for now).
+    @Transactional(readOnly = true)
+    public List<ProfileResponse> searchProfiles(List<String> skills,
+                                                String experienceLevel,
+                                                List<String> interests,
+                                                Boolean openToCollaborate) {
+
+        Set<UUID> skillProfileIds = null;
+        if (skills != null && !skills.isEmpty()) {
+            skillProfileIds = skillRepository
+                    .findBySkillNameInAndIsDeletedFalse(skills).stream()
+                    .map(Skill::getProfileId)
+                    .collect(Collectors.toSet());
+        }
+
+        Set<UUID> interestProfileIds = null;
+        if (interests != null && !interests.isEmpty()) {
+            interestProfileIds = interestRepository
+                    .findByInterestNameInAndIsDeletedFalse(interests).stream()
+                    .map(Interest::getProfileId)
+                    .collect(Collectors.toSet());
+        }
+
+        boolean hasExperience = experienceLevel != null && !experienceLevel.isBlank();
+        boolean hasOpenFlag = openToCollaborate != null;
+
+        List<Profile> baseProfiles;
+        if (hasExperience && hasOpenFlag) {
+            baseProfiles = profileRepository
+                    .findByExperienceLevelAndIsOpenToCollaborateAndIsDeletedFalse(
+                            experienceLevel, openToCollaborate);
+        } else if (hasExperience) {
+            baseProfiles = profileRepository
+                    .findByExperienceLevelAndIsDeletedFalse(experienceLevel);
+        } else if (hasOpenFlag) {
+            baseProfiles = profileRepository
+                    .findByIsOpenToCollaborateAndIsDeletedFalse(openToCollaborate);
+        } else {
+            baseProfiles = profileRepository.findByIsDeletedFalse();
+        }
+
+        final Set<UUID> finalSkillIds = skillProfileIds;
+        final Set<UUID> finalInterestIds = interestProfileIds;
+
+        return baseProfiles.stream()
+                .filter(p -> finalSkillIds == null || finalSkillIds.contains(p.getId()))
+                .filter(p -> finalInterestIds == null || finalInterestIds.contains(p.getId()))
+                .limit(50)
+                .map(this::buildProfileResponse)
+                .collect(Collectors.toList());
     }
 
     // Internal — build full profile response

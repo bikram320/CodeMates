@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -37,6 +38,23 @@ public class ProfileController {
                 ApiResponse.success("Profile fetched successfully", profile));
     }
 
+    // GET /api/users/search
+    // search developers by skills, experience level, interests,
+    // and open-to-collaborate flag — all filters optional/combinable.
+    // Public endpoint, no auth required (this powers discovery-service).
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<List<ProfileResponse>>> searchProfiles(
+            @RequestParam(required = false) List<String> skills,
+            @RequestParam(required = false) String experienceLevel,
+            @RequestParam(required = false) List<String> interests,
+            @RequestParam(required = false) Boolean openToCollaborate) {
+
+        List<ProfileResponse> results = profileService.searchProfiles(
+                skills, experienceLevel, interests, openToCollaborate);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Search results fetched", results));
+    }
 
     // GET /api/users/{username}
     // get public profile by username
