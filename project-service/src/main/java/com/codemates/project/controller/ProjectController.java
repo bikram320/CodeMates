@@ -100,6 +100,12 @@ public class ProjectController {
         return ApiResponse.success("Members fetched", projectService.getProjectMembers(id));
     }
 
+    @GetMapping("/{id}/members/{userId}/check")
+    public ApiResponse<MembershipCheckResponse> checkMembership(
+            @PathVariable UUID id, @PathVariable UUID userId) {
+        return ApiResponse.success("Membership checked", projectService.checkMembership(id, userId));
+    }
+
     @GetMapping("/health")
     public ApiResponse<String> health() {
         return ApiResponse.success("Project service is running", null);

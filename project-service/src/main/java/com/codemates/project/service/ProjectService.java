@@ -272,6 +272,14 @@ public class ProjectService {
                 .collect(Collectors.toList());
     }
 
+    // ── MEMBERSHIP CHECK (for messaging-service) ──
+    @Transactional(readOnly = true)
+    public MembershipCheckResponse checkMembership(UUID projectId, UUID userId) {
+        return projectMemberRepository.findByProjectIdAndUserIdAndIsDeletedFalse(projectId, userId)
+                .map(m -> new MembershipCheckResponse(true, m.getRole()))
+                .orElse(new MembershipCheckResponse(false, null));
+    }
+
     // ── INTERNAL HELPERS ───────────────────────
     Project getActiveOrThrow(UUID projectId) {
         return projectRepository.findByIdAndIsDeletedFalse(projectId)
