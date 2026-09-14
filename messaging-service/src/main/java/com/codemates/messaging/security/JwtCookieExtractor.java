@@ -21,7 +21,7 @@ import java.util.UUID;
 @Component
 public class JwtCookieExtractor {
 
-    private static final String COOKIE_NAME = "accessToken";
+    private static final String COOKIE_NAME = "access_token";
 
     @Value("${jwt.secret}")
     private String jwtSecret;
