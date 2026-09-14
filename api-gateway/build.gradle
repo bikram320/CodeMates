@@ -1,40 +1,64 @@
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '4.1.0'
-	id 'io.spring.dependency-management' version '1.1.7'
+    id 'java'
+    id 'org.springframework.boot' version '4.1.0'
+    id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.codemates'
 version = '0.0.1-SNAPSHOT'
 
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
-	}
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
 repositories {
-	mavenCentral()
+    mavenCentral()
+}
+
+// Spring Cloud 2025.1.2 "Oakwood" is the first release-train that
+// introduces compatibility with Spring Boot 4.1.0 (2025.0.x / 2025.1.0
+// / 2025.1.1 do NOT support 4.1.0 — confirmed against Spring's own
+// release notes). This BOM pins Spring Cloud Gateway to 5.0.x, which
+// uses the new spring.cloud.gateway.server.webflux.* property prefix
+// (see application.properties).
+ext {
+    springCloudVersion = '2025.1.2'
 }
 
 dependencies {
-	// spring cloud
-	implementation 'org.springframework.cloud:spring-cloud-starter-gateway:4.1.3'
-	// postgresql driver
-	implementation 'org.postgresql:postgresql:42.6.0'
-	//jwt
-	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
-	implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
-	implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
-	//spring boot
-	implementation 'org.springframework.boot:spring-boot-starter-security'
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // New (post-2025.0) artifact name — the old "spring-cloud-starter-gateway"
+    // is deprecated in favor of this one, which explicitly names the
+    // WebFlux-based reactive gateway server.
+    implementation 'org.springframework.cloud:spring-cloud-starter-gateway-server-webflux'
+
+    // Reactive Redis client — required for the Redis-backed RequestRateLimiter
+    // filter. Points at the same Redis instance the other services use.
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
+
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // Same jjwt version/API style as every other service (JwtCookieExtractor
+    // pattern) — parserBuilder()/setSigningKey()/parseClaimsJws(), NOT the
+    // 0.12.x verifyWith() syntax.
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'io.projectreactor:reactor-test'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+    useJUnitPlatform()
 }
