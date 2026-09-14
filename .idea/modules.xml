@@ -8,6 +8,7 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/discovery-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/discovery-service.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/github-sync-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/github-sync-service.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/messaging-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/messaging-service.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/notification-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/notification-service.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/project-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/project-service.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/social-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/social-service.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/user-profile-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/user-profile-service.main.iml" />
