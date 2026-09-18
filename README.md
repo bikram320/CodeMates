@@ -28,13 +28,15 @@ CodeMates solves this by providing a unified developer ecosystem.
 
 ## Core Idea
 
-> “From discovering developers → forming teams → building projects → tracking contributions → analyzing performance — all in one platform.”
+> "From discovering developers → forming teams → building projects → tracking contributions → analyzing performance — all in one platform."
 
 ---
 
 ## Key Features
 
-### 1. Developer Profile System
+*Status tags below reflect what's actually implemented in the backend as of this write-up, not just the product vision — see the API docs for exact endpoints.*
+
+### 1. Developer Profile System ✅ Implemented
 Each user has a structured developer profile including:
 
 - Skills and technologies
@@ -45,7 +47,7 @@ Each user has a structured developer profile including:
 
 ---
 
-### 2. Developer Discovery System
+### 2. Developer Discovery System ✅ Implemented
 Users can search and connect with other developers using:
 
 - Skill-based search
@@ -55,49 +57,56 @@ Users can search and connect with other developers using:
 
 ---
 
-### 3. AI-Powered Developer Matching (ML Feature)
+### 3. AI-Powered Developer Matching (ML Feature) 🔜 Planned (Phase 2)
 
-The system recommends developers based on:
+The system will recommend developers based on:
 
 - Skill similarity scoring
 - GitHub contribution activity
 - Project relevance matching
 - Collaboration history (future extension)
 
-Output:
+Output (planned):
 - Ranked developer suggestions
 - Match percentage score
 - Reason for recommendation
 
+**Current state:** the read/write plumbing exists (`MatchScoreResponseDto` with per-category
+sub-scores and a weighted total), and the API returns real data — but the scoring logic itself
+is a placeholder; nothing computes real skill/activity/interest similarity yet, and there's no
+"reason for recommendation" field at all yet.
+
 ---
 
-### 4. Social Networking Layer
+### 4. Social Networking Layer ✅ Implemented
 
-- Friend requests system
-- Private messaging
-- Developer connections
+- Friend/connection requests (send, accept, reject, block, remove)
+- Private (direct) messaging
+- Developer connections list
 - Profile viewing with interaction options
 
 ---
 
-### 5. Project & Workspace System
+### 5. Project & Workspace System ✅ Implemented
 
 Users can create and manage projects by:
 
 - Adding project name, description, and GitHub repository link
-- Inviting developers to collaborate
+- Inviting developers to collaborate (7-day expiring invitations)
 - Assigning roles (Leader, Contributor, Reviewer)
 - Managing project workspace
 
 Each workspace includes:
 
-- Project discussion chat
-- Resource sharing
-- File/asset organization
+- Project discussion chat (real-time, WebSocket-based)
+- Resource sharing — link-based (paste a URL to a Drive doc, Figma file, hosted asset, etc.);
+  not binary file upload/storage within the app itself
+- ~~File/asset organization~~ — see note above; full binary upload isn't built (needs
+  object storage like S3/MinIO), only external-link resources are
 
 ---
 
-### 6. Task Management System (Jira-like)
+### 6. Task Management System (Jira-like) ✅ Implemented
 
 Inside each project:
 
@@ -108,20 +117,21 @@ Inside each project:
 
 ---
 
-### 7. Contribution Tracking System
+### 7. Contribution Tracking System ⚠️ Partially implemented
 
 Automatically tracks developer activity:
 
-- Task completion
-- Code contributions (via GitHub)
-- Messages and participation
-- File and documentation contributions
+- ✅ Task completion
+- ✅ Code contributions (via GitHub commit sync)
+- ✅ Messages and participation
+- 🔜 File and documentation contributions — the `filesShared`/`tasksReviewed` counters exist
+  in the data model but nothing increments them yet
 
 Generates a **Contribution Score** for fairness and transparency.
 
 ---
 
-### 8. Analytics Dashboard (ML Feature)
+### 8. Analytics Dashboard (ML Feature) 🔜 Planned (Phase 2)
 
 Provides insights such as:
 
@@ -130,19 +140,24 @@ Provides insights such as:
 - Project progress tracking
 - Risk detection (delays or inactivity)
 
-### Project Health Prediction:
+### Project Health Prediction (planned):
 - Green: on track
 - Yellow: moderate risk
 - Red: high risk of delay
 
+**Current state:** not started — no risk/health computation exists anywhere in the backend yet.
+The raw data it would need (task completion rates, activity timestamps) is already being
+collected via contribution-service, so this is a computation-layer feature to build on top of
+existing data, not a from-scratch data pipeline.
+
 ---
 
-### 9. GitHub Integration
+### 9. GitHub Integration ✅ Implemented
 
-- OAuth login via GitHub
-- Fetch repositories
-- Analyze contributions
-- Link projects to real codebases
+- ✅ OAuth login via GitHub (sign up/log in with a GitHub account)
+- ✅ Fetch repositories
+- ✅ Analyze contributions (commit sync, feeds contribution scoring)
+- ✅ Link projects to real codebases (repository linking)
 
 ---
 
@@ -156,7 +171,7 @@ Provides insights such as:
 
 ### Backend
 - Spring Boot (Microservices)
-- Spring Security + JWT
+- Spring Security + JWT (httpOnly cookies)
 - WebSocket (real-time communication)
 
 ### Database
@@ -165,19 +180,15 @@ Provides insights such as:
 
 ### Communication Layer
 - WebSockets for real-time chat and updates
+- Kafka for inter-service events (registration, project/task lifecycle, GitHub sync, messaging)
 
 ---
 
 ## ML / AI Integration Points
 
-1. Developer Recommendation Engine
-   - Ranking system for best match developers
-
-2. Project Health Prediction
-   - Predicts delay risk based on activity patterns
-
-3. Contribution Intelligence
-   - Evaluates meaningful contributions vs inactivity
+1. **Developer Recommendation Engine** 🔜 Planned — plumbing built, scoring model not yet implemented
+2. **Project Health Prediction** 🔜 Planned — not started
+3. **Contribution Intelligence** ⚠️ Partial — real events tracked (tasks, commits, messages); "meaningful vs inactive" judgment not built
 
 ---
 
@@ -198,6 +209,7 @@ Provides insights such as:
 - Screen sharing
 - Smart resume generation from projects
 - Plugin system for developers
+- Binary file upload for workspace resources (currently link-only — see Project & Workspace System above)
 
 ---
 
