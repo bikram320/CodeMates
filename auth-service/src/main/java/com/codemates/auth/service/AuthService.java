@@ -187,6 +187,60 @@ public class AuthService {
                 });
     }
 
+    // GITHUB OAUTH LOGIN / REGISTER
+    @Transactional
+    public AuthResponse loginOrRegisterWithGithub(String email, String githubUsername, String fullName, String githubUserId, String ipAddress) {
+
+        User user = userRepository.findByEmailAndIsDeletedFalse(email)
+                .orElseGet(() -> registerGithubUser(email, githubUsername, fullName, githubUserId));
+
+        if (!user.getIsActive()) {
+            throw new InvalidTokenException("Account is deactivated");
+        }
+
+        user.setLastLoginAt(java.time.LocalDateTime.now());
+        userRepository.save(user);
+
+        String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail());
+        String refreshToken = refreshTokenService.createRefreshToken(user.getId(), "GitHub OAuth", ipAddress);
+
+        log.info("User logged in via GitHub: {}", user.getEmail());
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .userId(user.getId())
+                .email(user.getEmail())
+                .authProvider(user.getAuthProvider())
+                .build();
+    }
+
+    private User registerGithubUser(String email, String githubUsername, String fullName, String githubUserId) {
+        String username = githubUsername;
+        int suffix = 0;
+        while (userRepository.existsByUsernameAndIsDeletedFalse(username)) {
+            suffix++;
+            username = githubUsername + suffix;
+        }
+
+        User user = User.builder()
+                .email(email)
+                .username(username)
+                .authProvider("GITHUB")
+                .githubId(githubUserId)     // uses the existing unused column — no schema change needed
+                .isActive(true)
+                .isDeleted(false)
+                .build();
+        // passwordHash intentionally left null — confirmed nullable in User.java, so a
+        // GitHub-only account just has no local password. No random-hash hack needed.
+
+        User saved = userRepository.save(user);
+        log.info("New user registered via GitHub: {}", saved.getEmail());
+        publishUserRegisteredEvent(saved, username, fullName);
+        return saved;
+    }
+
     // RESET PASSWORD
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
