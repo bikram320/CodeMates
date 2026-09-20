@@ -8,6 +8,7 @@ import com.codemates.auth.model.User;
 import com.codemates.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,6 +24,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuthService {
 
+    private static final long RESET_TOKEN_TTL_MINUTES = 15;
+
     private final UserRepository userRepository;
     private final RefreshTokenService refreshTokenService;
     private final JwtService jwtService;
@@ -30,6 +33,11 @@ public class AuthService {
     private final KafkaTemplate<String, byte[]> kafkaTemplate;
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final EmailService emailService;
+
+    // max forgot-password requests per email per hour (raise this while testing)
+    @Value("${app.password-reset.max-requests-per-hour:3}")
+    private int maxResetRequestsPerHour;
 
     // REGISTER
     @Transactional
@@ -164,26 +172,42 @@ public class AuthService {
     }
 
     // FORGOT PASSWORD
+    // Always returns normally (the controller sends the same generic 200 either way),
+    // so callers can never tell whether an email is registered.
     public void forgotPassword(ForgotPasswordRequest request) {
 
-        // 1. check user exists — but don't reveal if they don't
-        //    (security best practice — never confirm email existence)
-        userRepository.findByEmailAndIsDeletedFalse(request.getEmail())
+        String email = request.getEmail();
+
+        // 1. rate limit per email: stops someone spamming a victim's inbox
+        String limitKey = "password_reset_limit:" + email.toLowerCase();
+        Long attempts = redisTemplate.opsForValue().increment(limitKey);
+        if (attempts != null && attempts == 1L) {
+            redisTemplate.expire(limitKey, Duration.ofHours(1));
+        }
+        if (attempts != null && attempts > maxResetRequestsPerHour) {
+            log.warn("Password reset rate limit reached for {}", email);
+            return;
+        }
+
+        // 2. only registered emails get a token + email; unknown emails silently do nothing
+        userRepository.findByEmailAndIsDeletedFalse(email)
                 .ifPresent(user -> {
-                    // 2. generate reset token
+                    // 3. generate reset token
                     String resetToken = UUID.randomUUID().toString();
 
-                    // 3. store in Redis with 15 minute TTL
+                    // 4. store in Redis with 15 minute TTL
                     String redisKey = "password_reset:" + resetToken;
                     redisTemplate.opsForValue().set(
                             redisKey,
                             user.getId().toString(),
-                            Duration.ofMinutes(15)
+                            Duration.ofMinutes(RESET_TOKEN_TTL_MINUTES)
                     );
 
-                    // 4. in real app — send email with reset link containing token
-                    //    for now we log it (email service comes in Phase 5)
-                    log.info("Password reset token for {}: {}", user.getEmail(), resetToken);
+                    // 5. email the reset link (async). The token is NOT logged anymore.
+                    emailService.sendPasswordResetEmail(
+                            user.getEmail(), resetToken, RESET_TOKEN_TTL_MINUTES);
+
+                    log.info("Password reset requested for userId: {}", user.getId());
                 });
     }
 
