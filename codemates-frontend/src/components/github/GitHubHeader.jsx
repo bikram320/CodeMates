@@ -20,8 +20,8 @@
  */
 
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, ExternalLink, Link2Off } from 'lucide-react';
+import { ExternalLink, Link2Off } from 'lucide-react';
+import BackButton from '../ui/BackButton';
 
 import { formatRelativeTime } from './githubShared';
 
@@ -57,7 +57,6 @@ function ConnectionBadge({ connected, status }) {
 }
 
 export default function GitHubHeader({
-  projectId,
   projectName,
   connected,
   status,
@@ -71,15 +70,10 @@ export default function GitHubHeader({
 
   return (
     <div>
-      <Link
-        to={`/projects/${projectId}`}
-        className="mb-3 inline-flex items-center gap-1.5 rounded text-xs text-[#8B88AE]
-                   transition-colors hover:text-[#C9A8FF]
-                   focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
-      >
-        <ArrowLeft size={13} />
-        {projectName ?? 'Project'}
-      </Link>
+      <BackButton
+        label={projectName ?? 'Project'}
+        className="mb-3 rounded text-xs text-[#8B88AE] hover:text-[#C9A8FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
+      />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">

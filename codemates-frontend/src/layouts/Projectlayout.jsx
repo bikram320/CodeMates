@@ -29,7 +29,7 @@ export default function ProjectLayout({
   }, [drawerOpen]);
 
   return (
-    <div className="project-layout container flex h-screen flex-col overflow-hidden bg-[var(--cm-bg)]">
+    <div className="project-layout flex h-screen w-full flex-col overflow-hidden bg-[var(--cm-bg)]">
       <div className="head-container shrink-0">
         <Navbar
           user={user}

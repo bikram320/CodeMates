@@ -12,8 +12,8 @@
  *   sections     {Array}  [{ id, label, tone? }]  ids must match the section ids
  */
 
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Globe, Lock } from 'lucide-react';
+import { Globe, Lock } from 'lucide-react';
+import BackButton from '../ui/BackButton';
 
 const STATUS_META = {
   ACTIVE: { label: 'Active', dot: 'bg-emerald-400' },
@@ -22,7 +22,6 @@ const STATUS_META = {
 };
 
 export default function ProjectSettingsHeader({
-  projectId,
   projectName,
   status = 'ACTIVE',
   visibility = 'PRIVATE',
@@ -43,15 +42,10 @@ export default function ProjectSettingsHeader({
 
   return (
     <header>
-      <Link
-        to={`/projects/${projectId}`}
-        className="mb-3 inline-flex items-center gap-1.5 rounded text-xs text-[#8B88AE]
-                   transition-colors hover:text-[#C9A8FF]
-                   focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
-      >
-        <ArrowLeft size={13} />
-        {projectName || 'Project'}
-      </Link>
+      <BackButton
+        label={projectName || 'Project'}
+        className="mb-3 rounded text-xs text-[#8B88AE] hover:text-[#C9A8FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
+      />
 
       <h1 className="text-2xl font-bold text-[#F5F5F5]">Project settings</h1>
 

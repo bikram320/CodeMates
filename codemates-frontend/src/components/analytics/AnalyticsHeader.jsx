@@ -1,17 +1,13 @@
-import { Link } from "react-router-dom";
-import { ArrowLeft, BarChart3 } from "lucide-react";
+import { BarChart3 } from "lucide-react";
+import BackButton from "../ui/BackButton";
 
-export default function AnalyticsHeader({ projectId, projectName }) {
+export default function AnalyticsHeader({ projectName }) {
   return (
     <div className="flex flex-col gap-3">
-      <Link
-        to={`/projects/${projectId}`}
-        className="inline-flex items-center gap-1.5 self-start rounded text-sm text-[#8B86B8] transition-colors
-                   hover:text-[#F5F5F5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
-      >
-        <ArrowLeft size={14} aria-hidden="true" />
-        Back to project
-      </Link>
+      <BackButton
+        label="Back to project"
+        className="self-start rounded text-[#8B86B8] hover:text-[#F5F5F5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
+      />
 
       <div className="flex items-center gap-3">
         <div

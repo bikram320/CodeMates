@@ -18,7 +18,7 @@ import Logo from "src/components/ui/Logo";
 
 const DEFAULT_LINKS = [
   { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
-  { label: "Discover", to: "/discover", icon: Compass },
+  { label: "Discover", to: "/discover/developers", icon: Compass },
   { label: "Projects", to: "/projects", icon: LayoutDashboard },
   { label: "Messages", to: "/messages", icon: MessageSquare },
 ];

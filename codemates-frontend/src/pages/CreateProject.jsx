@@ -32,12 +32,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertCircle, ArrowLeft, CheckCircle2, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, X } from "lucide-react";
 
 import CreateProjectForm from "../components/projectForm/CreateProjectForm";
 import useCreateProject from "../hooks/useCreateProject";
+import BackButton from "../components/ui/BackButton";
 
-const PROJECTS_PATH = "/projects";
 const REDIRECT_DELAY_MS = 1200;
 const NO_FIELD_ERRORS = {};
 
@@ -107,14 +107,10 @@ export default function CreateProject() {
   return (
     <div className="create-project-page">
       <div className="head-container mx-auto w-full max-w-3xl">
-        <Link
-          to={PROJECTS_PATH}
-          className="mb-3 inline-flex items-center gap-1.5 rounded text-sm text-[#8B86B8] transition-colors
-                     hover:text-[#F5F5F5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
-        >
-          <ArrowLeft size={14} aria-hidden="true" />
-          All projects
-        </Link>
+        <BackButton
+          label="All projects"
+          className="mb-3 rounded text-[#8B86B8] hover:text-[#F5F5F5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
+        />
         <h1 className="text-2xl font-semibold text-[#F5F5F5]">Create a project</h1>
         <p className="mt-1 text-sm leading-relaxed text-[#8B86B8]">
           Describe what you're building and who you need. You can invite teammates once it's created.

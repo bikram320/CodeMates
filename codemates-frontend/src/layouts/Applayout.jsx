@@ -27,7 +27,7 @@ export default function AppLayout({
   }, [drawerOpen]);
 
   return (
-    <div className="app-layout container flex h-screen flex-col overflow-hidden bg-[var(--cm-bg)]">
+    <div className="app-layout flex h-screen w-full flex-col overflow-hidden bg-[var(--cm-bg)]">
       <div className="head-container shrink-0">
         <Navbar
           user={user}

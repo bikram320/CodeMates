@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import {
   AlertCircle,
-  ArrowLeft,
   Check,
   RefreshCw,
   UserPlus,
@@ -13,6 +12,7 @@ import TeamMemberList from "../components/team/TeamMemberList";
 import InviteMemberModal from "../components/team/InviteMemberModal";
 import { ROLES } from "../components/team/TeamMemberCard";
 import EmptyState from "../components/ui/EmptyState";
+import BackButton from "../components/ui/BackButton";
 
 import useProjectTeam from "../hooks/useProjectTeam";
 import {
@@ -214,15 +214,10 @@ export default function ProjectTeam() {
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="head-container flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <Link
-            to={`/projects/${projectId}`}
-            className="mb-3 inline-flex items-center gap-1.5 rounded text-xs text-[#8B88AE]
-                       transition-colors hover:text-[#C9A8FF]
-                       focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
-          >
-            <ArrowLeft size={13} />
-            {project?.name ?? "Project"}
-          </Link>
+          <BackButton
+            label={project?.name ?? "Project"}
+            className="mb-3 rounded text-xs text-[#8B88AE] hover:text-[#C9A8FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
+          />
 
           <h1 className="text-2xl font-bold text-[#F5F5F5]">Team</h1>
           <p className="mt-1 text-sm text-[#8B88AE]">

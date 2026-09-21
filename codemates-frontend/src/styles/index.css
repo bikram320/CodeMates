@@ -1,5 +1,32 @@
 @import "tailwindcss";
 
+/*
+ * Density
+ * ───────
+ * The root font size is 15px, so every rem-based Tailwind value (spacing,
+ * sizes, text, max-w-*) stays close to GitHub's compact desktop scale. Breakpoints are NOT affected:
+ * media queries use the browser's default font size, not the html font size.
+ *
+ * Tailwind's text scale is then adjusted where the plain 14px root would land
+ * outside a developer-tool range (small text 12–13px, headings 24–28px):
+ *
+ *   class      default(16px root)   here
+ *   text-xs    12px                 12px
+ *   text-sm    14px                 14px
+ *   text-base  16px                 15px
+ *   text-lg    18px                 16.9px
+ *   text-xl    20px                 18.75px
+ *   text-2xl   24px                 24px
+ *   text-3xl   30px                 28.1px
+ *
+ * px-based values (--cm-navbar-h, --cm-sidebar-w, text-[11px], h-[112px]) are
+ * unaffected by the root size.
+ */
+@theme {
+  --text-xs: 0.8rem;    /* 12px */
+  --text-sm: 0.933rem;  /* 14px */
+  --text-2xl: 1.6rem;   /* 24px */
+}
 
 :root {
   /* Surfaces — near-black base, lifted panels, matching the landing page */
@@ -34,7 +61,31 @@
   color-scheme: dark;
 }
 
+/*
+ * Kept in the base layer on purpose: unlayered CSS beats every Tailwind
+ * utility, so `font: inherit` here would wipe out `text-sm` on buttons and
+ * inputs, and `box-sizing` would override `box-content`.
+ */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  button,
+  input,
+  select,
+  textarea,
+  optgroup {
+    font: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+  }
+}
+
 html {
+  font-size: 15px;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -43,6 +94,7 @@ body {
   background-color: var(--cm-bg);
   color: var(--cm-text);
   font-family: var(--cm-font-sans);
+  font-size: 1rem;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }

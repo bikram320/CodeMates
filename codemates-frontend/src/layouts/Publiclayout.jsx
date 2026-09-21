@@ -10,7 +10,7 @@ export default function PublicLayout({
   logoSrc = null,
 }) {
   return (
-    <div className="public-layout container flex min-h-screen flex-col bg-[var(--cm-bg)]">
+    <div className="public-layout flex min-h-screen w-full flex-col bg-[var(--cm-bg)]">
       <div className="head-container">
         <PublicNavbar links={navLinks} logoSrc={logoSrc} />
       </div>

@@ -108,7 +108,7 @@ export default function Landing() {
   return (
     <div className="landing-page">
       {/* Hero */}
-      <section className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:items-center lg:px-8 lg:py-24">
+      <section className="grid w-full gap-10 px-4 py-16 sm:px-8 lg:grid-cols-2 lg:items-center lg:px-16 lg:py-24">
         <div>
           <p className="font-[var(--cm-font-mono)] text-sm text-[var(--cm-lavender)]">
             CODEMATES
@@ -173,7 +173,7 @@ export default function Landing() {
 
       {/* Value proposition */}
       <section className="border-t border-[var(--cm-border)] bg-[var(--cm-section-bg)]">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="w-full px-4 py-16 sm:px-8 lg:px-16">
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {VALUE_PROPS.map((item) => {
               const Icon = item.icon;
@@ -196,7 +196,7 @@ export default function Landing() {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <section id="how-it-works" className="w-full px-4 py-16 sm:px-8 lg:px-16">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-semibold text-[var(--cm-text)]">How it works</h2>
           <p className="mt-3 text-sm text-[var(--cm-text-dim)]">
@@ -223,7 +223,7 @@ export default function Landing() {
 
       {/* Feature showcase */}
       <section className="border-t border-[var(--cm-border)] bg-[var(--cm-section-bg)]">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="w-full px-4 py-16 sm:px-8 lg:px-16">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-semibold text-[var(--cm-text)]">
               Everything a project needs
@@ -255,7 +255,7 @@ export default function Landing() {
       </section>
 
       {/* Workspace preview */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <section className="w-full px-4 py-16 sm:px-8 lg:px-16">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-semibold text-[var(--cm-text)]">
             One workspace per project

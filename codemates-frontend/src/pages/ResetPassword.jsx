@@ -4,42 +4,30 @@
  * Reset password page (/reset-password?token=...). Renders inside PublicLayout,
  * using the same AuthLayout / AuthInput as Login, Register and Forgot Password.
  *
- * ⚠️ MOCK BEHAVIOR ONLY. The token is never verified and nothing is changed.
- *   - any non-empty ?token=… → the reset "succeeds"
- *   - ?token=expired         → the server-style "link has expired" error
- *   - no token in the URL    → the "link isn't valid" screen
- *   - ?mockAuth=error        → simulates the service being unreachable
+ * ── Data flow ─────────────────────────────────────────────────────────────────
  *
- * ── Going live later ──────────────────────────────────────────────────────────
- *   Replace mockResetPassword() with POST /api/auth/reset-password
- *   { token, newPassword }. The backend clears the auth cookies and forces a
- *   fresh login, which is why success sends the user to /login. The token
- *   itself is only ever checked by the backend, so an invalid or expired token
- *   comes back as an error on submit (handled by `tokenProblem` below).
+ *   ResetPassword.jsx → useAuth() → authApi.js → authMock.js
+ *
+ * ⚠️ MOCK AUTH ONLY (src/mock/authMock.js). Tokens aren't verified by the page;
+ * the API decides.
+ *   - a token from the forgot-password console link → changes that mock account's password
+ *   - any other non-empty ?token=…                  → succeeds with no change
+ *   - ?token=expired / ?token=invalid               → the expired / invalid-link error
+ *   - no token in the URL                           → the "link isn't valid" screen
+ *   - ?mockAuth=error                               → simulates the service being unreachable
+ *
+ * Success sends the user to /login: the backend clears the auth cookies and
+ * forces a fresh login after a reset.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { AlertCircle, ArrowLeft, Check, CheckCircle2, Loader2, Lock } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, Loader2, Lock } from "lucide-react";
 
 import AuthLayout from "../components/auth/AuthLayout";
 import AuthInput from "../components/auth/AuthInput";
-
-/* ── Mock reset ──────────────────────────────────────────────────────────── */
-
-function mockResetPassword({ token }) {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (new URLSearchParams(window.location.search).get("mockAuth") === "error") {
-        return reject(Object.assign(new Error("We couldn't reach CodeMates. Check your connection and try again."), { status: 503 }));
-      }
-      if (token === "expired") {
-        return reject(Object.assign(new Error("This reset link has expired. Request a new one to continue."), { status: 410 }));
-      }
-      resolve(null);
-    }, 1000);
-  });
-}
+import useAuth from "../hooks/useAuth";
+import BackButton from "../components/ui/BackButton";
 
 /* ── Validation ──────────────────────────────────────────────────────────── */
 
@@ -73,10 +61,7 @@ const textLink =
   "rounded text-[#C9A8FF] transition-colors hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A8FF]/60";
 
 const backToLogin = (
-  <Link to="/login" className={`inline-flex items-center gap-1.5 font-medium ${textLink}`}>
-    <ArrowLeft size={14} aria-hidden="true" />
-    Back to login
-  </Link>
+  <BackButton label="Back to login" className={`font-medium ${textLink}`} />
 );
 
 /* ── Page ────────────────────────────────────────────────────────────────── */
@@ -84,6 +69,7 @@ const backToLogin = (
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token")?.trim() ?? "";
+  const { resetPassword } = useAuth();
 
   const [values, setValues] = useState({ password: "", confirmPassword: "" });
   const [touched, setTouched] = useState({});
@@ -123,7 +109,7 @@ export default function ResetPassword() {
     setError(null);
     setIsLoading(true);
     try {
-      await mockResetPassword({ token, newPassword: values.password });
+      await resetPassword(token, values.password);
       setDone(true);
     } catch (err) {
       setError({
@@ -166,9 +152,7 @@ export default function ResetPassword() {
           <p className="text-sm leading-relaxed text-[#F3F4F6]">Your password has been reset.</p>
           <p className="mt-2 text-sm leading-relaxed text-[#9CA3AF]">Log in with your new password to get back to your projects.</p>
         </div>
-        <Link to="/login" className={`${primaryButton} mt-6`}>
-          Back to login
-        </Link>
+        <BackButton label="Back to login" className={`${primaryButton} mt-6`} />
       </AuthLayout>
     );
   }
@@ -256,8 +240,9 @@ export default function ResetPassword() {
         role="note"
         className="mt-6 rounded-lg border border-[#C9A8FF]/25 bg-[#C9A8FF]/5 px-3.5 py-2.5 text-xs leading-relaxed text-[#9CA3AF]"
       >
-        <span className="font-medium text-[#F3F4F6]">Demo mode.</span> The token isn't checked and no password is
-        changed. Use ?token=expired in the URL to see the expired-link error.
+        <span className="font-medium text-[#F3F4F6]">Demo mode.</span> A link from the forgot-password flow (printed in
+        the console) changes that mock account's password; any other token just succeeds. Use ?token=expired to see
+        the expired-link error.
       </p>
     </AuthLayout>
   );

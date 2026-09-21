@@ -4,24 +4,24 @@
  * Register page (/register). Renders inside PublicLayout, using the same
  * AuthLayout / AuthInput / AuthDivider as Login.
  *
- * ⚠️ MOCK BEHAVIOR ONLY. No account is created: nothing is sent anywhere and
- * nothing is stored.
- *   - email demo@codemates.dev → "already exists"
- *   - username admin / codemates / demo → "already taken"
- *   - anything else valid → succeeds and goes to /dashboard
- *   - "Sign up with GitHub" → succeeds
- *   - ?mockAuth=error in the URL → simulates the service being unreachable
+ * ── Data flow ─────────────────────────────────────────────────────────────────
  *
- * ── Going live later ──────────────────────────────────────────────────────────
- *   POST /api/auth/register only accepts { email, password, username, fullName }
- *   and logs the user in (cookies). The rest of the form is profile data, sent
- *   afterwards (see toRegisterRequests()):
- *     PUT  /api/users/me            { bio, githubUsername, linkedinUrl, isOpenToCollaborate }
- *     POST /api/users/me/skills     once per skill, { skillName }
- *   The profile is created asynchronously from the `user.registered` event, so
- *   it may not exist for a moment after registering: retry the first PUT briefly.
- *   The backend's real password/username rules aren't documented; the ones
- *   below are a UI guess, so align them with the backend.
+ *   Register.jsx → useAuth() → authApi.js → authMock.js
+ *
+ * ⚠️ MOCK AUTH ONLY (src/mock/authMock.js): the account is stored in this
+ * browser only and nothing is sent anywhere.
+ *   - email demo@codemates.dev             → "already exists"
+ *   - username admin / codemates / demo    → "already taken"
+ *   - anything else valid                  → creates the account, signs in, goes to /dashboard
+ *   - "Sign up with GitHub"                → signs in the mock GitHub user
+ *   - ?mockAuth=error in the URL           → simulates the service being unreachable
+ *
+ * The form collects more than POST /api/auth/register accepts
+ * ({ email, password, username, fullName }). toRegisterRequests() splits it
+ * into `account` and `profile`, and authApi.register() is responsible for the
+ * follow-up profile calls when the real backend is connected.
+ * The backend's real password/username rules aren't documented; the ones
+ * below are a UI guess, so align them with the backend.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -34,39 +34,13 @@ import { FaGithub, FaLinkedin } from "react-icons/fa";
 import AuthLayout from "../components/auth/AuthLayout";
 import AuthInput from "../components/auth/AuthInput";
 import AuthDivider from "../components/auth/AuthDivider";
+import useAuth from "../hooks/useAuth";
+import { DEMO_ACCOUNT } from "../mock/authMock"; // only for the demo note below
 
 const DEFAULT_REDIRECT = "/dashboard";
 const BIO_MAX = 200;
 const SKILLS_MAX = 10;
 const SKILL_NAME_MAX = 30;
-
-/* ── Mock signup ─────────────────────────────────────────────────────────── */
-
-const TAKEN_EMAIL = "demo@codemates.dev";
-const TAKEN_USERNAMES = ["admin", "codemates", "demo"];
-
-const authError = (message, status, fieldErrors) => Object.assign(new Error(message), { status, fieldErrors });
-
-function mockRegister(account, profile, method) {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (new URLSearchParams(window.location.search).get("mockAuth") === "error") {
-        return reject(authError("We couldn't reach CodeMates. Check your connection and try again.", 503));
-      }
-      if (method === "password") {
-        const fieldErrors = {};
-        if (account.email.toLowerCase() === TAKEN_EMAIL) {
-          fieldErrors.email = "An account with this email already exists. Try logging in instead.";
-        }
-        if (TAKEN_USERNAMES.includes(account.username.toLowerCase())) {
-          fieldErrors.username = "That username is already taken. Try another.";
-        }
-        if (Object.keys(fieldErrors).length) return reject(authError("Some details need attention.", 409, fieldErrors));
-      }
-      resolve({ user: { id: "user-uuid-new", email: account.email ?? TAKEN_EMAIL } });
-    }, 1100);
-  });
-}
 
 /* ── Validation ──────────────────────────────────────────────────────────── */
 
@@ -103,7 +77,7 @@ function validate(v) {
 
   const email = v.email.trim();
   if (!email) e.email = "Enter your email address.";
-  else if (!EMAIL_RE.test(email)) e.email = "Enter a valid email address, like name@example.com.";
+  else if (!EMAIL_RE.test(email)) e.email = "Enter a valid email address.";
 
   if (!v.password) e.password = "Create a password.";
   else if (!PASSWORD_RULES.every((r) => r.test(v.password))) e.password = "Password doesn't meet all the requirements below.";
@@ -112,9 +86,9 @@ function validate(v) {
   else if (v.confirmPassword !== v.password) e.confirmPassword = "Passwords don't match.";
 
   if (v.bio.trim().length > BIO_MAX) e.bio = `Keep your bio under ${BIO_MAX} characters.`;
-  if (parseGithubUsername(v.githubUsername) === null) e.githubUsername = "Enter a GitHub username (like octocat) or your profile link.";
+  if (parseGithubUsername(v.githubUsername) === null) e.githubUsername = "Enter a GitHub username or profile link.";
   if (v.linkedinUrl.trim() && !LINKEDIN_RE.test(v.linkedinUrl.trim())) {
-    e.linkedinUrl = "Use your LinkedIn profile link, like https://www.linkedin.com/in/your-name.";
+    e.linkedinUrl = "Use your LinkedIn profile link.";
   }
   if (!v.terms) e.terms = "Accept the terms to create your account.";
 
@@ -170,6 +144,7 @@ const INITIAL = {
 
 export default function Register() {
   const navigate = useNavigate();
+  const { register, loginWithGithub } = useAuth();
 
   const [values, setValues] = useState(INITIAL);
   const [touched, setTouched] = useState({});
@@ -232,8 +207,11 @@ export default function Register() {
     setServerErrors({});
     setPending(method);
     try {
-      const { account, profile } = method === "github" ? { account: {}, profile: {} } : toRegisterRequests(values);
-      await mockRegister(account, profile, method);
+      if (method === "github") await loginWithGithub();
+      else {
+        const { account, profile } = toRegisterRequests(values);
+        await register({ ...account, profile });
+      }
       navigate(DEFAULT_REDIRECT, { replace: true });
     } catch (err) {
       setPending(null);
@@ -289,19 +267,19 @@ export default function Register() {
       <form onSubmit={handleSubmit} noValidate aria-busy={pending === "password"}>
         <fieldset disabled={isBusy} className="m-0 flex min-w-0 flex-col gap-5 border-0 p-0">
           <AuthInput
-            id="register-fullName" label="Full name" icon={User} placeholder="Enter your full name" type="text"
+            id="register-fullName" label="Full name" icon={User} placeholder="Ada Lovelace"
             autoComplete="name" error={errorFor("fullName")} {...bind("fullName")}
           />
 
           <AuthInput
-            id="register-username" label="Username" icon={AtSign} placeholder="Enter a username" type="text"
+            id="register-username" label="Username" icon={AtSign} placeholder="ada_codes"
             autoComplete="username" autoCapitalize="none" spellCheck={false}
             hint="3 to 20 letters, numbers or underscores. Shown on your public profile."
             error={errorFor("username")} {...bind("username")}
           />
 
           <AuthInput
-            id="register-email" label="Email" type="email" icon={Mail} placeholder="Enter your email address"
+            id="register-email" label="Email" type="email" icon={Mail} placeholder="you@example.com"
             autoComplete="email" inputMode="email" autoCapitalize="none" spellCheck={false}
             error={errorFor("email")} {...bind("email")}
           />
@@ -443,7 +421,6 @@ export default function Register() {
                 <AuthInput
                   id="register-githubUsername"
                   label={<>GitHub <span className="text-xs font-normal text-[#9CA3AF]">(optional)</span></>}
-                  type="text"
                   icon={FaGithub} placeholder="Enter your GitHub username or profile link"
                   autoComplete="off" autoCapitalize="none" spellCheck={false}
                   error={errorFor("githubUsername")} {...bind("githubUsername")}
@@ -499,8 +476,8 @@ export default function Register() {
         role="note"
         className="mt-6 rounded-lg border border-[#C9A8FF]/25 bg-[#C9A8FF]/5 px-3.5 py-2.5 text-xs leading-relaxed text-[#9CA3AF]"
       >
-        <span className="font-medium text-[#F3F4F6]">Demo mode.</span> No account is created and nothing is sent
-        anywhere. To see the "already taken" errors, try the email {TAKEN_EMAIL} or the username admin.
+        <span className="font-medium text-[#F3F4F6]">Demo mode.</span> Accounts are stored only in this browser and
+        nothing is sent anywhere. To see the "already taken" errors, try the email {DEMO_ACCOUNT.email} or the username admin.
       </p>
     </AuthLayout>
   );

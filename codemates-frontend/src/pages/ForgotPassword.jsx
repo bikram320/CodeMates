@@ -4,40 +4,30 @@
  * Forgot password page (/forgot-password). Renders inside PublicLayout, using
  * the same AuthLayout / AuthInput as Login and Register.
  *
- * ⚠️ MOCK BEHAVIOR ONLY. No email is sent and nothing leaves the browser.
- * Any valid email "succeeds". ?mockAuth=error in the URL simulates the
- * service being unreachable.
+ * ── Data flow ─────────────────────────────────────────────────────────────────
  *
- * ── Going live later ──────────────────────────────────────────────────────────
- *   Replace mockRequestPasswordReset() with POST /api/auth/forgot-password
- *   { email }. The backend always returns success whether or not the email is
- *   registered, so the success message must not confirm an account exists
- *   (it says "if an account exists…" for that reason).
- *   The emailed link should open a reset page that calls
- *   POST /api/auth/reset-password { token, newPassword }. That page isn't built yet.
+ *   ForgotPassword.jsx → useAuth() → authApi.js → authMock.js
+ *
+ * ⚠️ MOCK AUTH ONLY (src/mock/authMock.js): no email is sent. Any valid email
+ * "succeeds", exactly like the real endpoint, which never reveals whether an
+ * account exists (so the success message says "if an account exists…").
+ * For a real mock account, the reset link is printed to the browser console.
+ * ?mockAuth=error in the URL simulates the service being unreachable.
+ *
+ * The emailed link opens /reset-password?token=…, which calls
+ * POST /api/auth/reset-password { token, newPassword }.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertCircle, ArrowLeft, Loader2, Mail, MailCheck } from "lucide-react";
+import { AlertCircle, Loader2, Mail, MailCheck } from "lucide-react";
 
 import AuthLayout from "../components/auth/AuthLayout";
 import AuthInput from "../components/auth/AuthInput";
+import useAuth from "../hooks/useAuth";
+import BackButton from "../components/ui/BackButton";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
-/* ── Mock request ────────────────────────────────────────────────────────── */
-
-function mockRequestPasswordReset() {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (new URLSearchParams(window.location.search).get("mockAuth") === "error") {
-        return reject(Object.assign(new Error("We couldn't reach CodeMates. Check your connection and try again."), { status: 503 }));
-      }
-      resolve(null); // mirrors the real endpoint: always succeeds
-    }, 1000);
-  });
-}
 
 /* ── Styles ──────────────────────────────────────────────────────────────── */
 
@@ -58,6 +48,7 @@ const textLink =
 /* ── Page ────────────────────────────────────────────────────────────────── */
 
 export default function ForgotPassword() {
+  const { forgotPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [touched, setTouched] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -74,7 +65,7 @@ export default function ForgotPassword() {
   const emailError = !trimmed
     ? "Enter your email address."
     : !EMAIL_RE.test(trimmed)
-    ? "Enter a valid email address."
+    ? "Enter a valid email address, like name@example.com."
     : undefined;
   const shownError = touched || submitted ? emailError : undefined;
 
@@ -89,7 +80,7 @@ export default function ForgotPassword() {
     setError(null);
     setIsLoading(true);
     try {
-      await mockRequestPasswordReset(trimmed);
+      await forgotPassword(trimmed);
       setSentTo(trimmed);
     } catch (err) {
       setError(err.message || "Something went wrong. Try again.");
@@ -105,10 +96,7 @@ export default function ForgotPassword() {
   };
 
   const backToLogin = (
-    <Link to="/login" className={`inline-flex items-center gap-1.5 font-medium ${textLink}`}>
-      <ArrowLeft size={14} aria-hidden="true" />
-      Back to login
-    </Link>
+    <BackButton label="Back to login" className={`font-medium ${textLink}`} />
   );
 
   const demoNote = (
@@ -116,8 +104,8 @@ export default function ForgotPassword() {
       role="note"
       className="mt-6 rounded-lg border border-[#C9A8FF]/25 bg-[#C9A8FF]/5 px-3.5 py-2.5 text-xs leading-relaxed text-[#9CA3AF]"
     >
-      <span className="font-medium text-[#F3F4F6]">Demo mode.</span> No email is sent. Any valid address shows the
-      success screen.
+      <span className="font-medium text-[#F3F4F6]">Demo mode.</span> No email is sent; for an existing mock account the
+      reset link is printed to the browser console. Any valid address shows the success screen.
     </p>
   );
 
@@ -174,7 +162,7 @@ export default function ForgotPassword() {
             label="Email"
             type="email"
             icon={Mail}
-            placeholder="Enter your email address"
+            placeholder="you@example.com"
             autoComplete="email"
             inputMode="email"
             autoCapitalize="none"

@@ -1,6 +1,5 @@
 import { NavLink } from "react-router-dom";
 import {
-  ArrowLeft,
   BarChart3,
   Files,
   User,
@@ -10,6 +9,7 @@ import {
   Settings,
   Users,
 } from "lucide-react";
+import BackButton from "../ui/BackButton";
 
 
 const DEFAULT_ITEMS = [
@@ -28,7 +28,6 @@ export default function ProjectSidebar({
   project = { id: "", name: "", role: "", visibility: "" },
   basePath,
   items = DEFAULT_ITEMS,
-  backTo = "/projects",
   backLabel = "All projects",
   onNavigate,
   className = "",
@@ -44,14 +43,11 @@ export default function ProjectSidebar({
       className={`flex h-full shrink-0 flex-col border-r border-[var(--cm-border)] bg-[var(--cm-bg)] ${className}`}
     >
       <div className="border-b border-[var(--cm-border)] p-3">
-        <NavLink
-          to={backTo}
+        <BackButton
+          label={backLabel}
           onClick={onNavigate}
-          className="mb-3 inline-flex items-center gap-1.5 text-xs text-[var(--cm-muted)] transition-colors hover:text-[var(--cm-text-dim)]"
-        >
-          <ArrowLeft size={14} />
-          {backLabel}
-        </NavLink>
+          className="mb-3 text-xs text-[var(--cm-muted)] hover:text-[var(--cm-text-dim)]"
+        />
 
         <div className="flex items-start gap-2.5">
           <span

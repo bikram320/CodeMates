@@ -11,7 +11,8 @@
  *   onBack       {fn}      Shown below the lg breakpoint only
  */
 
-import { ArrowLeft, Bell, BellOff } from 'lucide-react';
+import { Bell, BellOff } from 'lucide-react';
+import BackButton from '../ui/BackButton';
 
 import { DeveloperAvatar, formatLastSeen } from './messagesShared';
 
@@ -21,16 +22,13 @@ export default function DirectMessageHeader({ participant, isMuted, onToggleMute
 
   return (
     <div className="flex items-center gap-3 border-b border-[#1C1A38] px-4 py-3">
-      <button
-        type="button"
+      <BackButton
+        label=""
         onClick={onBack}
-        aria-label="Back to conversations"
         className="-ml-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#8B88AE]
-                   transition-colors hover:bg-[#1D1A40] hover:text-[#F5F5F5] lg:hidden
+                   hover:bg-[#1D1A40] hover:text-[#F5F5F5] lg:hidden
                    focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
-      >
-        <ArrowLeft size={18} />
-      </button>
+      />
 
       <DeveloperAvatar
         name={participant.name}

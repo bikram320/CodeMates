@@ -3,16 +3,20 @@
  *
  * Login page (/login). Renders inside PublicLayout.
  *
- * ⚠️ MOCK BEHAVIOR ONLY. No real authentication happens: nothing is sent
- * anywhere, no token or cookie is stored, and "remember me" is ignored.
+ * ── Data flow ─────────────────────────────────────────────────────────────────
+ *
+ *   Login.jsx → useAuth() → authApi.js → authMock.js
+ *
+ * ⚠️ MOCK AUTH ONLY (src/mock/authMock.js): nothing is sent anywhere and no
+ * token exists. "Remember me" decides whether the mock session survives
+ * closing the browser.
  *   - demo@codemates.dev / password123 → succeeds
- *   - any other valid email + password → "Incorrect email or password"
- *   - "Continue with GitHub" → succeeds as the demo user
- *   - ?mockAuth=error in the URL → simulates the service being unreachable
+ *   - any other credentials            → "Incorrect email or password"
+ *   - "Continue with GitHub"           → signs in the mock GitHub user
+ *   - ?mockAuth=error in the URL       → simulates the service being unreachable
  *
  * On success the page navigates to the route the user was sent from
- * (location.state.from) or /dashboard. Replace mockLogin() with the real
- * calls when auth is built.
+ * (location.state.from) or /dashboard.
  */
 
 import { useState } from "react";
@@ -23,31 +27,11 @@ import { FaGithub } from "react-icons/fa";
 import AuthLayout from "../components/auth/AuthLayout";
 import AuthInput from "../components/auth/AuthInput";
 import AuthDivider from "../components/auth/AuthDivider";
+import useAuth from "../hooks/useAuth";
+import { DEMO_ACCOUNT } from "../mock/authMock"; // only for the demo note below
 
 const DEFAULT_REDIRECT = "/dashboard";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
-/* ── Mock auth ───────────────────────────────────────────────────────────── */
-
-const DEMO_ACCOUNT = { email: "demo@codemates.dev", password: "password123" };
-
-const authError = (message, status) => Object.assign(new Error(message), { status });
-
-function mockLogin({ email, password }, method) {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const forced = new URLSearchParams(window.location.search).get("mockAuth") === "error";
-      if (forced) {
-        return reject(authError("We couldn't reach CodeMates. Check your connection and try again.", 503));
-      }
-      const ok =
-        method === "github" ||
-        (email.trim().toLowerCase() === DEMO_ACCOUNT.email && password === DEMO_ACCOUNT.password);
-      if (!ok) return reject(authError("Incorrect email or password. Check your details and try again.", 401));
-      resolve({ user: { id: "user-uuid-001", name: "Demo Developer", email: DEMO_ACCOUNT.email } });
-    }, 900);
-  });
-}
 
 /* ── Validation ──────────────────────────────────────────────────────────── */
 
@@ -82,6 +66,7 @@ const textLink =
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { login, loginWithGithub } = useAuth();
   const redirectTo = location.state?.from?.pathname ?? DEFAULT_REDIRECT;
 
   const [values, setValues] = useState({ email: "", password: "", remember: false });
@@ -107,7 +92,8 @@ export default function Login() {
     setError(null);
     setPending(method);
     try {
-      await mockLogin(values, method);
+      if (method === "github") await loginWithGithub();
+      else await login({ email: values.email.trim(), password: values.password, remember: values.remember });
       navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err.message || "Something went wrong. Try again.");
@@ -157,7 +143,7 @@ export default function Login() {
             label="Email"
             type="email"
             icon={Mail}
-            placeholder="Enter your email address"
+            placeholder="you@example.com"
             autoComplete="email"
             inputMode="email"
             autoCapitalize="none"

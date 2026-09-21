@@ -1,4 +1,5 @@
-import { Routes, Route, Link, useOutletContext } from "react-router-dom";
+import { Routes, Route, useOutletContext } from "react-router-dom";
+import BackButton from "src/components/ui/BackButton";
 
 import Publiclayout from "src/layouts/Publiclayout";
 import Applayout from "src/layouts/Applayout";
@@ -53,12 +54,10 @@ function NotFound() {
       <p className="max-w-sm text-sm text-[var(--cm-text-dim)]">
         The page you're looking for doesn't exist or has moved.
       </p>
-      <Link
-        to="/"
-        className="mt-2 rounded-md bg-[var(--cm-indigo)] px-4 py-2 text-sm text-white transition-colors hover:bg-[var(--cm-indigo-hover)]"
-      >
-        Back to home
-      </Link>
+      <BackButton
+        label="Back to home"
+        className="mt-2 rounded-md bg-[var(--cm-indigo)] px-4 py-2 text-white hover:bg-[var(--cm-indigo-hover)]"
+      />
     </div>
   );
 }
