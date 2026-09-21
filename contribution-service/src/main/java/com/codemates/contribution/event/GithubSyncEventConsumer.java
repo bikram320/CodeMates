@@ -2,7 +2,7 @@ package com.codemates.contribution.event;
 
 import com.codemates.contribution.event.dto.GithubCommitSyncedEvent;
 import com.codemates.contribution.service.ContributionScoreService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 public class GithubSyncEventConsumer {
 
     private final ContributionScoreService contributionScoreService;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper objectMapper;
 
     @KafkaListener(topics = "github.commit.synced", groupId = "contribution-service")
     public void onCommitSynced(byte[] payload) {

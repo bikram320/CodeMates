@@ -1,21 +1,21 @@
 package com.codemates.githubsync.event;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Slf4j
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class GithubSyncEventProducer {
 
     private final KafkaTemplate<String, byte[]> kafkaTemplate;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper objectMapper;
 
     public void publishCommitSynced(UUID userId, int repositoriesSynced) {
         try {
@@ -24,10 +24,21 @@ public class GithubSyncEventProducer {
                     .repositoriesSynced(repositoriesSynced)
                     .timestamp(LocalDateTime.now())
                     .build();
+
             byte[] payload = objectMapper.writeValueAsBytes(event);
-            kafkaTemplate.send("github.commit.synced", userId.toString(), payload);
+
+            kafkaTemplate.send(
+                    "github.commit.synced",
+                    userId.toString(),
+                    payload
+            );
+
         } catch (Exception e) {
-            log.error("Failed to publish github.commit.synced event: {}", e.getMessage(), e);
+            log.error(
+                    "Failed to publish github.commit.synced event: {}",
+                    e.getMessage(),
+                    e
+            );
         }
     }
 }

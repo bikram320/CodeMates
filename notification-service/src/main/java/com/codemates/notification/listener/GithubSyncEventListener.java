@@ -3,11 +3,11 @@ package com.codemates.notification.listener;
 import com.codemates.notification.event.GithubCommitSyncedPayload;
 import com.codemates.notification.service.NotificationService;
 import com.codemates.notification.service.NotificationType;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Component

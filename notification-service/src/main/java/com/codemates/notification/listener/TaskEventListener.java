@@ -5,11 +5,11 @@ import com.codemates.notification.client.dto.TaskDetailResponse;
 import com.codemates.notification.service.NotificationService;
 import com.codemates.notification.service.NotificationType;
 import com.codemates.notification.service.ReferenceType;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Map;
 import java.util.Optional;
