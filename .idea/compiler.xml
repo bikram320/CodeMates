@@ -7,7 +7,7 @@
         <processorPath useClasspath="false">
           <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.projectlombok/lombok/1.18.46/a5cfe99fdf320e84955ef653f2ce1bf789d11385/lombok-1.18.46.jar" />
         </processorPath>
-        <module name="api-gateway.main" />
+        <module name="com.codemates.github-sync-service.main" />
       </profile>
     </annotationProcessing>
   </component>
@@ -19,6 +19,12 @@
       <module name="auth-service" options="-parameters" />
       <module name="auth-service.main" options="-parameters" />
       <module name="auth-service.test" options="-parameters" />
+      <module name="com.codemates.auth-service.main" options="-parameters" />
+      <module name="com.codemates.contribution-service.main" options="-parameters" />
+      <module name="com.codemates.github-sync-service.main" options="-parameters" />
+      <module name="com.codemates.messaging-service.main" options="-parameters" />
+      <module name="com.codemates.notification-service.main" options="-parameters" />
+      <module name="com.codemates.social-service.main" options="-parameters" />
       <module name="contribution-service" options="-parameters" />
       <module name="contribution-service.main" options="-parameters" />
       <module name="contribution-service.test" options="-parameters" />
