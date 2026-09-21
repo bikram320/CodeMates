@@ -5,6 +5,10 @@ import Applayout from "src/layouts/Applayout";
 import Projectlayout from "src/layouts/Projectlayout";
 
 import Landing from "src/pages/Landing";
+import Login from "src/pages/Login";
+import Register from "src/pages/Register";
+import ForgotPassword from "src/pages/ForgotPassword";
+import ResetPassword from "src/pages/ResetPassword";
 import Dashboard from "src/pages/Dashboard";
 import DiscoverDevelopers from "src/pages/DiscoverDevelopers";
 import DeveloperProfile from "src/pages/DeveloperProfile";
@@ -65,33 +69,21 @@ export default function AppRoutes() {
       {/* Public pages: Landing, auth screens */}
       <Route element={<Publiclayout />}>
         <Route path="/" element={<Landing />} />
-        <Route
-          path="/login"
-          element={<Placeholder title="Log in" description="Access your CodeMates account." />}
+        <Route 
+          path="/login" 
+          element={<Login />} 
         />
-        <Route
-          path="/register"
-          element={
-            <Placeholder
-              title="Create an account"
-              description="Join CodeMates to find collaborators and ship projects."
-            />
-          }
+        <Route 
+          path="/register" 
+          element={<Register />} 
         />
         <Route
           path="/forgot-password"
-          element={
-            <Placeholder
-              title="Forgot password"
-              description="We will send you a link to reset your password."
-            />
-          }
+          element={<ForgotPassword />}
         />
         <Route
           path="/reset-password"
-          element={
-            <Placeholder title="Reset password" description="Choose a new password for your account." />
-          }
+          element={<ResetPassword />}
         />
       </Route>
 

@@ -3,7 +3,7 @@ import { AlertTriangle } from "lucide-react";
 
 import ConnectionsHeader from "../components/connections/ConnectionsHeader";
 import ConnectionFilters from "../components/connections/ConnectionFilters";
-import ConnectionRequests from "../components/connections/ConnectionRequests";
+import ConnectionRequests from "../components/connections/ConnectionsRequests";
 import ConnectionList from "../components/connections/ConnectionList";
 import Spinner from "../components/ui/Spinner";
 import EmptyState from "../components/ui/EmptyState";
