@@ -21,7 +21,7 @@
 import { SearchX, UserPlus, Users } from 'lucide-react';
 
 import EmptyState from '../ui/EmptyState';
-import TeamMemberCard from './TeamMemberCard';
+import TeamMemberCard from '../team/TeamMemberCard';
 
 const secondaryButton =
   'inline-flex items-center gap-2 rounded-lg border border-[#2E2A66] px-4 py-2 text-sm font-medium ' +

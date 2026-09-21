@@ -19,6 +19,7 @@ const DEFAULT_ITEMS = [
   { label: "Chat", path: "/chat", icon: MessageSquare },
   { label: "Resources", path: "/resources", icon: Files },
   { label: "Contributions", path: "/contributions", icon: BarChart3 },
+  { label: "Analytics", path: "/analytics", icon: BarChart3 },
   { label: "GitHub", path: "/github", icon: User },
   { label: "Settings", path: "/settings", icon: Settings },
 ];

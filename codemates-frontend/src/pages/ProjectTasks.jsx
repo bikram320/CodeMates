@@ -29,9 +29,9 @@ import { Plus, SquareKanban, AlertCircle, RefreshCw } from 'lucide-react';
 
 import { useTasks }                       from '../hooks/useTasks';
 import { getMockMembers }                 from '../mock/taskMock';
-import KanbanColumn                       from '../components/project/KanbanColumn';
-import TaskFilters                        from '../components/project/TaskFilters';
-import TaskModal                          from '../components/project/TaskModal';
+import KanbanColumn                       from '../components/task/KanbanColumn';
+import TaskFilters                        from '../components/task/Taskfilters';
+import TaskModal                          from '../components/task/TaskModal';
 
 // ── Column definitions ────────────────────────────────────────────────────────
 

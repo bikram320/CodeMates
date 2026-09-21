@@ -8,10 +8,10 @@ import {
   UserPlus,
 } from "lucide-react";
 
-import TeamFilters from "../components/project/TeamFilters";
-import TeamMemberList from "../components/project/TeamMemberList";
-import InviteMemberModal from "../components/project/InviteMemberModal";
-import { ROLES } from "../components/project/TeamMemberCard";
+import TeamFilters from "../components/team/TeamFilters";
+import TeamMemberList from "../components/team/TeamMemberList";
+import InviteMemberModal from "../components/team/InviteMemberModal";
+import { ROLES } from "../components/team/TeamMemberCard";
 import EmptyState from "../components/ui/EmptyState";
 
 import useProjectTeam from "../hooks/useProjectTeam";

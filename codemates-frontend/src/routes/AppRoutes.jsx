@@ -13,6 +13,17 @@ import ProjectDetails from "src/pages/ProjectDetails";
 import ProjectTasks from "src/pages/ProjectTasks";
 import ProjectTeam from "src/pages/ProjectTeam";
 import ProjectChat from "src/pages/ProjectChat";
+import ProjectResources from "src/pages/ProjectResources";
+import ProjectContributions from "src/pages/ProjectContributions";
+import ProjectGitHub from "src/pages/ProjectGitHub";
+import Notifications from "src/pages/Notifications";
+import ProjectAnalytics from "src/pages/ProjectAnalytics";
+import Settings from "src/pages/Settings";
+import ProjectSettings from "src/pages/ProjectSettings";
+import MyProjects from "src/pages/MyProjects";
+import CreateProject from "src/pages/CreateProject";
+import Connections from "src/pages/Connections";
+import Messages from "src/pages/Messages";
 import Placeholder from "src/pages/Placeholder";
 
 function ProjectPlaceholder({ title, description }) {
@@ -91,34 +102,29 @@ export default function AppRoutes() {
         <Route path="/discover/developers" element={<DiscoverDevelopers />} />
         <Route path="/discover/developers/:username" element={<DeveloperProfile />} />
         <Route path="/discover/projects" element={<DiscoverProjects />} />
-        <Route
-          path="/projects"
-          element={<Placeholder title="My Projects" description="Projects you own or are a member of." />}
+        <Route 
+          path="/projects" 
+          element={<MyProjects />} 
         />
         <Route
           path="/projects/create"
-          element={<Placeholder title="Create Project" description="Create a new project and start building your team." />}
+          element={<CreateProject />}
         />
         <Route
           path="/connections"
-          element={<Placeholder title="Connections" description="Developers you are connected with." />}
+          element={<Connections />}
         />
         <Route
           path="/messages"
-          element={<Placeholder title="Messages" description="Direct messages and project channels." />}
+          element={<Messages />}
         />
         <Route
           path="/notifications"
-          element={
-            <Placeholder
-              title="Notifications"
-              description="Recent activity across your projects and connections."
-            />
-          }
+          element={<Notifications />}
         />
         <Route
           path="/settings"
-          element={<Placeholder title="Settings" description="Manage your account and preferences." />}
+          element={<Settings />}
         />
       </Route>
 
@@ -138,24 +144,25 @@ export default function AppRoutes() {
           element={<ProjectChat />}
         />
         <Route
-          path="resources"
-          element={<ProjectPlaceholder title="Resources" description="Shared files, links, and docs for this project." />}
+            path="resources"
+            element={<ProjectResources />}
         />
         <Route
-          path="contributions"
-          element={<ProjectPlaceholder title="Contributions" description="Who did what, visualized over time." />}
+            path="contributions"
+            element={<ProjectContributions />}
         />
         <Route
           path="analytics"
-          element={<ProjectPlaceholder title="Analytics" description="Project progress, team activity, task completion, and contribution insights." />}
+          element={<ProjectAnalytics />}
         />
         <Route
           path="github"
-          element={<ProjectPlaceholder title="GitHub" description="Repository activity linked to this project." />}
+          element={<ProjectGitHub />}
         />
+
         <Route
           path="settings"
-          element={<ProjectPlaceholder title="Project Settings" description="Manage this project's details and access." />}
+          element={<ProjectSettings />}
         />
       </Route>
 
