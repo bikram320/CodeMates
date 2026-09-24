@@ -1,4 +1,4 @@
-import { Check, UserMinus, X } from "lucide-react";
+import { Ban, Check, UserMinus, X } from "lucide-react";
 import Card from "../ui/Card";
 import Badge from "../ui/Badge";
 import Button from "../ui/Button";
@@ -6,28 +6,29 @@ import Avatar from "../ui/Avatar";
 import SkillBadge from "../developer/SkillBadge";
 
 /**
- * Card for one person in the Connections page — covers all three
- * contexts (an existing connection, an incoming request, an outgoing
- * request) via `mode`, rather than three near-duplicate components.
+ * Card for one person in the Connections page — covers both real
+ * contexts (an existing connection, an incoming request) via `mode`.
+ *
+ * "outgoing" mode was removed — the real social-service API has no way
+ * to fetch requests you've sent (see connectionsApi.js), so there's
+ * nothing to render that mode with. "block" is real (PUT .../block,
+ * either party) and available in both remaining modes via `onBlock`.
  *
  * Deliberately built from the same primitives DeveloperCard uses
  * (SkillBadge, Badge, Button, Card) rather than wrapping DeveloperCard
- * itself — the action buttons here (Accept/Reject/Remove/Cancel) are
- * unlike anything DeveloperCard supports, so composing from the shared
- * pieces avoided bolting connection-specific logic onto a component
- * built for a different page.
+ * itself — the action buttons here are unlike anything DeveloperCard
+ * supports.
  *
  * Props:
  * - developer   { id, name, username, avatarUrl, skills, role }
- * - mode        "connection" | "incoming" | "outgoing"
+ * - mode        "connection" | "incoming"
  * - meta        string — small caption, e.g. "Connected since Jul 2026"
  * - onAccept, onReject   used when mode="incoming"
- * - onCancel             used when mode="outgoing"
  * - onRemove             used when mode="connection"
+ * - onBlock              optional, either mode — omit to hide the button
  */
 const MODE_LABEL = {
   incoming: "Wants to connect",
-  outgoing: "Request sent",
 };
 
 export default function ConnectionCard({
@@ -37,7 +38,7 @@ export default function ConnectionCard({
   onAccept,
   onReject,
   onRemove,
-  onCancel,
+  onBlock,
   className = "",
 }) {
   if (!developer) return null;
@@ -96,15 +97,15 @@ export default function ConnectionCard({
           </>
         )}
 
-        {mode === "outgoing" && (
-          <Button variant="ghost" size="sm" leftIcon={X} onClick={onCancel}>
-            Cancel
-          </Button>
-        )}
-
         {mode === "connection" && (
           <Button variant="ghost" size="sm" leftIcon={UserMinus} onClick={onRemove}>
             Remove
+          </Button>
+        )}
+
+        {onBlock && (
+          <Button variant="ghost" size="sm" leftIcon={Ban} onClick={onBlock}>
+            Block
           </Button>
         )}
       </div>

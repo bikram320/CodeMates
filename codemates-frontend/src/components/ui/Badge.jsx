@@ -18,8 +18,8 @@ const VARIANTS = {
 };
 
 const SIZES = {
-  sm: "px-2 py-0.5 text-xs gap-1",
-  md: "px-2.5 py-1 text-sm gap-1.5",
+  sm: "px-1.5 py-0.5 text-xs gap-1",
+  md: "px-2 py-0.5 text-sm gap-1",
 };
 
 export default function Badge({
@@ -31,7 +31,7 @@ export default function Badge({
 }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full font-medium ${
+      className={`inline-flex items-center rounded-[var(--cm-radius-sm)] font-medium ${
         VARIANTS[variant] ?? VARIANTS.soft
       } ${SIZES[size] ?? SIZES.sm} ${className}`}
     >

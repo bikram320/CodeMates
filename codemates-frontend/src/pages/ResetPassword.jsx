@@ -5,51 +5,43 @@
  * using the same AuthLayout / AuthInput as Login, Register and Forgot Password.
  *
  * ── Data flow ─────────────────────────────────────────────────────────────────
+ *   ResetPassword.jsx → useAuth() → authApi.js → POST /api/auth/reset-password
  *
- *   ResetPassword.jsx → useAuth() → authApi.js → authMock.js
+ * The token itself is only ever checked by the backend (ResetPasswordRequest
+ * just requires it to be non-blank; validity is AuthService's problem). The
+ * backend returns one message string on failure, with no code distinguishing
+ * "expired" from "already used" from "invalid" — so any failure here shows
+ * that message plus a "Request a new link" link, rather than guessing which.
  *
- * ⚠️ MOCK AUTH ONLY (src/mock/authMock.js). Tokens aren't verified by the page;
- * the API decides.
- *   - a token from the forgot-password console link → changes that mock account's password
- *   - any other non-empty ?token=…                  → succeeds with no change
- *   - ?token=expired / ?token=invalid               → the expired / invalid-link error
- *   - no token in the URL                           → the "link isn't valid" screen
- *   - ?mockAuth=error                               → simulates the service being unreachable
+ * Success clears the auth cookies server-side (see AuthController.resetPassword),
+ * forcing a fresh login — that's why this page sends the user to /login rather
+ * than signing them in.
  *
- * Success sends the user to /login: the backend clears the auth cookies and
- * forces a fresh login after a reset.
+ * Password rules mirror the backend's actual @Size(min=8) on newPassword —
+ * nothing stricter. Keep in sync with Register.jsx's PASSWORD_RULES.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { AlertCircle, Check, CheckCircle2, Loader2, Lock } from "lucide-react";
+import { AlertCircle, ArrowLeft, Check, CheckCircle2, Loader2, Lock } from "lucide-react";
 
 import AuthLayout from "../components/auth/AuthLayout";
 import AuthInput from "../components/auth/AuthInput";
 import useAuth from "../hooks/useAuth";
-import BackButton from "../components/ui/BackButton";
 
-/* ── Validation ──────────────────────────────────────────────────────────── */
-
-// Keep in sync with PASSWORD_RULES in Register.jsx.
-const PASSWORD_RULES = [
-  { id: "len", label: "At least 8 characters", test: (p) => p.length >= 8 },
-  { id: "upper", label: "One uppercase letter", test: (p) => /[A-Z]/.test(p) },
-  { id: "lower", label: "One lowercase letter", test: (p) => /[a-z]/.test(p) },
-  { id: "number", label: "One number", test: (p) => /\d/.test(p) },
-];
+// Kept in sync with Register.jsx's PASSWORD_RULES: both mirror the backend's
+// @Size(min=8) on password fields, nothing more.
+const PASSWORD_RULES = [{ id: "len", label: "At least 8 characters", test: (p) => p.length >= 8 }];
 
 function validate({ password, confirmPassword }) {
   const e = {};
   if (!password) e.password = "Create a new password.";
-  else if (!PASSWORD_RULES.every((r) => r.test(password))) e.password = "Password doesn't meet all the requirements below.";
+  else if (password.length < 8) e.password = "Password must be at least 8 characters.";
 
   if (!confirmPassword) e.confirmPassword = "Confirm your new password.";
   else if (confirmPassword !== password) e.confirmPassword = "Passwords don't match.";
   return e;
 }
-
-/* ── Styles ──────────────────────────────────────────────────────────────── */
 
 const primaryButton =
   "inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#6C7BFF] px-4 py-2.5 text-sm font-semibold " +
@@ -61,10 +53,11 @@ const textLink =
   "rounded text-[#C9A8FF] transition-colors hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A8FF]/60";
 
 const backToLogin = (
-  <BackButton label="Back to login" className={`font-medium ${textLink}`} />
+  <Link to="/login" className={`inline-flex items-center gap-1.5 font-medium ${textLink}`}>
+    <ArrowLeft size={14} aria-hidden="true" />
+    Back to login
+  </Link>
 );
-
-/* ── Page ────────────────────────────────────────────────────────────────── */
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -75,8 +68,9 @@ export default function ResetPassword() {
   const [touched, setTouched] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null); // { message, tokenProblem }
+  const [error, setError] = useState(null); // string | null
   const [done, setDone] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   const resultRef = useRef(null);
   useEffect(() => {
@@ -109,13 +103,11 @@ export default function ResetPassword() {
     setError(null);
     setIsLoading(true);
     try {
-      await resetPassword(token, values.password);
+      const response = await resetPassword(token, values.password);
+      setSuccessMessage(response?.message);
       setDone(true);
     } catch (err) {
-      setError({
-        message: err.message || "Something went wrong. Try again.",
-        tokenProblem: err.status === 400 || err.status === 410,
-      });
+      setError(err.message || "Something went wrong. Try again.");
     } finally {
       setIsLoading(false);
     }
@@ -149,10 +141,12 @@ export default function ResetPassword() {
           <span aria-hidden="true" className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#C9A8FF]/10 text-[#C9A8FF]">
             <CheckCircle2 size={22} />
           </span>
-          <p className="text-sm leading-relaxed text-[#F3F4F6]">Your password has been reset.</p>
+          <p className="text-sm leading-relaxed text-[#F3F4F6]">{successMessage || "Your password has been reset."}</p>
           <p className="mt-2 text-sm leading-relaxed text-[#9CA3AF]">Log in with your new password to get back to your projects.</p>
         </div>
-        <BackButton label="Back to login" className={`${primaryButton} mt-6`} />
+        <Link to="/login" className={`${primaryButton} mt-6`}>
+          Back to login
+        </Link>
       </AuthLayout>
     );
   }
@@ -165,18 +159,13 @@ export default function ResetPassword() {
       footer={backToLogin}
     >
       {error && (
-        <div role="alert" className="mb-5 flex items-start gap-2.5 rounded-lg border border-red-400/30 bg-red-400/5 px-3.5 py-3">
+        <div role="alert" className="mb-5 flex items-start gap-2.5 rounded-xl border border-red-400/30 bg-red-400/5 px-3.5 py-3">
           <AlertCircle size={15} aria-hidden="true" className="mt-0.5 shrink-0 text-red-300" />
           <p className="text-sm leading-relaxed text-red-200">
-            {error.message}
-            {error.tokenProblem && (
-              <>
-                {" "}
-                <Link to="/forgot-password" className={`font-medium ${textLink}`}>
-                  Request a new link
-                </Link>
-              </>
-            )}
+            {error}{" "}
+            <Link to="/forgot-password" className={`font-medium ${textLink}`}>
+              Request a new link
+            </Link>
           </p>
         </div>
       )}
@@ -195,11 +184,11 @@ export default function ResetPassword() {
               {...(showRules
                 ? { "aria-describedby": `reset-password-rules${errorFor("password") ? " reset-password-error" : ""}` }
                 : {})}
-              hint={showRules ? undefined : "Use 8+ characters with upper and lower case letters and a number."}
+              hint={showRules ? undefined : "Use at least 8 characters."}
               {...bind("password")}
             />
             {showRules && (
-              <ul id="reset-password-rules" aria-label="Password requirements" className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+              <ul id="reset-password-rules" aria-label="Password requirements" className="flex flex-col gap-1">
                 {PASSWORD_RULES.map((r) => {
                   const met = r.test(values.password);
                   return (
@@ -235,15 +224,6 @@ export default function ResetPassword() {
           </button>
         </fieldset>
       </form>
-
-      <p
-        role="note"
-        className="mt-6 rounded-lg border border-[#C9A8FF]/25 bg-[#C9A8FF]/5 px-3.5 py-2.5 text-xs leading-relaxed text-[#9CA3AF]"
-      >
-        <span className="font-medium text-[#F3F4F6]">Demo mode.</span> A link from the forgot-password flow (printed in
-        the console) changes that mock account's password; any other token just succeeds. Use ?token=expired to see
-        the expired-link error.
-      </p>
     </AuthLayout>
   );
 }

@@ -20,11 +20,9 @@ import ProjectTeam from "src/pages/ProjectTeam";
 import ProjectChat from "src/pages/ProjectChat";
 import ProjectResources from "src/pages/ProjectResources";
 import ProjectContributions from "src/pages/ProjectContributions";
-import ProjectGitHub from "src/pages/ProjectGitHub";
+import GitHubIntegration from "src/pages/GithubIntegration";
 import Notifications from "src/pages/Notifications";
 import ProjectAnalytics from "src/pages/ProjectAnalytics";
-import Settings from "src/pages/Settings";
-import ProjectSettings from "src/pages/ProjectSettings";
 import MyProjects from "src/pages/MyProjects";
 import CreateProject from "src/pages/CreateProject";
 import Connections from "src/pages/Connections";
@@ -113,10 +111,10 @@ export default function AppRoutes() {
           path="/notifications"
           element={<Notifications />}
         />
-        <Route
+        {/* <Route
           path="/settings"
           element={<Settings />}
-        />
+        /> */}
       </Route>
 
       {/* Project-scoped pages, nested under a single project's layout */}
@@ -148,13 +146,13 @@ export default function AppRoutes() {
         />
         <Route
           path="github"
-          element={<ProjectGitHub />}
+          element={<GitHubIntegration />}
         />
 
-        <Route
+        {/* <Route
           path="settings"
           element={<ProjectSettings />}
-        />
+        /> */}
       </Route>
 
       {/* Fallback */}

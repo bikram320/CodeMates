@@ -20,7 +20,7 @@ const METRICS = [
 export default function TeamActivity({ members }) {
   return (
     <section aria-labelledby="team-activity-title" className="rounded-xl border border-[#1C1A38] bg-[#0A0918] p-5">
-      <h2 id="team-activity-title" className="text-sm font-semibold text-[#F5F5F5]">
+      <h2 id="team-activity-title" className="page-section-heading">
         Team activity
       </h2>
       <p className="mt-0.5 text-xs text-[#6B6890]">What each member did in the last 7 days</p>

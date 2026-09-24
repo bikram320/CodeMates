@@ -15,8 +15,7 @@ import {
   defaultDeveloperProfile,
 } from "../mock/developerProfileMock";
 
-const SECTION_TITLE =
-  "mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--cm-muted)]";
+const SECTION_TITLE = "page-section-heading mb-3";
 
 /**
  * Developer Profile page (/discover/developers/:username).

@@ -8,7 +8,6 @@ import {
   LogOut,
   Menu,
   MessageSquare,
-  Settings,
   User,
   X,
 } from "lucide-react";
@@ -25,7 +24,6 @@ const DEFAULT_LINKS = [
 
 const DEFAULT_MENU_ITEMS = [
   { label: "Profile", to: "/profile", icon: User },
-  { label: "Settings", to: "/settings", icon: Settings },
   { label: "Sign out", to: "/logout", icon: LogOut, danger: true },
 ];
 
@@ -97,7 +95,7 @@ export default function Navbar({
   }, [menuOpen]);
 
   const navLinkClass = ({ isActive }) =>
-    `rounded-md px-3 py-2 text-sm transition-colors ${
+    `rounded-[var(--cm-radius-sm)] px-3 py-2 text-base transition-colors ${
       isActive
         ? "bg-[var(--cm-indigo-soft)] text-[var(--cm-text)]"
         : "text-[var(--cm-text-dim)] hover:bg-[var(--cm-surface)] hover:text-[var(--cm-text)]"
@@ -105,7 +103,7 @@ export default function Navbar({
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--cm-border)] bg-[var(--cm-bg)]">
-      <div className="flex h-16 items-center gap-4 px-4 sm:px-6">
+      <div className="flex h-[var(--cm-navbar-h)] items-center gap-3 px-4 sm:px-5">
         {/* Drawer toggle — only useful when a sidebar is present */}
         {onMenuToggle && (
           <button
@@ -137,9 +135,9 @@ export default function Navbar({
                 ? `Notifications, ${notificationCount} unread`
                 : "Notifications"
             }
-            className="relative inline-flex h-9 w-9 items-center justify-center rounded-md text-[var(--cm-text-dim)] transition-colors hover:bg-[var(--cm-surface)] hover:text-[var(--cm-text)]"
+            className="relative inline-flex h-10 w-10 items-center justify-center rounded-md text-[var(--cm-text-dim)] transition-colors hover:bg-[var(--cm-surface)] hover:text-[var(--cm-text)]"
           >
-            <Bell size={19} />
+            <Bell size={21} />
             {notificationCount > 0 && (
               <span className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--cm-indigo)] px-1 text-[10px] font-medium text-white">
                 {notificationCount > 9 ? "9+" : notificationCount}
@@ -156,8 +154,8 @@ export default function Navbar({
               aria-expanded={menuOpen}
               className="flex items-center gap-2 rounded-md p-1 pr-2 transition-colors hover:bg-[var(--cm-surface)]"
             >
-              <Avatar name={user.name} src={user.avatarUrl} />
-              <span className="hidden text-sm text-[var(--cm-text-dim)] sm:block">
+              <Avatar name={user.name} src={user.avatarUrl} size={36} />
+              <span className="hidden text-base text-[var(--cm-text-dim)] sm:block">
                 {user.name}
               </span>
               <ChevronDown size={15} className="text-[var(--cm-muted)]" />

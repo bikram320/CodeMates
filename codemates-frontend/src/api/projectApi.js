@@ -1,99 +1,154 @@
-import { projects as mockProjects } from "../mock/projectMock";
+/**
+ * src/api/projectApi.js
+ *
+ * All project-service API calls mapped directly to the Spring Boot controllers.
+ *
+ * Endpoints covered:
+ *   ProjectController   → /api/projects
+ *   (no task or comment endpoints here — those are in taskApi.js)
+ *
+ * Auth: httpOnly cookie sent automatically by client.js (credentials: 'include').
+ * Envelope: client.js unwraps { success, message, data } — callers receive `data` only.
+ *
+ * Real endpoints (from ProjectController.java):
+ *   GET    /api/projects/my
+ *   GET    /api/projects/{id}
+ *   POST   /api/projects
+ *   PUT    /api/projects/{id}
+ *   DELETE /api/projects/{id}
+ *   GET    /api/projects/{id}/members
+ *   GET    /api/projects/{id}/members/{userId}/check
+ *   DELETE /api/projects/{id}/members/{memberUserId}
+ *   PUT    /api/projects/{id}/members/{memberUserId}/role
+ *   POST   /api/projects/{id}/invitations
+ *   PUT    /api/projects/invitations/{invitationId}/accept
+ *   PUT    /api/projects/invitations/{invitationId}/reject
+ *   GET    /api/projects/invitations/pending
+ */
 
-// Simulated network latency so loading states are visible during development.
-const SIMULATED_DELAY_MS = 600;
+import client from './client';
 
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function matchesSearch(project, search) {
-  if (!search) return true;
-  const term = search.trim().toLowerCase();
-  if (!term) return true;
-
-  return (
-    project.name.toLowerCase().includes(term) ||
-    project.shortDescription.toLowerCase().includes(term) ||
-    project.techStack.some((tech) => tech.toLowerCase().includes(term))
-  );
-}
-
-// A project matches if it has ANY of the selected tech (OR within the
-// facet) — same reasoning as skills filtering on Discover Developers.
-function matchesTechStack(project, techStack) {
-  if (!techStack || techStack.length === 0) return true;
-  return techStack.some((tech) => project.techStack.includes(tech));
-}
-
-function matchesProjectType(project, projectType) {
-  if (!projectType) return true;
-  return project.projectType === projectType;
-}
-
-function matchesExperience(project, experience) {
-  if (!experience) return true;
-  return project.requiredExperience === experience;
-}
-
-// "Availability" reads the same `status` field also shown on the card —
-// see the note in ProjectFilters.jsx/ProjectCard.jsx for why these aren't
-// two separate fields.
-function matchesAvailability(project, availability) {
-  if (!availability) return true;
-  return project.status === availability;
-}
+// ── Projects ──────────────────────────────────────────────────────────────────
 
 /**
- * Fetch projects matching the given filters.
- *
- * Resolves against local mock data with a simulated delay for now. The
- * signature is shaped like a real API call so swapping the body for a
- * real request later doesn't require touching any caller (useProjects.js,
- * DiscoverProjects.jsx stay exactly as they are).
- *
- * @param {Object} params
- * @param {string} [params.search]
- * @param {string[]} [params.techStack]
- * @param {string|null} [params.projectType]
- * @param {string|null} [params.experience]
- * @param {string|null} [params.availability]
- * @returns {Promise<{ projects: object[], total: number }>}
+ * Returns all projects where the current user is a member (owned + joined).
+ * Server-side: queries ProjectMember records for the auth cookie's userId.
+ * @returns {Promise<ProjectResponse[]>}
  */
-export async function getProjects(params = {}) {
-  const {
-    search = "",
-    techStack = [],
-    projectType = null,
-    experience = null,
-    availability = null,
-  } = params;
+export const getMyProjects = () =>
+  client.get('/api/projects/my');
 
-  await delay(SIMULATED_DELAY_MS);
+/**
+ * Returns a single project by ID.
+ * @param {string} projectId  UUID
+ * @returns {Promise<ProjectResponse>}
+ */
+export const getProject = (projectId) =>
+  client.get(`/api/projects/${projectId}`);
 
-  const results = mockProjects.filter(
-    (project) =>
-      matchesSearch(project, search) &&
-      matchesTechStack(project, techStack) &&
-      matchesProjectType(project, projectType) &&
-      matchesExperience(project, experience) &&
-      matchesAvailability(project, availability)
-  );
+/**
+ * Create a new project.
+ * Creator is automatically added as LEADER member (server-side).
+ * @param {{ name, description?, githubRepoUrl?, visibility?, techStack?, maxMembers? }} data
+ *   techStack must be a plain string e.g. "React, TypeScript, Tailwind"
+ *   visibility defaults to "PRIVATE" on the server
+ * @returns {Promise<ProjectResponse>}
+ */
+export const createProject = (data) =>
+  client.post('/api/projects', data);
 
-  return { projects: results, total: results.length };
+/**
+ * Update a project. Caller must be LEADER.
+ * Only the fields you send are updated (partial update semantics on the server).
+ * @param {string} projectId
+ * @param {{ name?, description?, githubRepoUrl?, status?, visibility?, techStack?, maxMembers? }} data
+ *   status values: ACTIVE | COMPLETED | ARCHIVED
+ * @returns {Promise<ProjectResponse>}
+ */
+export const updateProject = (projectId, data) =>
+  client.put(`/api/projects/${projectId}`, data);
 
-  /*
-   * Real backend version (once Spring Boot is ready) — same signature,
-   * so nothing above this function needs to change:
-   *
-   * import client from "./client";
-   *
-   * export async function getProjects(params = {}) {
-   *   const { search = "", techStack = [], projectType = null, experience = null, availability = null } = params;
-   *   const response = await client.get("/api/projects", {
-   *     params: { search, techStack: techStack.join(","), projectType, experience, availability },
-   *   });
-   *   return response.data; // expect { projects, total } from the API
-   * }
-   */
-}
+/**
+ * Soft-delete a project. Caller must be LEADER.
+ * @param {string} projectId
+ * @returns {Promise<null>}
+ */
+export const deleteProject = (projectId) =>
+  client.delete(`/api/projects/${projectId}`);
+
+// ── Members ───────────────────────────────────────────────────────────────────
+
+/**
+ * List all active members of a project.
+ * @param {string} projectId
+ * @returns {Promise<ProjectMemberResponseDto[]>}
+ *   Each member: { id, projectId, userId, role, joinedAt, invitedByUserId }
+ *   Note: no display name/avatar — those come from user-service.
+ */
+export const getProjectMembers = (projectId) =>
+  client.get(`/api/projects/${projectId}/members`);
+
+/**
+ * Lightweight membership check (used by messaging-service internally).
+ * @param {string} projectId
+ * @param {string} userId
+ * @returns {Promise<{ isMember: boolean, role: string|null }>}
+ */
+export const checkMembership = (projectId, userId) =>
+  client.get(`/api/projects/${projectId}/members/${userId}/check`);
+
+/**
+ * Remove a member. Caller must be LEADER (or removing themselves).
+ * Cannot remove the project LEADER.
+ * @param {string} projectId
+ * @param {string} memberUserId  UUID of the member to remove
+ * @returns {Promise<null>}
+ */
+export const removeMember = (projectId, memberUserId) =>
+  client.delete(`/api/projects/${projectId}/members/${memberUserId}`);
+
+/**
+ * Change a member's role. Caller must be LEADER.
+ * @param {string} projectId
+ * @param {string} memberUserId
+ * @param {string} role  LEADER | CONTRIBUTOR | REVIEWER
+ * @returns {Promise<ProjectMemberResponseDto>}
+ */
+export const changeMemberRole = (projectId, memberUserId, role) =>
+  client.put(`/api/projects/${projectId}/members/${memberUserId}/role`, { role });
+
+// ── Invitations ───────────────────────────────────────────────────────────────
+
+/**
+ * Invite a developer to join the project. Caller must be LEADER.
+ * Invitation expires after 7 days (set server-side).
+ * @param {string} projectId
+ * @param {{ invitedUserId: string, role?: string }} data
+ *   role defaults to CONTRIBUTOR on the server
+ * @returns {Promise<ProjectInvitationResponseDto>}
+ */
+export const inviteMember = (projectId, data) =>
+  client.post(`/api/projects/${projectId}/invitations`, data);
+
+/**
+ * Accept a pending invitation. Only the invited user can accept.
+ * @param {string} invitationId
+ * @returns {Promise<ProjectMemberResponseDto>}
+ */
+export const acceptInvitation = (invitationId) =>
+  client.put(`/api/projects/invitations/${invitationId}/accept`, {});
+
+/**
+ * Reject a pending invitation. Only the invited user can reject.
+ * @param {string} invitationId
+ * @returns {Promise<ProjectInvitationResponseDto>}
+ */
+export const rejectInvitation = (invitationId) =>
+  client.put(`/api/projects/invitations/${invitationId}/reject`, {});
+
+/**
+ * List all pending invitations for the current user (across all projects).
+ * @returns {Promise<ProjectInvitationResponseDto[]>}
+ */
+export const getPendingInvitations = () =>
+  client.get('/api/projects/invitations/pending');

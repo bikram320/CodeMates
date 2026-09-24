@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   acceptConnectionRequest as acceptConnectionRequestApi,
+  blockConnection as blockConnectionApi,
   getConnections,
   getIncomingRequests,
-  getOutgoingRequests,
   rejectConnectionRequest as rejectConnectionRequestApi,
   removeConnection as removeConnectionApi,
   sendConnectionRequest as sendConnectionRequestApi,
@@ -11,14 +11,13 @@ import {
 
 const QK_CONNECTIONS = ["connections", "list"];
 const QK_INCOMING = ["connections", "incoming"];
-const QK_OUTGOING = ["connections", "outgoing"];
 
 /**
- * Connections.jsx -> useConnections() -> connectionsApi.js -> connectionsMock.js
+ * Connections.jsx -> useConnections() -> connectionsApi.js -> real
+ * social-service (via apiClient). No mock data.
  *
- * Three independent queries, matching the three requested "get" functions
- * one-to-one — each maps to a different (or, for outgoing, missing) real
- * endpoint, so collapsing them into one call would hide that distinction.
+ * No outgoing-requests query — see connectionsApi.js for why that's
+ * permanently unavailable rather than just not-yet-built.
  *
  * Note: `isPending` below is the React Query v5 name for a mutation's
  * loading state — use `isLoading` on the mutation objects instead if
@@ -29,17 +28,14 @@ export function useConnections() {
 
   const connectionsQuery = useQuery({ queryKey: QK_CONNECTIONS, queryFn: getConnections });
   const incomingQuery = useQuery({ queryKey: QK_INCOMING, queryFn: getIncomingRequests });
-  const outgoingQuery = useQuery({ queryKey: QK_OUTGOING, queryFn: getOutgoingRequests });
 
-  const isLoading =
-    connectionsQuery.isLoading || incomingQuery.isLoading || outgoingQuery.isLoading;
-  const isError = connectionsQuery.isError || incomingQuery.isError || outgoingQuery.isError;
-  const error = connectionsQuery.error ?? incomingQuery.error ?? outgoingQuery.error;
+  const isLoading = connectionsQuery.isLoading || incomingQuery.isLoading;
+  const isError = connectionsQuery.isError || incomingQuery.isError;
+  const error = connectionsQuery.error ?? incomingQuery.error;
 
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey: QK_CONNECTIONS });
     queryClient.invalidateQueries({ queryKey: QK_INCOMING });
-    queryClient.invalidateQueries({ queryKey: QK_OUTGOING });
   }
 
   const sendMutation = useMutation({
@@ -57,6 +53,11 @@ export function useConnections() {
     onSuccess: invalidateAll,
   });
 
+  const blockMutation = useMutation({
+    mutationFn: blockConnectionApi,
+    onSuccess: invalidateAll,
+  });
+
   const removeMutation = useMutation({
     mutationFn: removeConnectionApi,
     onSuccess: invalidateAll,
@@ -65,7 +66,6 @@ export function useConnections() {
   return {
     connections: connectionsQuery.data ?? [],
     incomingRequests: incomingQuery.data ?? [],
-    outgoingRequests: outgoingQuery.data ?? [],
 
     isLoading,
     isError,
@@ -80,8 +80,9 @@ export function useConnections() {
     rejectConnectionRequest: rejectMutation.mutate,
     isRejecting: rejectMutation.isPending,
 
-    // Also used to cancel an outgoing request — see connectionsApi.js's
-    // removeConnection for why one function covers both.
+    blockConnection: blockMutation.mutate,
+    isBlocking: blockMutation.isPending,
+
     removeConnection: removeMutation.mutate,
     isRemoving: removeMutation.isPending,
   };

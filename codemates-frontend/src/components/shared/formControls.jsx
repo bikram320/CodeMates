@@ -1,7 +1,7 @@
 /**
- * Shared building blocks for the Settings page sections.
+ * Generic form building blocks shared across CodeMates settings-style pages
+ * (Project Settings, the Profile page, and previously Account Settings).
  *
- *   SECTION_IDS                      anchor ids (SettingsHeader nav ↔ sections)
  *   isEqual(a, b)                    deep-ish equality for dirty tracking
  *   <SettingsSection>                titled card
  *   <SectionBody>                    padded content area inside a card
@@ -16,14 +16,6 @@
  */
 
 import { ChevronDown } from 'lucide-react';
-
-export const SECTION_IDS = {
-  profile: 'settings-profile',
-  account: 'settings-account',
-  notifications: 'settings-notifications',
-  preferences: 'settings-preferences',
-  danger: 'settings-danger',
-};
 
 export const isEqual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 

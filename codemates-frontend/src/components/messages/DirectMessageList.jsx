@@ -184,14 +184,14 @@ export default function DirectMessageList({
       role="log"
       aria-label={`Conversation with ${participant.name}`}
       tabIndex={0}
-      className="min-h-0 flex-1 overflow-y-auto px-4 py-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#6C7BFF]/40"
+      className="min-h-0 flex-1 overflow-y-auto px-5 py-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#6C7BFF]/40"
     >
       {rows.map((row) => {
         if (row.type === 'day') {
           return (
             <div key={row.key} className="my-4 flex items-center gap-3 first:mt-0">
               <span className="h-px flex-1 bg-[#1C1A38]" aria-hidden="true" />
-              <span className="rounded-full bg-[#1D1A40] px-3 py-1 text-[11px] font-medium text-[#8B88AE]">
+              <span className="rounded-full bg-[#1D1A40] px-3 py-1.5 text-xs font-medium text-[#8B88AE]">
                 {row.label}
               </span>
               <span className="h-px flex-1 bg-[#1C1A38]" aria-hidden="true" />
@@ -203,7 +203,7 @@ export default function DirectMessageList({
           return (
             <div key={row.key} className="my-4 flex items-center gap-3" role="separator">
               <span className="h-px flex-1 bg-[#C9A8FF]/30" aria-hidden="true" />
-              <span className="text-[11px] font-medium text-[#C9A8FF]">
+              <span className="text-xs font-medium text-[#C9A8FF]">
                 {row.count} new {row.count === 1 ? 'message' : 'messages'}
               </span>
               <span className="h-px flex-1 bg-[#C9A8FF]/30" aria-hidden="true" />

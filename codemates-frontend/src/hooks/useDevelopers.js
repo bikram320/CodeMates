@@ -1,33 +1,37 @@
-import { useQuery } from "@tanstack/react-query";
-import { getDevelopers } from "../api/developerApi";
-
 /**
- * DiscoverDevelopers -> useDevelopers() -> developerApi.getDevelopers() -> mock data
+ * src/hooks/useDevelopers.js
  *
- * Pass the current filter state in; the query re-runs whenever any of
- * them change, because they're part of the query key.
+ * Data hook for Discover Developers.
  *
- *   const { developers, total, isLoading, isError, error } = useDevelopers({
- *     search, skills, experience, availability,
- *   });
+ *   DiscoverDevelopers.jsx → useDevelopers(filters) → discoveryApi.js → real backend
  *
- * @param {Object} filters
- * @param {string} [filters.search]
- * @param {string[]} [filters.skills]
- * @param {string|null} [filters.experience]
- * @param {string|null} [filters.availability]
+ * `filters` maps straight onto GET /api/discovery/search's four params:
+ * skills[], experienceLevel, interests[], openToCollaborate. There is
+ * deliberately no `search` (free-text) filter here — the backend has no such
+ * param, so DiscoverDevelopers.jsx applies any text search itself, client-side,
+ * over whatever this hook returns (see that file for why, and its
+ * matchesSearchText helper).
+ *
+ * `total` is just `developers.length`: discovery-service caps results at 50
+ * server-side and returns no count beyond that cap, so this is "how many came
+ * back," not a true total of everyone who'd match.
  */
-export function useDevelopers(filters = {}) {
-  const { search = "", skills = [], experience = null, availability = null } = filters;
 
+import { useQuery } from '@tanstack/react-query';
+import { searchDevelopers } from '../api/discoveryApi';
+
+export function useDevelopers({ skills = [], experienceLevel = null, interests = [], openToCollaborate = null } = {}) {
   const query = useQuery({
-    queryKey: ["developers", { search, skills, experience, availability }],
-    queryFn: () => getDevelopers({ search, skills, experience, availability }),
+    queryKey: ['discovery', 'developers', { skills, experienceLevel, interests, openToCollaborate }],
+    queryFn: () => searchDevelopers({ skills, experienceLevel, interests, openToCollaborate }),
+    retry: false,
   });
 
+  const developers = query.data ?? [];
+
   return {
-    developers: query.data?.developers ?? [],
-    total: query.data?.total ?? 0,
+    developers,
+    total: developers.length,
     isLoading: query.isLoading,
     isFetching: query.isFetching,
     isError: query.isError,
@@ -35,3 +39,5 @@ export function useDevelopers(filters = {}) {
     refetch: query.refetch,
   };
 }
+
+export default useDevelopers;

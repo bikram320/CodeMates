@@ -4,9 +4,9 @@ import codemateIcon from "src/assets/logo.png";
 
 
 const SIZES = {
-  sm: { icon: "h-6", text: "text-base", gap: "gap-2" },
-  md: { icon: "h-8", text: "text-lg", gap: "gap-2.5" },
-  lg: { icon: "h-10", text: "text-xl", gap: "gap-3" },
+  sm: { icon: "h-7", text: "text-lg", gap: "gap-2.5" },
+  md: { icon: "h-9", text: "text-xl", gap: "gap-3" },
+  lg: { icon: "h-11", text: "text-2xl", gap: "gap-3.5" },
 };
 
 export default function Logo({ size = "md", showText = true, className = "" }) {

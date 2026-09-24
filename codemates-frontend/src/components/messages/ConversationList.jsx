@@ -54,9 +54,9 @@ export default function ConversationList({
   return (
     <aside aria-label="Conversations" className="flex min-h-0 flex-1 flex-col">
       {/* ── Header + search ─────────────────────────────────────────────── */}
-      <div className="border-b border-[#1C1A38] p-4">
+      <div className="border-b border-[#1C1A38] p-5">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-base font-semibold text-[#F5F5F5]">Conversations</h2>
+          <h2 className="text-lg font-semibold text-[#F5F5F5]">Conversations</h2>
           {unreadTotal > 0 && (
             <span className="rounded-md bg-[#6C7BFF]/15 px-2 py-0.5 font-mono text-[11px] text-[#8E9BFF]">
               {unreadTotal} unread
@@ -77,8 +77,8 @@ export default function ConversationList({
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search conversations"
             aria-label="Search conversations"
-            className="w-full rounded-lg border border-[#1C1A38] bg-[#0A0918] py-2 pl-9 pr-9 text-base
-                       text-[#F5F5F5] placeholder:text-[#6B6890] sm:text-sm
+            className="w-full rounded-lg border border-[#1C1A38] bg-[#0A0918] py-3 pl-10 pr-10 text-lg
+                       text-[#F5F5F5] placeholder:text-[#6B6890] sm:text-base
                        transition-colors hover:border-[#2E2A66]
                        focus:border-[#6C7BFF] focus:outline-none focus:ring-2 focus:ring-[#6C7BFF]/30"
           />

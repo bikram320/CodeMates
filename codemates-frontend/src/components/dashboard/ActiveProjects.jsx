@@ -46,7 +46,7 @@ function ProgressBar({ completed, total }) {
 
 function ProjectCard({ project }) {
   return (
-    <div className="card-hover p-5 cursor-pointer">
+    <div className="card-hover cursor-pointer p-4">
       {/* Name + role + visibility */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -66,7 +66,7 @@ function ProjectCard({ project }) {
       </p>
 
       {/* Tech stack */}
-      <div className="flex flex-wrap gap-1.5 mb-4">
+      <div className="mb-3 flex flex-wrap gap-1.5">
         {project.techStack.map((tech) => (
           <span
             key={tech}
@@ -115,7 +115,7 @@ export default function ActiveProjects({ projects }) {
     <section>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-[#F5F5F5]">Active Projects</h2>
+        <h2 className="page-section-heading">Active Projects</h2>
         {projects?.length > 0 && (
           <a
             href="/projects"

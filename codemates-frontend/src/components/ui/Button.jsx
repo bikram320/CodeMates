@@ -26,9 +26,9 @@ const VARIANTS = {
 };
 
 const SIZES = {
-  sm: "px-3 py-1.5 text-xs gap-1.5",
-  md: "px-4 py-2 text-sm gap-2",
-  lg: "px-5 py-2.5 text-sm gap-2",
+  sm: "min-h-8 px-2.5 py-1 text-xs gap-1.5",
+  md: "min-h-9 px-3 py-1.5 text-sm gap-1.5",
+  lg: "min-h-9 px-4 py-2 text-sm gap-2",
 };
 
 export default function Button({
@@ -46,7 +46,7 @@ export default function Button({
   className = "",
   ...rest
 }) {
-  const classes = `inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+  const classes = `inline-flex items-center justify-center rounded-[var(--cm-radius-sm)] font-medium transition-colors focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
     VARIANTS[variant] ?? VARIANTS.primary
   } ${SIZES[size] ?? SIZES.md} ${fullWidth ? "w-full" : ""} ${className}`;
 

@@ -5,32 +5,36 @@ import { AlertTriangle } from "lucide-react";
 import ConversationList from "../components/chat/ConversationList";
 import ChatHeader from "../components/chat/ChatHeader";
 import MessageList from "../components/chat/MessageList";
-import TypingIndicator from "../components/chat/TypingIndicator";
 import MessageInput from "../components/chat/MessageInput";
 import Spinner from "../components/ui/Spinner";
 import EmptyState from "../components/ui/EmptyState";
 
-import { chatUsers, CURRENT_USER_ID, presence } from "../mock/chatMock";
-import { projectDetails, defaultProjectDetails } from "../mock/projectDetailsMock";
 import { useProjectChat } from "../hooks/useProjectChat";
+import { useAuth } from "../hooks/useAuth";
+
+// ⚠️ Temporary display fallback. ConversationResponse/MessageResponse
+// only ever carry raw UUIDs — never a name, avatar, or project title.
+// useAuth() resolves WHO you are (userId) via UserInfoResponse, but that
+// DTO has no name/avatar either — real name/avatar resolution still
+// needs project-service (project name) and user-profile-service (person
+// names/avatars), neither provided yet.
+function shortLabel(id) {
+  return id ? `User ${id.slice(0, 8)}` : "Unknown";
+}
 
 /**
  * Project Chat page (/projects/:projectId/chat).
  *
- * Data flow: this page -> useProjectChat(projectId) -> chatApi.js ->
- * chatMock.js (see hooks/useProjectChat.js and api/chatApi.js — the
- * latter documents exactly where each function diverges from the real
- * messaging-service API, since a couple of them are structurally
- * different, not just pointed at mock data).
- *
- * chatUsers/CURRENT_USER_ID/presence are still imported directly here
- * rather than through the hook — they're reference/session data (a user
- * directory, "who am I"), not something being fetched as a resource.
+ * Fully connected to the real backend for everything REST can do
+ * (conversation list, history, edit, delete). Sending is disabled with
+ * a visible message rather than silently doing nothing — see
+ * hooks/useProjectChat.js for why.
  */
 export default function ProjectChat() {
   const { projectId } = useParams();
-
-  const project = projectDetails[projectId] ?? defaultProjectDetails;
+  const [sendError, setSendError] = useState(null);
+  const { user } = useAuth();
+  const currentUserId = user?.userId ?? null;
 
   const {
     conversations,
@@ -38,86 +42,12 @@ export default function ProjectChat() {
     isConversationsError,
     activeConversationId,
     setActiveConversationId,
-    messages: activeMessages,
+    messages,
     isLoadingMessages,
     isMessagesError,
     messagesError,
     sendMessage,
   } = useProjectChat(projectId);
-
-  const [typingUsers, setTypingUsers] = useState([]);
-
-  // Neither ConversationResponse shape (PROJECT or DIRECT) carries a
-  // display name — resolved from project data or the user directory,
-  // exactly as a real integration would need to.
-  function resolveConversationDisplay(conversation) {
-    if (conversation.type === "PROJECT") {
-      const conversationProject =
-        projectDetails[conversation.projectId] ?? defaultProjectDetails;
-      return {
-        displayName: conversationProject.name,
-        displayAvatar: null,
-        isGroup: true,
-        isOnline: false,
-      };
-    }
-
-    const otherUserId = conversation.participants.find(
-      (p) => p.userId !== CURRENT_USER_ID
-    )?.userId;
-    const other = chatUsers[otherUserId];
-
-    return {
-      displayName: other?.name ?? "Unknown",
-      displayAvatar: other?.avatarUrl ?? null,
-      isGroup: false,
-      isOnline: presence[otherUserId] === "ONLINE",
-    };
-  }
-
-  const enrichedConversations = conversations.map((conversation) => {
-    const self = conversation.participants.find((p) => p.userId === CURRENT_USER_ID);
-    const unread =
-      !!conversation.lastMessageAt &&
-      (!self?.lastReadAt || new Date(self.lastReadAt) < new Date(conversation.lastMessageAt));
-
-    return {
-      ...conversation,
-      ...resolveConversationDisplay(conversation),
-      unread,
-    };
-  });
-
-  const activeConversation = enrichedConversations.find(
-    (c) => c.id === activeConversationId
-  );
-
-  let headerSubtitle = "";
-  if (activeConversation?.isGroup) {
-    const onlineCount = activeConversation.participants.filter(
-      (p) => presence[p.userId] === "ONLINE"
-    ).length;
-    headerSubtitle = `${activeConversation.participants.length} members · ${onlineCount} online`;
-  } else if (activeConversation) {
-    headerSubtitle = activeConversation.isOnline ? "Online" : "Offline";
-  }
-
-  function handleSend(content) {
-    sendMessage(content);
-
-    // Mock-only: briefly show a typing indicator after sending, so the
-    // component is visibly exercised without a real WebSocket. Replace
-    // with a /topic/conversations/{id}/typing subscription later.
-    if (activeConversation && !activeConversation.isGroup) {
-      const other = chatUsers[
-        activeConversation.participants.find((p) => p.userId !== CURRENT_USER_ID)?.userId
-      ];
-      if (other) {
-        setTypingUsers([other.name]);
-        setTimeout(() => setTypingUsers([]), 2000);
-      }
-    }
-  }
 
   if (isLoadingConversations) {
     return (
@@ -137,6 +67,48 @@ export default function ProjectChat() {
     );
   }
 
+  const enrichedConversations = conversations.map((conversation) => {
+    const selfParticipant = conversation.participants?.find(
+      (p) => p.userId === currentUserId
+    );
+    const otherParticipant = conversation.participants?.find(
+      (p) => p.userId !== currentUserId
+    );
+
+    const unread =
+      !!conversation.lastMessageAt &&
+      (!selfParticipant?.lastReadAt ||
+        new Date(selfParticipant.lastReadAt) < new Date(conversation.lastMessageAt));
+
+    return {
+      ...conversation,
+      displayName:
+        conversation.type === "PROJECT"
+          ? `Project ${conversation.projectId?.slice(0, 8)}`
+          : shortLabel(otherParticipant?.userId),
+      displayAvatar: null,
+      isGroup: conversation.type === "PROJECT",
+      isOnline: false, // presence isn't wired up yet — needs the WebSocket /topic/presence subscription
+      unread,
+    };
+  });
+
+  const activeConversation = enrichedConversations.find(
+    (c) => c.id === activeConversationId
+  );
+
+  // Empty until user-profile-service is available to resolve names/avatars.
+  const userDirectory = {};
+
+  function handleSend(content) {
+    try {
+      sendMessage(content);
+      setSendError(null);
+    } catch (err) {
+      setSendError(err.message);
+    }
+  }
+
   return (
     <div className="project-chat-page flex h-[calc(100vh-var(--cm-navbar-h)-4rem)] overflow-hidden rounded-lg border border-[var(--cm-border)]">
       <ConversationList
@@ -150,7 +122,11 @@ export default function ProjectChat() {
         {activeConversation && (
           <ChatHeader
             title={activeConversation.displayName}
-            subtitle={headerSubtitle}
+            subtitle={
+              activeConversation.isGroup
+                ? `${activeConversation.participants?.length ?? 0} members`
+                : undefined
+            }
             avatarUrl={activeConversation.displayAvatar}
             isGroup={activeConversation.isGroup}
           />
@@ -170,13 +146,15 @@ export default function ProjectChat() {
           </div>
         ) : (
           <MessageList
-            messages={activeMessages}
-            currentUserId={CURRENT_USER_ID}
-            userDirectory={chatUsers}
+            messages={messages}
+            currentUserId={currentUserId}
+            userDirectory={userDirectory}
           />
         )}
 
-        <TypingIndicator typingUsers={typingUsers} />
+        {sendError && (
+          <p className="px-5 pb-2 text-xs text-[var(--cm-lavender)]">{sendError}</p>
+        )}
 
         <MessageInput onSend={handleSend} />
       </div>

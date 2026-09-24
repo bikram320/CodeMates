@@ -34,7 +34,7 @@ export default function ProjectOverviewStats({ tasks, milestone }) {
       <div className={card}>
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
           <div>
-            <h2 className="text-sm font-semibold text-[#F5F5F5]">Project progress</h2>
+            <h2 className="page-section-heading">Project progress</h2>
             <p className="mt-0.5 text-xs text-[#6B6890]">
               {total ? `${done} of ${total} tasks done` : "No tasks yet"}
             </p>

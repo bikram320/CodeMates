@@ -21,7 +21,7 @@ export default function DirectMessageHeader({ participant, isMuted, onToggleMute
   const MuteIcon = isMuted ? BellOff : Bell;
 
   return (
-    <div className="flex items-center gap-3 border-b border-[#1C1A38] px-4 py-3">
+    <div className="flex items-center gap-4 border-b border-[#1C1A38] px-5 py-4">
       <BackButton
         label=""
         onClick={onBack}
@@ -39,8 +39,8 @@ export default function DirectMessageHeader({ participant, isMuted, onToggleMute
       />
 
       <div className="min-w-0 flex-1">
-        <h2 className="truncate text-sm font-semibold text-[#F5F5F5]">{participant.name}</h2>
-        <p className="flex min-w-0 items-center gap-1.5 text-xs">
+        <h2 className="truncate text-lg font-semibold text-[#F5F5F5]">{participant.name}</h2>
+        <p className="flex min-w-0 items-center gap-2 text-sm">
           <span className="truncate font-mono text-[#8B88AE]">@{participant.username}</span>
           <span aria-hidden="true" className="text-[#4A4660]">·</span>
           <span className={`shrink-0 ${online ? 'text-emerald-300' : 'text-[#8B88AE]'}`}>

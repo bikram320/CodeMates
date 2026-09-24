@@ -5,7 +5,6 @@ import ConversationList from "../components/messages/ConversationList";
 import DirectMessageHeader from "../components/messages/DirectMessageHeader";
 import DirectMessageList from "../components/messages/DirectMessageList";
 import DirectMessageInput from "../components/messages/DirectMessageInput";
-import { ConfirmDialog } from "../components/projectSettings/projectSettingsShared";
 import EmptyState from "../components/ui/EmptyState";
 
 import useMessages from "../hooks/useMessages";
@@ -165,7 +164,7 @@ export default function Messages() {
         </p>
       </div>
 
-      <div className="body-container mt-4 flex h-[calc(100vh-14rem)] min-h-[520px] overflow-hidden rounded-xl border border-[#1C1A38] bg-[#0A0918]">
+      <div className="messages-surface body-container mt-4 flex h-[calc(100vh-14rem)] min-h-[520px] overflow-hidden rounded-xl border border-[#1C1A38] bg-[#0A0918]">
         {/* ── Conversation list ───────────────────────────────────────────── */}
         <div
           className={`min-h-0 w-full flex-col border-[#1C1A38] lg:flex lg:w-[340px] lg:shrink-0 lg:border-r ${

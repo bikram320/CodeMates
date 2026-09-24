@@ -11,7 +11,7 @@ import {
 import EmptyState from "../ui/EmptyState";
 import { formatRelativeTime } from "../notifications/NotificationItem";
 
-const card = "rounded-xl border border-[#1C1A38] bg-[#0A0918] p-5";
+const card = "rounded-lg border border-[#1C1A38] bg-[#0A0918] p-4";
 
 /** Series shared with ContributionAnalytics so colors mean the same thing on the page. */
 export const SERIES = [
@@ -96,9 +96,9 @@ export default function ActivityTimeline({ trend, activity }) {
   const hasTrend = trend.some((d) => d.tasksCompleted + d.commits + d.messages > 0);
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
+    <div className="flex flex-col gap-5">
       <section aria-labelledby="activity-trend-title" className={card}>
-        <h2 id="activity-trend-title" className="text-sm font-semibold text-[#F5F5F5]">
+        <h2 id="activity-trend-title" className="page-section-heading">
           Activity trend
         </h2>
         <p className="mt-0.5 text-xs text-[#6B6890]">Tasks completed, commits and messages per day, last 14 days</p>
@@ -114,7 +114,7 @@ export default function ActivityTimeline({ trend, activity }) {
       </section>
 
       <section aria-labelledby="recent-activity-title" className={card}>
-        <h2 id="recent-activity-title" className="text-sm font-semibold text-[#F5F5F5]">
+        <h2 id="recent-activity-title" className="page-section-heading">
           Recent activity
         </h2>
         {activity.length === 0 ? (

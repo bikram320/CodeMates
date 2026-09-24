@@ -1,111 +1,172 @@
 /**
  * src/api/authApi.js
  *
- * The single auth API layer. Login, Register, Forgot Password and Reset
- * Password all go through here (via useAuth()); there are no per-page API files.
- * Currently routed to the browser-side mock in src/mock/authMock.js.
+ * The single auth network layer, calling the real Spring Boot AuthController
+ * directly (no mock). Login, Register, Forgot Password and Reset Password all
+ * go through here via useAuth(); there are no per-page API files.
  *
- * Contract (what useAuth() and the pages rely on)
- *   - Success: resolves with plain data. Anything that signs the user in
- *     (login, loginWithGithub, register) resolves with the AuthUser below.
- *     Everything else resolves with null.
- *   - Failure: rejects with an Error that has `.status`, `.code` and, where the
- *     server names the offending inputs, `.fieldErrors` ({ field: message }).
+ * Matches AuthController exactly:
+ *   POST /api/auth/register          RegisterRequest{email,password,username,fullName}
+ *                                     → 201, ApiResponse<UserInfoResponse>
+ *   POST /api/auth/login             LoginRequest{email,password}
+ *                                     → 200, ApiResponse<UserInfoResponse>
+ *   POST /api/auth/logout            (reads refresh_token cookie) → ApiResponse<Void>
+ *   POST /api/auth/refresh           (reads refresh_token cookie) → ApiResponse<Void>,
+ *                                     rotates both cookies. Used only by useAuth() to
+ *                                     check "is the session still valid?" — see its comments.
+ *   POST /api/auth/forgot-password   ForgotPasswordRequest{email} → ApiResponse<Void>,
+ *                                     always succeeds; never reveals whether the email exists.
+ *                                     Sending an actual email isn't implemented server-side yet —
+ *                                     AuthService only logs the reset token (log.info), so right
+ *                                     now the only way to get a real token to test with is to
+ *                                     read it out of the backend's server console.
+ *   POST /api/auth/reset-password    ResetPasswordRequest{token,newPassword} → ApiResponse<Void>,
+ *                                     clears cookies (forces a fresh login).
  *
- *   AuthUser = { id, email, username, fullName, authProvider ('LOCAL' | 'GITHUB'),
- *                avatarUrl, createdAt,
- *                profile: { bio, githubUsername, linkedinUrl, isOpenToCollaborate, skills[] } }
+ * Not called here, on purpose:
+ *   - GET /api/auth/health          not user-facing.
+ *   - POST /api/auth/logout-all     no page asks for "log out everywhere" yet, and it
+ *                                    needs an authenticated userId the way none of the
+ *                                    calls here do (@AuthenticationPrincipal). Add it if
+ *                                    that feature gets built.
+ *   - a "who am I" call             GET /api/users/me or similar does not exist in the
+ *                                    files I've been given. useAuth() works around this
+ *                                    gap — see its comments for what that means and what
+ *                                    file would let the workaround be removed.
  *
- * ── Going live later ──────────────────────────────────────────────────────────
- * The backend authenticates with httpOnly cookies. JavaScript never sees a
- * token, so there is nothing to store: make every call with credentials
- * ('include' / withCredentials) and delete the mock's session storage.
+ * Auth is via httpOnly cookies (access_token, refresh_token) that JavaScript can
+ * never read — AuthResponse's tokens never leave the server; only the
+ * non-sensitive UserInfoResponse (userId, email, authProvider) comes back in the
+ * body. Every call below sends credentials: 'include' so the browser attaches
+ * and stores those cookies; without it, nothing here works.
  *
- *   login(credentials)       POST /api/auth/login { email, password }
- *                            → { userId, email, authProvider }. The AuthUser
- *                            comes from a follow-up GET /api/users/me. `remember`
- *                            isn't sent (the backend has no such option).
- *   register(userData)       POST /api/auth/register { email, password, username, fullName }
- *                            then, with the new cookies, PUT /api/users/me
- *                            { bio, githubUsername, linkedinUrl, isOpenToCollaborate }
- *                            and POST /api/users/me/skills once per skill.
- *                            The profile is created asynchronously from the
- *                            `user.registered` event, so retry the first PUT briefly.
- *   loginWithGithub()        NOT a fetch. It is a full-page redirect to
- *                            GET /api/auth/github; the app comes back already
- *                            signed in, so call getCurrentUser() on return.
- *                            Failures come back as ?error=state_mismatch |
- *                            no_verified_email | oauth_failed.
- *   logout()                 POST /api/auth/logout (needs the refresh cookie)
- *   getCurrentUser()         GET /api/users/me. Map ProfileResponse to AuthUser.
- *                            A 401 means "not signed in" (try POST /api/auth/refresh first).
- *   forgotPassword(email)    POST /api/auth/forgot-password { email }. Always
- *                            succeeds, so the UI must never confirm an account exists.
- *   resetPassword(t, pw)     POST /api/auth/reset-password { token, newPassword }
- *                            Clears the cookies and forces a fresh login.
+ * If the frontend and backend are on different origins (e.g. localhost:5173 vs
+ * :8080), the backend's CORS config must allow that exact origin with
+ * credentials enabled — "Access-Control-Allow-Origin: *" cannot be combined
+ * with cookies, per the fetch/CORS spec. Set VITE_API_BASE_URL to the backend's
+ * origin (e.g. http://localhost:8080); it defaults to '' (relative requests),
+ * which only works same-origin or behind a proxy.
  *
- * Errors: the real API replies { success: false, message, data: null } with one
- * message string (validation failures are "<field>: <message>", first failing
- * field only). It has no `fieldErrors`, so map those messages onto fields here
- * (e.g. duplicate email / username on register) to keep the pages unchanged.
+ * Error shape: the API replies { success: false, message, data: null } with one
+ * message string — there's no per-field detail. request() below turns that into
+ * an Error with `.status` and `.message`, and makes a best-effort guess at which
+ * field the message is about (see guessField) so Register/Reset Password can
+ * still highlight the right input. That guess is inherently unreliable; a
+ * backend change to return field-level codes would let it be removed.
  */
 
-import {
-  mockGetCurrentUser,
-  mockForgotPassword,
-  mockLogin,
-  mockLoginWithGithub,
-  mockLogout,
-  mockRegister,
-  mockResetPassword,
-} from '../mock/authMock';
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+
+const apiError = (message, status, fieldErrors) => Object.assign(new Error(message), { status, fieldErrors });
 
 /**
- * @param {{ email: string, password: string, remember?: boolean }} credentials
- * @returns {Promise<AuthUser>}
+ * Best-effort guess at which form field a single backend message is about.
+ * Order matters: email/username/token are checked before password, since a
+ * login failure message ("Invalid email or password") would otherwise match
+ * both email and password — callers that show a banner only (Login) never
+ * read `.fieldErrors`, so this ambiguity only affects Register/Reset Password,
+ * whose messages are about one field at a time in practice.
  */
-export function login(credentials) {
-  return mockLogin(credentials);
+function guessField(message = '') {
+  const m = message.toLowerCase();
+  if (m.includes('email')) return 'email';
+  if (m.includes('username')) return 'username';
+  if (m.includes('token')) return 'token';
+  if (m.includes('password')) return m.includes('confirm') ? 'confirmPassword' : 'password';
+  return null;
 }
 
 /**
- * Sign in with GitHub. The real version redirects the browser (see above).
- * @returns {Promise<AuthUser>}
+ * POSTs JSON to the backend and unwraps the ApiResponse envelope.
+ * @param {string} path e.g. '/api/auth/login'
+ * @param {{ body?: object, raw?: boolean }} [opts] `raw: true` resolves with
+ *   the full envelope ({ success, message, data, timestamp }) instead of just
+ *   `data`, for callers that want the server's own message (forgot/reset password).
  */
-export function loginWithGithub() {
-  return mockLoginWithGithub();
+async function request(path, { body, raw = false } = {}) {
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      credentials: 'include',
+      ...(body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}),
+    });
+  } catch {
+    throw apiError("Couldn't reach CodeMates. Check your connection and try again.", 0);
+  }
+
+  let json = null;
+  try {
+    json = await res.json();
+  } catch {
+    /* no/invalid body, e.g. some network-layer error pages */
+  }
+
+  if (!res.ok || json?.success === false) {
+    const message = json?.message || `Request failed (${res.status}).`;
+    const field = guessField(message);
+    throw apiError(message, res.status, field ? { [field]: message } : undefined);
+  }
+
+  return raw ? json : json?.data ?? null;
 }
 
 /**
- * @param {{ email: string, password: string, username: string, fullName: string,
- *           profile?: { bio?: string, githubUsername?: string|null, linkedinUrl?: string,
- *                       isOpenToCollaborate?: boolean, skills?: string[] } }} userData
- * @returns {Promise<AuthUser>} the new user, already signed in
+ * @param {{ email: string, password: string, username: string, fullName: string }} userData
+ *   Only these four fields exist on RegisterRequest. Any profile data (bio,
+ *   skills, availability, GitHub, LinkedIn) collected by the Register form is
+ *   NOT sent — there's no endpoint for it in the files provided, so the page
+ *   drops it for now rather than silently pretending to save it.
+ * @returns {Promise<{userId: string, email: string, authProvider: string}>}
  */
-export function register(userData) {
-  return mockRegister(userData);
+export function register({ email, password, username, fullName }) {
+  return request('/api/auth/register', { body: { email, password, username, fullName } });
+}
+
+/**
+ * @param {{ email: string, password: string }} credentials
+ *   LoginRequest has no "remember me" field, and cookie lifetimes are fixed
+ *   server-side (jwt.expiration / jwt.refresh-expiration) — a "remember me"
+ *   checkbox in the UI currently has nothing to change on the backend.
+ * @returns {Promise<{userId: string, email: string, authProvider: string}>}
+ */
+export function login({ email, password }) {
+  return request('/api/auth/login', { body: { email, password } });
 }
 
 /** @returns {Promise<null>} */
-export function logout() {
-  return mockLogout();
+export async function logout() {
+  await request('/api/auth/logout');
+  return null;
 }
 
 /**
- * Restores the signed-in user (e.g. after a page refresh).
- * Rejects with status 401 when nobody is signed in.
- * @returns {Promise<AuthUser>}
+ * Confirms the refresh_token cookie is still valid and rotates both cookies.
+ * Returns no user data (ApiResponse<Void>) — see useAuth() for how this is
+ * used to restore a session after a page refresh.
+ * @returns {Promise<null>}
  */
-export function getCurrentUser() {
-  return mockGetCurrentUser();
+export function refreshSession() {
+  return request('/api/auth/refresh');
 }
 
-/** @returns {Promise<null>} always succeeds, whether or not the email exists */
+/**
+ * Always resolves — the backend never reveals whether the email is registered.
+ * Sending an email isn't implemented yet; the reset token only reaches the
+ * backend's server-side logs (see the header comment above).
+ * @param {string} email
+ * @returns {Promise<{success: boolean, message: string, data: null}>} raw envelope,
+ *   so the page can show the backend's own confirmation wording.
+ */
 export function forgotPassword(email) {
-  return mockForgotPassword(email);
+  return request('/api/auth/forgot-password', { body: { email }, raw: true });
 }
 
-/** @returns {Promise<null>} */
+/**
+ * @param {string} token
+ * @param {string} newPassword
+ * @returns {Promise<{success: boolean, message: string, data: null}>} raw envelope
+ */
 export function resetPassword(token, newPassword) {
-  return mockResetPassword(token, newPassword);
+  return request('/api/auth/reset-password', { body: { token, newPassword }, raw: true });
 }

@@ -17,11 +17,11 @@ export default function EmptyState({
 }) {
   return (
     <div
-      className={`flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--cm-border)] px-6 py-16 text-center ${className}`}
+      className={`flex flex-col items-center justify-center gap-3 border-y border-dashed border-[var(--cm-border)] px-6 py-10 text-center ${className}`}
     >
       {Icon && (
-        <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--cm-indigo-soft)] text-[var(--cm-lavender)]">
-          <Icon size={22} />
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-[var(--cm-indigo-soft)] text-[var(--cm-lavender)]">
+          <Icon size={18} />
         </span>
       )}
       <h3 className="text-base font-medium text-[var(--cm-text)]">{title}</h3>

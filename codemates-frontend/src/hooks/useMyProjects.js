@@ -2,57 +2,34 @@
  * src/hooks/useMyProjects.js
  *
  * React Query hooks for project data.
- *
- * Data flow:
- *   MyProjects.jsx
- *     → useMyProjects()
- *       → projectsApi.getMyProjects()
- *         → getMockProjects()          (VITE_USE_MOCK=true)
- *         → GET /api/projects/my       (VITE_USE_MOCK=false)
- *
- *   ProjectDetails.jsx (or any page needing a single project)
- *     → useProject(projectId)
- *       → projectsApi.getProjectById(projectId)
- *         → getMockProjectById(id)     (VITE_USE_MOCK=true)
- *         → GET /api/projects/{id}     (VITE_USE_MOCK=false)
+ * Calls the real Spring Boot API — no mock layer.
  *
  * Cache key structure:
- *   ['projects', 'my']     → the full list for the current user
- *   ['projects', id]       → a single project by ID
+ *   ['projects', 'my']          → the current user's project list
+ *   ['projects', id]            → a single project
+ *   ['projects', id, 'members'] → a project's member list
  *
- * The keyed structure means React Query can share and invalidate them
- * independently. When a mutation later creates a project, invalidating
- * ['projects', 'my'] automatically refreshes the My Projects list.
+ * Invalidating ['projects', 'my'] (e.g. after createProject) automatically
+ * refreshes the My Projects list without touching individual project caches.
+ */
+
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import * as projectApi from '../api/projectApi';
+
+// ── List: my projects ─────────────────────────────────────────────────────────
+
+/**
+ * Fetch all projects the current user owns or has joined.
  *
  * Usage:
  *   const { projects, isLoading, isError, error, refetch } = useMyProjects();
- *   const { project, isLoading } = useProject('proj-uuid-001');
- */
-
-import { useQuery } from '@tanstack/react-query';
-import { getMyProjects, getProjectById } from '../api/projectsApi';
-
-// ── List hook ─────────────────────────────────────────────────────────────────
-
-/**
- * Fetches and caches all projects the current user owns or has joined.
- *
- * Returns a normalised object so callers don't need to know React Query
- * internals:
- *
- *   projects   → data ?? []   (never undefined — safe to iterate directly)
- *   isLoading  → true on initial fetch
- *   isError    → true if all retries failed
- *   error      → Error object with .message and optional .status
- *   refetch    → manually re-trigger the query (used by the error state retry btn)
  */
 export function useMyProjects() {
   const query = useQuery({
-    queryKey: ['projects', 'my'],
-    queryFn:  getMyProjects,
-    staleTime:           1000 * 60 * 5,   // data is fresh for 5 minutes
-    gcTime:              1000 * 60 * 10,  // keep in cache for 10 minutes
-    retry:               2,
+    queryKey:  ['projects', 'my'],
+    queryFn:   projectApi.getMyProjects,
+    staleTime: 1000 * 60 * 5,
+    retry:     2,
     refetchOnWindowFocus: false,
   });
 
@@ -65,25 +42,22 @@ export function useMyProjects() {
   };
 }
 
-// ── Single-project hook ───────────────────────────────────────────────────────
+// ── Single project ────────────────────────────────────────────────────────────
 
 /**
- * Fetches and caches a single project by ID.
- *
- * Disabled when projectId is falsy so it's safe to call unconditionally
- * even when the ID comes from useParams() before the route resolves.
+ * Fetch a single project by ID.
+ * Safe to call before projectId resolves (query is disabled when falsy).
  *
  * Usage:
  *   const { project, isLoading, isError } = useProject(projectId);
  */
 export function useProject(projectId) {
   const query = useQuery({
-    queryKey: ['projects', projectId],
-    queryFn:  () => getProjectById(projectId),
-    enabled:  !!projectId,
-    staleTime:           1000 * 60 * 5,
-    gcTime:              1000 * 60 * 10,
-    retry:               2,
+    queryKey:  ['projects', projectId],
+    queryFn:   () => projectApi.getProject(projectId),
+    enabled:   !!projectId,
+    staleTime: 1000 * 60 * 5,
+    retry:     2,
     refetchOnWindowFocus: false,
   });
 
@@ -93,5 +67,134 @@ export function useProject(projectId) {
     isError:   query.isError,
     error:     query.error,
     refetch:   query.refetch,
+  };
+}
+
+// ── Project members ───────────────────────────────────────────────────────────
+
+/**
+ * Fetch the member list for a project.
+ *
+ * Returns ProjectMemberResponseDto[]: { id, projectId, userId, role, joinedAt, invitedByUserId }
+ * Display names / avatars are not included — those require a user-service call.
+ *
+ * Usage:
+ *   const { members, isLoading } = useProjectMembers(projectId);
+ */
+export function useProjectMembers(projectId) {
+  const query = useQuery({
+    queryKey:  ['projects', projectId, 'members'],
+    queryFn:   () => projectApi.getProjectMembers(projectId),
+    enabled:   !!projectId,
+    staleTime: 1000 * 60 * 5,
+    retry:     2,
+  });
+
+  return {
+    members:   query.data ?? [],
+    isLoading: query.isLoading,
+    isError:   query.isError,
+  };
+}
+
+// ── Pending invitations ───────────────────────────────────────────────────────
+
+/**
+ * Fetch all pending invitations for the current user.
+ *
+ * Usage:
+ *   const { invitations, isLoading } = usePendingInvitations();
+ */
+export function usePendingInvitations() {
+  const query = useQuery({
+    queryKey:  ['invitations', 'pending'],
+    queryFn:   projectApi.getPendingInvitations,
+    staleTime: 1000 * 60 * 2,
+    retry:     2,
+  });
+
+  return {
+    invitations: query.data ?? [],
+    isLoading:   query.isLoading,
+    isError:     query.isError,
+  };
+}
+
+// ── Mutations ─────────────────────────────────────────────────────────────────
+
+/**
+ * Create, update, and delete project mutations.
+ * Each invalidates the relevant cache keys on success.
+ *
+ * Usage:
+ *   const { createProject, updateProject, deleteProject, isSubmitting } =
+ *     useProjectMutations();
+ */
+export function useProjectMutations() {
+  const queryClient = useQueryClient();
+
+  const invalidateList = () =>
+    queryClient.invalidateQueries({ queryKey: ['projects', 'my'] });
+
+  const invalidateProject = (projectId) =>
+    queryClient.invalidateQueries({ queryKey: ['projects', projectId] });
+
+  // ── Create ──────────────────────────────────────────────────────────────────
+  const createMutation = useMutation({
+    mutationFn: projectApi.createProject,
+    onSuccess:  invalidateList,
+  });
+
+  // ── Update ──────────────────────────────────────────────────────────────────
+  const updateMutation = useMutation({
+    mutationFn: ({ projectId, data }) => projectApi.updateProject(projectId, data),
+    onSuccess: (updated) => {
+      // Update single-project cache immediately; refresh the list too
+      queryClient.setQueryData(['projects', updated.id], updated);
+      invalidateList();
+    },
+  });
+
+  // ── Delete ──────────────────────────────────────────────────────────────────
+  const deleteMutation = useMutation({
+    mutationFn: projectApi.deleteProject,
+    onSuccess: (_, projectId) => {
+      queryClient.removeQueries({ queryKey: ['projects', projectId] });
+      invalidateList();
+    },
+  });
+
+  // ── Invitation: accept ───────────────────────────────────────────────────────
+  const acceptMutation = useMutation({
+    mutationFn: projectApi.acceptInvitation,
+    onSuccess: () => {
+      // Refresh both the pending list and the user's project list
+      queryClient.invalidateQueries({ queryKey: ['invitations', 'pending'] });
+      invalidateList();
+    },
+  });
+
+  // ── Invitation: reject ───────────────────────────────────────────────────────
+  const rejectMutation = useMutation({
+    mutationFn: projectApi.rejectInvitation,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invitations', 'pending'] });
+    },
+  });
+
+  return {
+    createProject:   createMutation.mutate,
+    updateProject:   updateMutation.mutate,   // { projectId, data }
+    deleteProject:   deleteMutation.mutate,   // projectId
+    acceptInvitation: acceptMutation.mutate,  // invitationId
+    rejectInvitation: rejectMutation.mutate,  // invitationId
+
+    isSubmitting:
+      createMutation.isPending ||
+      updateMutation.isPending ||
+      deleteMutation.isPending,
+
+    createError: createMutation.error,
+    updateError: updateMutation.error,
   };
 }

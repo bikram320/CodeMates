@@ -16,7 +16,7 @@ export default function ContributionAnalytics({ contributions }) {
       aria-labelledby="contribution-analytics-title"
       className="rounded-xl border border-[#1C1A38] bg-[#0A0918] p-5"
     >
-      <h2 id="contribution-analytics-title" className="text-sm font-semibold text-[#F5F5F5]">
+      <h2 id="contribution-analytics-title" className="page-section-heading">
         Contribution breakdown
       </h2>
       <p className="mt-0.5 text-xs text-[#6B6890]">

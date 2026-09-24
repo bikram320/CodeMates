@@ -6,7 +6,7 @@ import SearchBar from "../components/ui/SearchBar";
 import Button from "../components/ui/Button";
 import Spinner from "../components/ui/Spinner";
 import EmptyState from "../components/ui/EmptyState";
-import DiscoverProjectFilters from "../components/projectList/DiscoverProjectFilters";
+import DiscoverProjectFilters from "../components/project/DiscoverProjectFilters";
 import ProjectCard from "../components/project/ProjectCard";
 
 import { useProjects } from "../hooks/useProjects";

@@ -1,46 +1,66 @@
 /**
  * src/pages/ProjectTasks.jsx
  *
- * Kanban task board for a single project.
+ * Kanban task board — wired to the real Spring Boot API.
  *
- * ── Data flow ─────────────────────────────────────────────────────────────────
- *
+ * Data flow:
  *   ProjectTasks.jsx
- *     → useTasks(projectId)          hooks/useTasks.js
- *       → taskApi.getTasks()         api/taskApi.js
- *         → getMockTasks()           mock/taskMock.js   ← now
- *         → GET /api/projects/{id}/tasks               ← when VITE_USE_MOCK=false
+ *     → useTasks(projectId)          GET /api/projects/{projectId}/tasks
+ *     → useProjectMembers(projectId) GET /api/projects/{projectId}/members
  *
- * ── What changed from the previous version ───────────────────────────────────
- *   REMOVED: useState(() => getMockTasks())  — local task state
- *   ADDED:   useTasks(projectId)             — React Query hook
- *   CHANGED: handleSave calls createTask / updateTask mutations instead of setTasks
- *   ADDED:   KanbanSkeleton + TasksError states
- *   KEPT:    All filter logic, modal logic, and board UI — unchanged
+ * Two separate mutations match the two backend endpoints:
  *
- * ── Switching to real backend ─────────────────────────────────────────────────
- *   Set VITE_USE_MOCK=false in .env
- *   Nothing in this file changes.
+ *   updateTask({ taskId, data })
+ *     → PUT /api/projects/{projectId}/tasks/{taskId}   (fields only)
+ *
+ *   changeStatus({ taskId, status, position? })
+ *     → PUT /api/projects/{projectId}/tasks/{taskId}/status
+ *
+ * handleSave calls them independently based on what changed in the form:
+ *   - If any field (title/desc/priority/assignee/dueDate) changed → updateTask
+ *   - If status changed → changeStatus
+ *   - Both can fire in the same save (edit modal changed fields AND status)
+ *
+ * dueDate:
+ *   Backend sends Instant (ISO string). TaskCard displays it formatted.
+ *   TaskModal converts between "YYYY-MM-DD" (input) and ISO (API) via
+ *   toDateInput() / toInstant() from taskApi.js.
+ *
+ * Members:
+ *   ProjectMemberResponseDto has { userId, role } but no display name.
+ *   TaskCard shows a generic avatar + shortened userId until user-service
+ *   is integrated. The assignee dropdown in TaskModal works the same way.
  */
 
-import { useState, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useMemo, useState }              from 'react';
+import { useParams }                      from 'react-router-dom';
 import { Plus, SquareKanban, AlertCircle, RefreshCw } from 'lucide-react';
 
 import { useTasks }                       from '../hooks/useTasks';
-import { getMockMembers }                 from '../mock/taskMock';
+import { useProjectMembers }              from '../hooks/useMyProjects';
 import KanbanColumn                       from '../components/task/KanbanColumn';
-import TaskFilters                        from '../components/task/Taskfilters';
+import TaskFilters                        from '../components/task/TaskFilters';
 import TaskModal                          from '../components/task/TaskModal';
 
 // ── Column definitions ────────────────────────────────────────────────────────
 
 const COLUMNS = [
-  { status: 'TODO',        title: 'To Do',       color: '#6B6890' },
-  { status: 'IN_PROGRESS', title: 'In Progress',  color: '#6C7BFF' },
-  { status: 'REVIEW',      title: 'Review',       color: '#F59E0B' },
-  { status: 'DONE',        title: 'Done',         color: '#10B981' },
+  { status: 'TODO',        title: 'To Do',      color: '#6B6890' },
+  { status: 'IN_PROGRESS', title: 'In Progress', color: '#6C7BFF' },
+  { status: 'REVIEW',      title: 'Review',      color: '#F59E0B' },
+  { status: 'DONE',        title: 'Done',        color: '#10B981' },
 ];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Fields that UpdateTaskRequest accepts (no status). */
+const UPDATE_FIELDS = ['title', 'description', 'priority', 'assignedToUserId', 'dueDate'];
+
+function hasFieldChanges(formData, original) {
+  return UPDATE_FIELDS.some(
+    (key) => formData[key] !== undefined && formData[key] !== (original?.[key] ?? null)
+  );
+}
 
 // ── Loading skeleton ──────────────────────────────────────────────────────────
 
@@ -50,25 +70,22 @@ function Pulse({ className }) {
 
 function KanbanSkeleton() {
   return (
-    <div className="flex flex-col h-full space-y-5" aria-busy="true" aria-label="Loading tasks…">
-      {/* Header */}
+    <div className="flex flex-col h-full space-y-5" aria-busy="true">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Pulse className="w-8 h-8 rounded-lg" />
           <div className="space-y-1.5">
             <Pulse className="h-5 w-28" />
-            <Pulse className="h-3 w-36" />
+            <Pulse className="h-3 w-40" />
           </div>
         </div>
         <Pulse className="h-9 w-32 rounded-lg" />
       </div>
-      {/* Filters */}
       <div className="flex gap-3">
         <Pulse className="h-10 flex-1 max-w-xs rounded-lg" />
         <Pulse className="h-10 w-36 rounded-lg" />
         <Pulse className="h-10 w-36 rounded-lg" />
       </div>
-      {/* Columns */}
       <div className="flex gap-4 overflow-hidden">
         {[0, 1, 2, 3].map((i) => (
           <div
@@ -76,12 +93,12 @@ function KanbanSkeleton() {
             className="min-w-[272px] w-[272px] bg-[#0A0918] border border-[#1C1A38] rounded-xl p-3 space-y-3 shrink-0"
           >
             <Pulse className="h-8 w-full rounded-lg" />
-            {[0, 1, 2].slice(0, 3 - i).map((j) => (
+            {Array.from({ length: Math.max(1, 3 - i) }).map((_, j) => (
               <div key={j} className="border border-[#26224A] rounded-xl p-3.5 space-y-2.5">
                 <Pulse className="h-4 w-4/5" />
                 <Pulse className="h-3 w-full" />
                 <Pulse className="h-3 w-3/5" />
-                <div className="flex items-center justify-between pt-1">
+                <div className="flex justify-between pt-1">
                   <Pulse className="w-5 h-5 rounded-full" />
                   <Pulse className="h-4 w-16 rounded" />
                 </div>
@@ -99,12 +116,17 @@ function KanbanSkeleton() {
 function TasksError({ message, onRetry }) {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="w-12 h-12 rounded-full bg-[#EF4444]/10 flex items-center justify-center mb-4">
+      <div
+        className="w-12 h-12 rounded-full flex items-center justify-center mb-5"
+        style={{ backgroundColor: 'rgba(239,68,68,0.1)' }}
+      >
         <AlertCircle size={24} style={{ color: '#EF4444' }} />
       </div>
-      <h2 className="text-base font-semibold text-[#F5F5F5] mb-2">Failed to load tasks</h2>
+      <h2 className="text-base font-semibold text-[#F5F5F5] mb-2">
+        Failed to load tasks
+      </h2>
       <p className="text-sm text-[#8B86B8] mb-6 max-w-sm">
-        {message || 'Something went wrong while fetching the task board.'}
+        {message || 'Check that the Spring Boot backend is running.'}
       </p>
       <button onClick={onRetry} className="btn-primary">
         <RefreshCw size={14} />
@@ -119,23 +141,15 @@ function TasksError({ message, onRetry }) {
 export default function ProjectTasks() {
   const { projectId } = useParams();
 
-  // Fallback ID lets the page render with mock data even without a route param
-  const resolvedProjectId = projectId ?? 'proj-uuid-001';
-
-  // ── Data layer — replaces the previous useState(() => getMockTasks()) ──────
+  // ── Data ──────────────────────────────────────────────────────────────────
   const {
     tasks,
-    isLoading,
-    isError,
-    error,
-    refetch,
-    createTask,
-    updateTask,
+    isLoading, isError, error, refetch,
+    createTask, updateTask, changeStatus,
     isCreating,
-  } = useTasks(resolvedProjectId);
+  } = useTasks(projectId);
 
-  // Members are not yet behind a hook — kept as local mock state
-  const [members] = useState(() => getMockMembers());
+  const { members } = useProjectMembers(projectId);
 
   // ── Filter state ──────────────────────────────────────────────────────────
   const [search,         setSearch]         = useState('');
@@ -147,13 +161,12 @@ export default function ProjectTasks() {
   const [editingTask,   setEditingTask]   = useState(null);
   const [initialStatus, setInitialStatus] = useState('TODO');
 
-  // ── Derived: filtered + bucketed tasks ───────────────────────────────────
+  // ── Filtered + bucketed tasks ─────────────────────────────────────────────
   const filteredTasks = useMemo(() => {
     const q = search.toLowerCase();
     return tasks.filter((t) => {
-      if (q && !t.title.toLowerCase().includes(q) && !t.description?.toLowerCase().includes(q)) {
-        return false;
-      }
+      if (q && !t.title.toLowerCase().includes(q) &&
+          !(t.description ?? '').toLowerCase().includes(q)) return false;
       if (priorityFilter && t.priority !== priorityFilter) return false;
       if (assigneeFilter) {
         if (assigneeFilter === '__unassigned__' && t.assignedToUserId) return false;
@@ -192,13 +205,32 @@ export default function ProjectTasks() {
 
   function handleSave(formData) {
     if (editingTask) {
-      // updateTask accepts all fields including status — taskApi handles the routing
-      updateTask({ taskId: editingTask.id, data: formData });
+      // ── Edit: route to the correct endpoint(s) ────────────────────────────
+      //
+      // UpdateTaskRequest (PUT /tasks/{id}): title, description, priority,
+      //   assignedToUserId, dueDate — NOT status
+      //
+      // ChangeTaskStatusRequest (PUT /tasks/{id}/status): status, position?
+      //
+      // We call both when both changed; each is independent.
+
+      const { status, ...fields } = formData;
+
+      // Call updateTask if any non-status field changed vs the original
+      if (hasFieldChanges(fields, editingTask)) {
+        updateTask({ taskId: editingTask.id, data: fields });
+      }
+
+      // Call changeStatus only if status actually changed
+      if (status && status !== editingTask.status) {
+        changeStatus({ taskId: editingTask.id, status });
+      }
     } else {
-      // createTask: status from formData is ignored by the API (always TODO)
-      createTask(formData);
+      // ── Create: omit status (backend always creates as TODO) ─────────────
+      const { status: _ignored, ...createData } = formData;
+      createTask(createData);
     }
-    // Close immediately — optimistic updates make the board reflect the change instantly
+
     closeModal();
   }
 
@@ -210,18 +242,18 @@ export default function ProjectTasks() {
   return (
     <div className="flex flex-col h-full min-h-0 space-y-5">
 
-      {/* ── Page header ─────────────────────────────────────────────────── */}
+      {/* Page header */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-[#1D1A40] flex items-center justify-center">
-            <SquareKanban size={16} style={{ color: '#6C7BFF' }} />
+            <LayoutKanban size={16} style={{ color: '#6C7BFF' }} />
           </div>
           <div>
             <h1 className="text-lg font-bold text-[#F5F5F5] tracking-tight">
               Task Board
             </h1>
             <p className="text-xs text-[#6B6890] font-mono">
-              orbit-cli · {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+              {tasks.length} task{tasks.length !== 1 ? 's' : ''}
             </p>
           </div>
         </div>
@@ -236,7 +268,7 @@ export default function ProjectTasks() {
         </button>
       </div>
 
-      {/* ── Filters ─────────────────────────────────────────────────────── */}
+      {/* Filters */}
       <TaskFilters
         search={search}
         onSearchChange={setSearch}
@@ -249,7 +281,7 @@ export default function ProjectTasks() {
         filteredCount={filteredTasks.length}
       />
 
-      {/* ── Kanban board ────────────────────────────────────────────────── */}
+      {/* Kanban board */}
       <div className="flex gap-4 overflow-x-auto pb-2 flex-1 min-h-0">
         {COLUMNS.map((col) => (
           <KanbanColumn
@@ -265,7 +297,7 @@ export default function ProjectTasks() {
         ))}
       </div>
 
-      {/* ── Create / Edit modal ──────────────────────────────────────────── */}
+      {/* Modal */}
       <TaskModal
         isOpen={modalOpen}
         onClose={closeModal}

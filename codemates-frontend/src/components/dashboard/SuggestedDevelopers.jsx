@@ -146,7 +146,7 @@ export default function SuggestedDevelopers({ developers }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-[#F5F5F5]">Suggested Developers</h2>
+          <h2 className="page-section-heading">Suggested Developers</h2>
           {/* AI badge — the match scoring is an ML feature */}
           <span className="inline-flex items-center gap-1 text-[10px] font-mono text-[#C9A8FF] border border-[#2E2A66] px-1.5 py-0.5 rounded">
             <Zap size={9} />

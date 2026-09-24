@@ -3,7 +3,7 @@ import Badge from "../ui/Badge";
 import SkillBadge from "../developer/SkillBadge";
 
 const SECTION_TITLE =
-  "mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--cm-muted)]";
+  "page-section-heading mb-3";
 
 /**
  * Main content block on the project details page: the full description

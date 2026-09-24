@@ -31,7 +31,7 @@ export default function ConversationItem({ conversation, selected, onSelect }) {
         type="button"
         onClick={() => onSelect(conversation.id)}
         aria-current={selected ? 'true' : undefined}
-        className={`flex w-full items-center gap-3 border-l-2 px-4 py-3 text-left transition-colors duration-150
+        className={`flex w-full items-center gap-4 border-l-2 px-5 py-4 text-left transition-colors duration-150
                     focus:outline-none focus-visible:bg-[#1D1A40] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#6C7BFF]/60 ${
                       selected
                         ? 'border-[#6C7BFF] bg-[#6C7BFF]/10'
@@ -48,7 +48,7 @@ export default function ConversationItem({ conversation, selected, onSelect }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
             <span
-              className={`truncate text-sm ${
+              className={`truncate text-base ${
                 hasUnread ? 'font-semibold text-[#F5F5F5]' : 'font-medium text-[#DAD8EE]'
               }`}
             >
@@ -69,7 +69,7 @@ export default function ConversationItem({ conversation, selected, onSelect }) {
 
           <div className="mt-0.5 flex items-center justify-between gap-2">
             <p
-              className={`truncate text-xs ${
+              className={`truncate text-sm ${
                 lastMessagePreview
                   ? hasUnread
                     ? 'text-[#C9C7E0]'
@@ -86,8 +86,8 @@ export default function ConversationItem({ conversation, selected, onSelect }) {
               )}
               {hasUnread && (
                 <span
-                  className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5
-                              text-[11px] font-bold ${
+                  className={`inline-flex h-6 min-w-[24px] items-center justify-center rounded-full px-1.5
+                              text-xs font-bold ${
                                 isMuted ? 'bg-[#2E2A66] text-[#C9A8FF]' : 'bg-[#6C7BFF] text-[#0A0918]'
                               }`}
                 >

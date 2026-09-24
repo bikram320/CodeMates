@@ -11,7 +11,7 @@
 
 import { useState } from 'react';
 
-import { formatRelativeTime } from '../github/githubShared';
+import { formatRelativeTime } from '../github/githubSharedHelpers';
 
 /* ── Time formatting ─────────────────────────────────────────────────────── */
 
@@ -76,9 +76,9 @@ const GRADIENTS = [
 ];
 
 const SIZES = {
-  sm: { box: 'h-8 w-8 text-[11px]', dot: 'h-2.5 w-2.5' },
-  md: { box: 'h-10 w-10 text-xs', dot: 'h-3 w-3' },
-  lg: { box: 'h-11 w-11 text-sm', dot: 'h-3 w-3' },
+  sm: { box: 'h-10 w-10 text-xs', dot: 'h-3 w-3' },
+  md: { box: 'h-12 w-12 text-sm', dot: 'h-3.5 w-3.5' },
+  lg: { box: 'h-14 w-14 text-base', dot: 'h-3.5 w-3.5' },
 };
 
 function hashString(str = '') {

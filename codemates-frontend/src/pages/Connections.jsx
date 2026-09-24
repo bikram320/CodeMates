@@ -8,21 +8,34 @@ import ConnectionList from "../components/connections/ConnectionList";
 import Spinner from "../components/ui/Spinner";
 import EmptyState from "../components/ui/EmptyState";
 
-import { findDeveloper } from "../mock/connectionsMock";
 import { useConnections } from "../hooks/useConnections";
+
+// ⚠️ Temporary display fallback. ConnectionSummaryDto/ConnectionResponseDto
+// only ever carry raw UUIDs — never a name, avatar, or skills. Real
+// resolution needs user-profile-service, which hasn't been provided yet.
+function placeholderDeveloper(userId) {
+  return {
+    id: userId,
+    name: `User ${userId?.slice(0, 8)}`,
+    username: userId?.slice(0, 8) ?? "unknown",
+    avatarUrl: undefined,
+    skills: [],
+  };
+}
 
 /**
  * Connections page (/connections).
  *
- * Data flow: this page -> useConnections() -> connectionsApi.js ->
- * connectionsMock.js (see those two files for exactly where
- * getOutgoingRequests and removeConnection diverge from the real
- * connection-service API).
+ * Fully connected to the real backend — no mock data. There's no
+ * "Outgoing Requests" section anymore; see ConnectionRequests.jsx and
+ * connectionsApi.js for why that's permanently unavailable rather than
+ * just not-yet-built.
  *
- * findDeveloper is still imported directly from the mock (not through
- * the hook) — resolving a userId into a displayable developer is
- * presentation logic, not data-fetching, same pattern used everywhere
- * else in this app (tasks, resources, contributions, chat).
+ * No useAuth() needed here, unlike chat — ConnectionSummaryDto already
+ * resolves "who's the other person" server-side (otherUserId), and
+ * ConnectionResponseDto for a pending request is always one where the
+ * current user is the receiver, so senderUserId is always "the other
+ * person" too. Nothing here depends on knowing your own id.
  */
 export default function Connections() {
   const [search, setSearch] = useState("");
@@ -30,12 +43,12 @@ export default function Connections() {
   const {
     connections,
     incomingRequests,
-    outgoingRequests,
     isLoading,
     isError,
     error,
     acceptConnectionRequest,
     rejectConnectionRequest,
+    blockConnection,
     removeConnection,
   } = useConnections();
 
@@ -57,25 +70,22 @@ export default function Connections() {
     );
   }
 
-  const enrichedConnections = connections
-    .map((c) => ({ ...c, developer: findDeveloper(c.otherUserId) }))
-    .filter((c) => c.developer);
+  const enrichedConnections = connections.map((c) => ({
+    ...c,
+    developer: placeholderDeveloper(c.otherUserId),
+  }));
 
-  const enrichedIncoming = incomingRequests
-    .map((r) => ({ ...r, developer: findDeveloper(r.senderUserId) }))
-    .filter((r) => r.developer);
-
-  const enrichedOutgoing = outgoingRequests
-    .map((r) => ({ ...r, developer: findDeveloper(r.receiverUserId) }))
-    .filter((r) => r.developer);
+  const enrichedIncoming = incomingRequests.map((r) => ({
+    ...r,
+    developer: placeholderDeveloper(r.senderUserId),
+  }));
 
   const filteredConnections = enrichedConnections.filter((c) => {
     const term = search.trim().toLowerCase();
     if (!term) return true;
     return (
       c.developer.name.toLowerCase().includes(term) ||
-      c.developer.username.toLowerCase().includes(term) ||
-      c.developer.skills.some((skill) => skill.toLowerCase().includes(term))
+      c.developer.username.toLowerCase().includes(term)
     );
   });
 
@@ -83,15 +93,14 @@ export default function Connections() {
     <div className="connections-page flex flex-col gap-8">
       <ConnectionsHeader
         totalConnections={connections.length}
-        pendingCount={incomingRequests.length + outgoingRequests.length}
+        pendingCount={incomingRequests.length}
       />
 
       <ConnectionRequests
         incoming={enrichedIncoming}
-        outgoing={enrichedOutgoing}
         onAccept={(request) => acceptConnectionRequest(request.id)}
         onReject={(request) => rejectConnectionRequest(request.id)}
-        onCancel={(request) => removeConnection(request.id)}
+        onBlock={(request) => blockConnection(request.id)}
       />
 
       <div>
@@ -104,6 +113,7 @@ export default function Connections() {
         <ConnectionList
           connections={filteredConnections}
           onRemove={(connection) => removeConnection(connection.connectionId)}
+          onBlock={(connection) => blockConnection(connection.connectionId)}
         />
       </div>
     </div>

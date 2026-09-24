@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getProjects } from "../api/projectApi";
+import { getProject } from "../api/projectApi";
 
 /**
  * DiscoverProjects -> useProjects() -> projectApi.getProjects() -> mock data
