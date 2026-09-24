@@ -1,14 +1,12 @@
 package com.codemates.discovery.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
@@ -20,6 +18,7 @@ public class SearchHistory {
     @Id
     @ColumnDefault("gen_random_uuid()")
     @Column(name = "id", nullable = false)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @jakarta.validation.constraints.NotNull
@@ -49,11 +48,23 @@ public class SearchHistory {
     @jakarta.validation.constraints.NotNull
     @ColumnDefault("now()")
     @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
+    private LocalDateTime createdAt;
 
     @jakarta.validation.constraints.NotNull
     @ColumnDefault("now()")
     @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        createdAt = now;
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 
 }

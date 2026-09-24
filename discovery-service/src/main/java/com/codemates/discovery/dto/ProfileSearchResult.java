@@ -3,6 +3,7 @@ package com.codemates.discovery.dto;
 import lombok.Data;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,7 +26,7 @@ public class ProfileSearchResult {
     private String activityStatus;
     private List<SkillDto> skills;
     private List<InterestDto> interests;
-    private Instant createdAt;
+    private LocalDateTime createdAt;
 
     @Data
     public static class SkillDto {

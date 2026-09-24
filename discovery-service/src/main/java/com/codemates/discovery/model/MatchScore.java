@@ -5,9 +5,11 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.ColumnDefault;
+import org.springframework.cglib.core.Local;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @lombok.Getter
@@ -51,7 +53,7 @@ public class MatchScore {
     @jakarta.validation.constraints.NotNull
     @ColumnDefault("now()")
     @Column(name = "last_calculated_at", nullable = false)
-    private Instant lastCalculatedAt;
+    private LocalDateTime lastCalculatedAt;
 
     @jakarta.validation.constraints.NotNull
     @ColumnDefault("false")
@@ -59,16 +61,16 @@ public class MatchScore {
     private Boolean isDeleted = false;
 
     @Column(name = "deleted_at")
-    private Instant deletedAt;
+    private LocalDateTime deletedAt;
 
     @jakarta.validation.constraints.NotNull
     @ColumnDefault("now()")
     @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
+    private LocalDateTime createdAt;
 
     @jakarta.validation.constraints.NotNull
     @ColumnDefault("now()")
     @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
+    private LocalDateTime updatedAt;
 
 }

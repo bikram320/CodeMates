@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -52,7 +53,7 @@ public class MatchScoreService {
         score.setActivityScore(zeroIfNull(request.getActivityScore()));
         score.setInterestScore(zeroIfNull(request.getInterestScore()));
         score.setTotalMatchScore(computeTotal(score));
-        score.setLastCalculatedAt(Instant.now());
+        score.setLastCalculatedAt(LocalDateTime.now());
         score.setIsDeleted(false);
 
         MatchScore saved = matchScoreRepository.save(score);
