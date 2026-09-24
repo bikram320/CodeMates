@@ -116,7 +116,7 @@ export default function UpcomingTasks({ tasks }) {
     <section>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-[#F5F5F5]">Upcoming Tasks</h2>
+        <h2 className="page-section-heading">Upcoming Tasks</h2>
         {tasks?.length > 0 && (
           <a
             href="/tasks"

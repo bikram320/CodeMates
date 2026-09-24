@@ -20,9 +20,9 @@ export default function SearchBar({
 }) {
   return (
     <div
-      className={`flex items-center gap-3 rounded-lg border border-[var(--cm-border)] bg-[var(--cm-surface)] px-4 py-3 transition-colors focus-within:border-[var(--cm-indigo)] ${className}`}
+      className={`flex min-h-9 items-center gap-2 rounded-[var(--cm-radius-sm)] border border-[var(--cm-border)] bg-[var(--cm-surface)] px-3 py-1.5 transition-colors focus-within:border-[var(--cm-indigo)] ${className}`}
     >
-      <Search size={18} className="shrink-0 text-[var(--cm-muted)]" />
+      <Search size={16} className="shrink-0 text-[var(--cm-muted)]" />
       <input
         type="text"
         value={value}

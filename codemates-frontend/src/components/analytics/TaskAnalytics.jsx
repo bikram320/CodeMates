@@ -55,7 +55,7 @@ export default function TaskAnalytics({ tasks }) {
 
   return (
     <section aria-labelledby="task-analytics-title" className="rounded-xl border border-[#1C1A38] bg-[#0A0918] p-5">
-      <h2 id="task-analytics-title" className="text-sm font-semibold text-[#F5F5F5]">
+      <h2 id="task-analytics-title" className="page-section-heading">
         Task breakdown
       </h2>
       <p className="mt-0.5 text-xs text-[#6B6890]">Where work stands on the board, and by priority</p>

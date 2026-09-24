@@ -1,20 +1,42 @@
 /**
  * TaskModal
  *
- * Overlay modal for creating a new task or editing an existing one.
- * Resets its form state every time it opens.
+ * Create / edit task modal — aligned with the real Spring Boot API.
+ *
+ * Key differences from the mock version:
+ *
+ *   CREATE mode  → status field is HIDDEN.
+ *     The backend always creates tasks as TODO (CreateTaskRequest has no status).
+ *     Showing it would be misleading.
+ *
+ *   EDIT mode    → status field IS shown.
+ *     The parent (ProjectTasks.jsx) routes status changes through the separate
+ *     changeStatus() mutation → PUT /tasks/{taskId}/status.
+ *     This modal just collects the value; the split is handled upstream.
+ *
+ *   dueDate:
+ *     Backend sends/receives Instant (ISO-8601 string, e.g. "2026-09-20T00:00:00Z").
+ *     HTML date input expects "YYYY-MM-DD".
+ *     toDateInput() / toInstant() from taskApi.js handle the conversion.
+ *
+ *   Assignee dropdown:
+ *     Populated from GET /api/projects/{projectId}/members → ProjectMemberResponseDto[].
+ *     Those records contain userId and role but NO display name.
+ *     User-facing names require a user-service call — add that when available.
+ *     For now we show a shortened userId so the dropdown is functional.
  *
  * Props:
  *   isOpen        {boolean}
  *   onClose       {fn}
- *   task          {object|null}   null → create mode; object → edit mode
- *   members       {Array}         project members for the assignee dropdown
- *   initialStatus {string}        default status for new tasks (set by column's "Add task" btn)
- *   onSave        {fn(formData)}  called with the merged form data on submit
+ *   task          {TaskResponse|null}   null = create, object = edit
+ *   members       {ProjectMemberResponseDto[]}
+ *   initialStatus {string}             pre-selected status for new task (column)
+ *   onSave        {fn(formData)}       called with collected form values
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { X, AlertCircle } from 'lucide-react';
+import { X, AlertCircle }             from 'lucide-react';
+import { toDateInput, toInstant }     from '../../api/taskApi';
 
 const STATUSES = [
   { value: 'TODO',        label: 'To Do'       },
@@ -44,13 +66,21 @@ const FIELD_CLASS =
 
 const LABEL_CLASS = 'block text-xs text-[#A7A3D6] mb-1.5 font-medium';
 
+const CHEVRON = (
+  <svg width="11" height="11" viewBox="0 0 12 12" fill="none"
+       className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#6B6890]">
+    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5"
+          strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
 const EMPTY_FORM = {
-  title: '',
-  description: '',
-  priority: 'MEDIUM',
-  status: 'TODO',
+  title:            '',
+  description:      '',
+  priority:         'MEDIUM',
+  status:           'TODO',
   assignedToUserId: '',
-  dueDate: '',
+  dueDate:          '',           // "YYYY-MM-DD" for the date input
 };
 
 export default function TaskModal({
@@ -61,36 +91,36 @@ export default function TaskModal({
   initialStatus = 'TODO',
   onSave,
 }) {
-  const [form, setForm]       = useState(EMPTY_FORM);
-  const [errors, setErrors]   = useState({});
-  const titleRef              = useRef(null);
+  const [form,   setForm]   = useState(EMPTY_FORM);
+  const [errors, setErrors] = useState({});
+  const titleRef            = useRef(null);
+  const isEdit              = Boolean(task);
 
   // Reset form whenever the modal opens
   useEffect(() => {
     if (!isOpen) return;
 
     if (task) {
-      // Edit mode — pre-fill from task
+      // Edit mode — pre-fill from TaskResponse
+      // dueDate is an Instant from the backend; convert to "YYYY-MM-DD" for the input
       setForm({
-        title:             task.title            || '',
-        description:       task.description      || '',
-        priority:          task.priority         || 'MEDIUM',
-        status:            task.status           || 'TODO',
-        assignedToUserId:  task.assignedToUserId || '',
-        dueDate:           task.dueDate          || '',
+        title:            task.title            ?? '',
+        description:      task.description      ?? '',
+        priority:         task.priority         ?? 'MEDIUM',
+        status:           task.status           ?? 'TODO',
+        assignedToUserId: task.assignedToUserId ?? '',
+        dueDate:          toDateInput(task.dueDate),
       });
     } else {
-      // Create mode — blank form with the column's status pre-selected
+      // Create mode — blank form, pre-select the column's status
       setForm({ ...EMPTY_FORM, status: initialStatus });
     }
 
     setErrors({});
-
-    // Auto-focus the title field after the modal renders
     setTimeout(() => titleRef.current?.focus(), 50);
   }, [isOpen, task, initialStatus]);
 
-  // Close on Escape key
+  // Close on Escape
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
@@ -115,31 +145,30 @@ export default function TaskModal({
   function handleSubmit(e) {
     e.preventDefault();
     if (!validate()) return;
+
     onSave({
-      ...form,
       title:            form.title.trim(),
-      description:      form.description.trim(),
+      description:      form.description.trim() || null,
+      priority:         form.priority,
+      status:           form.status,
       assignedToUserId: form.assignedToUserId || null,
-      dueDate:          form.dueDate || null,
+      // Convert "YYYY-MM-DD" back to ISO Instant for the backend
+      dueDate:          toInstant(form.dueDate),
     });
   }
 
-  const isEdit = Boolean(task);
-
   return (
-    /* Backdrop */
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ backgroundColor: 'rgba(0,0,0,0.65)' }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      {/* Modal card */}
       <div
         className="relative w-full max-w-lg bg-[#121029] border border-[#26224A]
                    rounded-xl shadow-2xl"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* ── Header ─────────────────────────────────────────────────────── */}
+        {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-[#26224A]">
           <h2 className="text-base font-semibold text-[#F5F5F5]">
             {isEdit ? 'Edit Task' : 'Create Task'}
@@ -153,7 +182,7 @@ export default function TaskModal({
           </button>
         </div>
 
-        {/* ── Form ───────────────────────────────────────────────────────── */}
+        {/* Form */}
         <form onSubmit={handleSubmit} noValidate>
           <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
 
@@ -169,6 +198,7 @@ export default function TaskModal({
                 value={form.title}
                 onChange={(e) => update('title', e.target.value)}
                 placeholder="What needs to be done?"
+                maxLength={255}
                 className={`${FIELD_CLASS} ${errors.title ? 'border-[#EF4444]' : ''}`}
               />
               {errors.title && (
@@ -192,8 +222,9 @@ export default function TaskModal({
               />
             </div>
 
-            {/* Priority + Status */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Priority + Status (status only shown in edit mode) */}
+            <div className={`grid gap-4 ${isEdit ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {/* Priority */}
               <div>
                 <label htmlFor="task-priority" className={LABEL_CLASS}>Priority</label>
                 <div className="relative">
@@ -207,39 +238,41 @@ export default function TaskModal({
                       <option key={p.value} value={p.value}>{p.label}</option>
                     ))}
                   </select>
-                  {/* Priority dot inside select */}
-                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    <div className={`w-2 h-2 rounded-full ${PRIORITY_DOT[form.priority]}`} />
+                  {/* Priority dot indicator */}
+                  <div className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2">
+                    <div className={`w-2 h-2 rounded-full ${PRIORITY_DOT[form.priority] ?? ''}`} />
                   </div>
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="task-status" className={LABEL_CLASS}>Status</label>
-                <div className="relative">
-                  <select
-                    id="task-status"
-                    value={form.status}
-                    onChange={(e) => update('status', e.target.value)}
-                    className={`${FIELD_CLASS} appearance-none pr-8`}
-                  >
-                    {STATUSES.map((s) => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </select>
-                  <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#6B6890]">
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+              {/* Status — only in edit mode (backend ignores status on create) */}
+              {isEdit && (
+                <div>
+                  <label htmlFor="task-status" className={LABEL_CLASS}>Status</label>
+                  <div className="relative">
+                    <select
+                      id="task-status"
+                      value={form.status}
+                      onChange={(e) => update('status', e.target.value)}
+                      className={`${FIELD_CLASS} appearance-none pr-8`}
+                    >
+                      {STATUSES.map((s) => (
+                        <option key={s.value} value={s.value}>{s.label}</option>
+                      ))}
+                    </select>
+                    {CHEVRON}
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Assignee + Due date */}
             <div className="grid grid-cols-2 gap-4">
+              {/* Assignee */}
               <div>
-                <label htmlFor="task-assignee" className={LABEL_CLASS}>Assignee</label>
+                <label htmlFor="task-assignee" className={LABEL_CLASS}>
+                  Assignee
+                </label>
                 <div className="relative">
                   <select
                     id="task-assignee"
@@ -250,18 +283,20 @@ export default function TaskModal({
                     <option value="">Unassigned</option>
                     {members.map((m) => (
                       <option key={m.userId} value={m.userId}>
-                        {m.fullName}
+                        {/*
+                         * ProjectMemberResponseDto has no display name.
+                         * Shows shortened userId + role until user-service is integrated.
+                         * Replace with member.fullName when available.
+                         */}
+                        {m.userId.slice(0, 8)}… ({m.role})
                       </option>
                     ))}
                   </select>
-                  <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#6B6890]">
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
+                  {CHEVRON}
                 </div>
               </div>
 
+              {/* Due date — converted from/to ISO Instant */}
               <div>
                 <label htmlFor="task-due" className={LABEL_CLASS}>Due Date</label>
                 <input
@@ -274,9 +309,17 @@ export default function TaskModal({
               </div>
             </div>
 
+            {/* Create-mode hint */}
+            {!isEdit && (
+              <p className="text-[10px] text-[#4A4660] font-mono">
+                New tasks start in <span className="text-[#6C7BFF]">To Do</span>. Move them across
+                the board once created.
+              </p>
+            )}
+
           </div>
 
-          {/* ── Footer ─────────────────────────────────────────────────────── */}
+          {/* Footer */}
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#26224A]">
             <button
               type="button"

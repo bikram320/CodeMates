@@ -69,7 +69,7 @@ export default function DirectMessageInput({
         e.preventDefault();
         submit();
       }}
-      className="border-t border-[#1C1A38] p-3 sm:p-4"
+      className="border-t border-[#1C1A38] p-4 sm:p-5"
     >
       <div className="flex items-end gap-2">
         <label htmlFor="dm-input" className="sr-only">
@@ -85,8 +85,8 @@ export default function DirectMessageInput({
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="max-h-[140px] min-h-[42px] flex-1 resize-none rounded-lg border border-[#2E2A66] bg-[#1D1A40]/50
-                     px-3 py-2.5 text-base text-[#F5F5F5] placeholder:text-[#6B6890] sm:text-sm
+          className="max-h-[180px] min-h-[56px] flex-1 resize-none rounded-lg border border-[#2E2A66] bg-[#1D1A40]/50
+                     px-4 py-3 text-lg text-[#F5F5F5] placeholder:text-[#6B6890] sm:text-base
                      hover:border-[#3A3580] focus:border-[#6C7BFF] focus:outline-none focus:ring-2 focus:ring-[#6C7BFF]/30
                      disabled:cursor-not-allowed disabled:opacity-50"
         />
@@ -94,7 +94,7 @@ export default function DirectMessageInput({
           type="submit"
           disabled={!canSend}
           aria-label="Send message"
-          className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-lg bg-[#6C7BFF] text-[#0A0918]
+          className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-lg bg-[#6C7BFF] text-[#0A0918]
                      transition-colors hover:bg-[#8190FF]
                      disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[#6C7BFF]
                      focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A8FF]"
@@ -103,7 +103,7 @@ export default function DirectMessageInput({
         </button>
       </div>
 
-      <div className="mt-1.5 flex items-center justify-between gap-3 text-[11px] text-[#6B6890]">
+      <div className="mt-2 flex items-center justify-between gap-3 text-xs text-[#6B6890]">
         <span className="hidden sm:inline">Enter to send · Shift+Enter for a new line</span>
         {nearLimit && (
           <span className={`ml-auto font-mono ${value.length >= maxLength ? 'text-red-300' : ''}`}>

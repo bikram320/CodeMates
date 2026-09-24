@@ -15,8 +15,9 @@ function formatConnectedSince(iso) {
  * Props:
  * - connections  enriched connection objects: { connectionId, developer, connectedSince }
  * - onRemove     (connection) => void
+ * - onBlock      optional (connection) => void
  */
-export default function ConnectionList({ connections = [], onRemove }) {
+export default function ConnectionList({ connections = [], onRemove, onBlock }) {
   if (connections.length === 0) {
     return (
       <EmptyState
@@ -36,6 +37,7 @@ export default function ConnectionList({ connections = [], onRemove }) {
           mode="connection"
           meta={`Connected since ${formatConnectedSince(connection.connectedSince)}`}
           onRemove={() => onRemove(connection)}
+          onBlock={onBlock ? () => onBlock(connection) : undefined}
         />
       ))}
     </div>

@@ -1,25 +1,27 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getContributionActivity,
   getContributionStats,
   getProjectContributions,
-} from "../api/contributionApi";
+  getRepositoryLinks,
+  linkRepository as linkRepositoryApi,
+  unlinkRepository as unlinkRepositoryApi,
+} from "../api/contributionsApi";
 
 const EMPTY_STATS = { totalScore: 0, tasksCompleted: 0, commitsCount: 0, messagesSent: 0 };
 
 /**
  * ProjectContributions.jsx -> useProjectContributions(projectId) ->
- * contributionsApi.js -> contributionsMock.js
+ * contributionsApi.js -> real contribution-service (via apiClient).
  *
- * Three independent queries (matching the three requested API functions)
- * rather than one combined call, since each maps to a different real
- * endpoint shape (or lack thereof — see contributionsApi.js's comments
- * on getContributionStats and getContributionActivity for where those
- * two diverge from the real API).
+ * No mock data anywhere in this chain — every query below hits the real
+ * Gateway.
  *
  * @param {string} projectId
  */
 export function useProjectContributions(projectId) {
+  const queryClient = useQueryClient();
+
   const contributionsQuery = useQuery({
     queryKey: ["contributions", "members", projectId],
     queryFn: () => getProjectContributions(projectId),
@@ -38,24 +40,63 @@ export function useProjectContributions(projectId) {
     enabled: !!projectId,
   });
 
+  const repoLinksQuery = useQuery({
+    queryKey: ["contributions", "repoLinks", projectId],
+    queryFn: () => getRepositoryLinks(projectId),
+    enabled: !!projectId,
+  });
+
   const isLoading =
-    contributionsQuery.isLoading || statsQuery.isLoading || activityQuery.isLoading;
-  const isError = contributionsQuery.isError || statsQuery.isError || activityQuery.isError;
-  const error = contributionsQuery.error ?? statsQuery.error ?? activityQuery.error;
+    contributionsQuery.isLoading ||
+    statsQuery.isLoading ||
+    activityQuery.isLoading ||
+    repoLinksQuery.isLoading;
+
+  const isError =
+    contributionsQuery.isError ||
+    statsQuery.isError ||
+    activityQuery.isError ||
+    repoLinksQuery.isError;
+
+  const error =
+    contributionsQuery.error ?? statsQuery.error ?? activityQuery.error ?? repoLinksQuery.error;
+
+  function invalidateRepoLinks() {
+    queryClient.invalidateQueries({ queryKey: ["contributions", "repoLinks", projectId] });
+  }
+
+  const linkMutation = useMutation({
+    mutationFn: (repositoryId) => linkRepositoryApi(projectId, repositoryId),
+    onSuccess: invalidateRepoLinks,
+  });
+
+  const unlinkMutation = useMutation({
+    mutationFn: (repositoryId) => unlinkRepositoryApi(projectId, repositoryId),
+    onSuccess: invalidateRepoLinks,
+  });
 
   return {
     scores: contributionsQuery.data ?? [],
     stats: statsQuery.data ?? EMPTY_STATS,
     events: activityQuery.data ?? [],
+    repositoryLinks: repoLinksQuery.data ?? [],
 
     isLoading,
     isError,
     error,
 
+    linkRepository: linkMutation.mutate,
+    isLinking: linkMutation.isPending,
+    linkError: linkMutation.error,
+
+    unlinkRepository: unlinkMutation.mutate,
+    isUnlinking: unlinkMutation.isPending,
+
     refetch: () => {
       contributionsQuery.refetch();
       statsQuery.refetch();
       activityQuery.refetch();
+      repoLinksQuery.refetch();
     },
   };
 }

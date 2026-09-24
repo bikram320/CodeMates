@@ -28,9 +28,9 @@ const DISCOVER_ITEMS = [
 ];
 
 const linkBase =
-  "font-[var(--cm-font-sans)] text-sm transition-colors hover:text-[var(--cm-text)]";
+  "font-[var(--cm-font-sans)] text-lg transition-colors hover:text-[var(--cm-text)]";
 const ctaClass =
-  "rounded-md bg-[var(--cm-indigo)] px-4 py-2 font-[var(--cm-font-mono)] text-sm text-white transition-colors hover:bg-[var(--cm-indigo-hover)]";
+  "rounded-md bg-[var(--cm-indigo)] px-5 py-2.5 font-[var(--cm-font-mono)] text-lg text-white transition-colors hover:bg-[var(--cm-indigo-hover)]";
 
 export default function PublicNavbar({
   signInTo = "/login",
@@ -75,7 +75,7 @@ export default function PublicNavbar({
 
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--cm-border)] bg-[var(--cm-bg)]/95 backdrop-blur">
-      <div className="flex h-16 w-full items-center justify-between px-4 sm:px-8 lg:px-16">
+      <div className="flex h-[var(--cm-navbar-h)] w-full items-center justify-between px-4 sm:px-6 lg:px-10">
         <Logo to="/" size="md" src={logoSrc} />
 
         {/* Desktop navigation */}

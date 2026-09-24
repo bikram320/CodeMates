@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   ListTodo,
   MessageSquare,
-  Settings,
   Users,
 } from "lucide-react";
 import BackButton from "../ui/BackButton";
@@ -21,7 +20,6 @@ const DEFAULT_ITEMS = [
   { label: "Contributions", path: "/contributions", icon: BarChart3 },
   { label: "Analytics", path: "/analytics", icon: BarChart3 },
   { label: "GitHub", path: "/github", icon: User },
-  { label: "Settings", path: "/settings", icon: Settings },
 ];
 
 export default function ProjectSidebar({
@@ -69,7 +67,7 @@ export default function ProjectSidebar({
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto p-3">
+      <nav className="flex-1 overflow-y-auto p-2.5">
         <ul className="flex flex-col gap-0.5">
           {items.map((item) => {
             const Icon = item.icon;
@@ -80,7 +78,7 @@ export default function ProjectSidebar({
                   end={item.end}
                   onClick={onNavigate}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
+                    `flex items-center gap-2.5 rounded-[var(--cm-radius-sm)] px-2.5 py-1.5 text-sm transition-colors ${
                       isActive
                         ? "bg-[var(--cm-indigo-soft)] text-[var(--cm-text)]"
                         : "text-[var(--cm-text-dim)] hover:bg-[var(--cm-surface)] hover:text-[var(--cm-text)]"

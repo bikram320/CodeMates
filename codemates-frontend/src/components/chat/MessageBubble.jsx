@@ -1,3 +1,5 @@
+import Avatar from "../ui/Avatar";
+
 /**
  * One message bubble. Deliberately takes senderName/senderAvatarUrl as
  * separate props rather than expecting them on the message object —
@@ -33,11 +35,7 @@ export default function MessageBubble({
       className={`flex items-end gap-2 ${isOwn ? "flex-row-reverse" : ""}`}
     >
       {!isOwn && (
-        <img
-          src={senderAvatarUrl}
-          alt={senderName}
-          className="h-7 w-7 shrink-0 rounded-full object-cover"
-        />
+        <Avatar name={senderName ?? "?"} src={senderAvatarUrl} size={28} />
       )}
 
       <div className={`flex max-w-[75%] flex-col ${isOwn ? "items-end" : "items-start"}`}>

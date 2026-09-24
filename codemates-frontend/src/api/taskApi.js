@@ -1,131 +1,187 @@
 /**
  * src/api/taskApi.js
  *
- * Task API layer.
+ * All task and task-comment API calls mapped directly to the Spring Boot controllers.
  *
- * Real Spring Boot endpoints:
- *   GET    /api/projects/{projectId}/tasks          → TaskResponse[]
- *   POST   /api/projects/{projectId}/tasks          → TaskResponse   (always creates as TODO)
- *   PUT    /api/projects/{projectId}/tasks/{id}     → TaskResponse   (fields only — no status)
- *   PUT    /api/projects/{projectId}/tasks/{id}/status → TaskResponse (status + position only)
- *   DELETE /api/projects/{projectId}/tasks/{id}     → 204
+ * IMPORTANT — two separate endpoints for task editing (from TaskController.java):
  *
- * Important API constraints (enforced here and in the mock):
- *   - createTask: new tasks always start with status TODO; do not send `status` in the body.
- *   - updateTask: UpdateTaskRequest does NOT include `status`.
- *     Status is changed via a separate changeTaskStatus call.
+ *   PUT /api/projects/{projectId}/tasks/{taskId}
+ *     → UpdateTaskRequest: title, description, assignedToUserId, priority, dueDate
+ *     → Does NOT accept status. Use changeTaskStatus() for status changes.
  *
- * This split is abstracted away from useTasks.js and ProjectTasks.jsx.
- * `updateTask` internally calls both endpoints when a status change is included,
- * so the hook and page never need to know about the split.
+ *   PUT /api/projects/{projectId}/tasks/{taskId}/status
+ *     → ChangeTaskStatusRequest: status, position?
+ *     → Only moves the task between Kanban columns.
  *
- * ── Switching to the real backend ────────────────────────────────────────────
- *   Set VITE_USE_MOCK=false in .env
- *   Set VITE_API_BASE_URL=http://localhost:8080
- *   Nothing in useTasks.js or ProjectTasks.jsx changes.
+ * This split must be preserved in the frontend so each mutation calls the
+ * correct endpoint. useTasks.js exposes them as two separate mutations.
+ *
+ * dueDate field:
+ *   Backend type is Instant (ISO-8601). HTML <input type="date"> produces "YYYY-MM-DD".
+ *   Convert with toInstant() before sending; use toDateInput() for display.
  */
 
 import client from './client';
-import {
-  getMockTasks,
-  createTaskMock,
-  updateTaskMock,
-  changeTaskStatusMock,
-  deleteTaskMock,
-} from '../mock/taskMock';
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
-
-// ── Read ──────────────────────────────────────────────────────────────────────
+// ── Date helpers ──────────────────────────────────────────────────────────────
 
 /**
- * Fetch all tasks for a project.
- * @param {string} projectId
- * @param {{ status?: string }} filters  - optional ?status= filter
+ * Convert an ISO Instant string from the backend to "YYYY-MM-DD" for
+ * an HTML date input value.
+ * @param {string|null} instant  e.g. "2026-09-20T00:00:00Z"
+ * @returns {string}             e.g. "2026-09-20"
+ */
+export function toDateInput(instant) {
+  if (!instant) return '';
+  return instant.split('T')[0];
+}
+
+/**
+ * Convert an HTML date input value "YYYY-MM-DD" to an ISO string for the backend.
+ * @param {string|null} dateStr  e.g. "2026-09-20"
+ * @returns {string|null}        e.g. "2026-09-20T00:00:00.000Z"
+ */
+export function toInstant(dateStr) {
+  if (!dateStr) return null;
+  return new Date(dateStr).toISOString();
+}
+
+// ── Tasks ─────────────────────────────────────────────────────────────────────
+
+/**
+ * List all tasks for a project, optionally filtered by status column.
+ * @param {string}  projectId
+ * @param {{ status?: string }} options  status = TODO | IN_PROGRESS | REVIEW | DONE
  * @returns {Promise<TaskResponse[]>}
  */
-export async function getTasks(projectId, filters = {}) {
-  if (USE_MOCK) return getMockTasks(projectId, filters);
-
-  const params = filters.status ? `?status=${filters.status}` : '';
-  return client.get(`/api/projects/${projectId}/tasks${params}`);
-}
-
-// ── Create ────────────────────────────────────────────────────────────────────
+export const getTasks = (projectId, { status } = {}) =>
+  client.get(`/api/projects/${projectId}/tasks${status ? `?status=${status}` : ''}`);
 
 /**
- * Create a new task. Always created with status TODO (API rule).
- *
+ * Fetch a single task.
  * @param {string} projectId
- * @param {{ title, description?, assignedToUserId?, priority?, dueDate?, position? }} data
+ * @param {string} taskId
  * @returns {Promise<TaskResponse>}
  */
-export async function createTask(projectId, data) {
-  if (USE_MOCK) return createTaskMock(projectId, data);
-
-  // Omit `status` — the real API ignores it and always sets TODO
-  const { status: _ignored, ...body } = data;
-  return client.post(`/api/projects/${projectId}/tasks`, body);
-}
-
-// ── Update (fields + optional status change) ──────────────────────────────────
+export const getTask = (projectId, taskId) =>
+  client.get(`/api/projects/${projectId}/tasks/${taskId}`);
 
 /**
- * Update an existing task.
+ * Create a task. Caller must be LEADER.
  *
- * Accepts all editable fields including `status`.
- * Internally routes to two endpoints when the status changes, because the real
- * Spring Boot API uses separate routes for field updates and status transitions:
+ * ⚠ Do NOT include `status` — the backend ignores it and always sets TODO.
  *
- *   PUT .../tasks/{id}          → UpdateTaskRequest (title, desc, priority, assignee, dueDate)
- *   PUT .../tasks/{id}/status   → ChangeTaskStatusRequest (status, position?)
+ * @param {string} projectId
+ * @param {{
+ *   title: string,
+ *   description?: string,
+ *   assignedToUserId?: string,
+ *   priority?: 'LOW'|'MEDIUM'|'HIGH'|'URGENT',
+ *   dueDate?: string,   ← ISO string, use toInstant() to convert from date input
+ *   position?: number
+ * }} data
+ * @returns {Promise<TaskResponse>}
+ */
+export const createTask = (projectId, data) =>
+  client.post(`/api/projects/${projectId}/tasks`, data);
+
+/**
+ * Update task core fields. Caller must be LEADER.
+ *
+ * ⚠ Does NOT accept `status` — call changeTaskStatus() for that.
+ *
+ * Maps to UpdateTaskRequest:
+ *   title, description, assignedToUserId, priority, dueDate
  *
  * @param {string} projectId
  * @param {string} taskId
- * @param {{ title?, description?, priority?, assignedToUserId?, dueDate?, status?, position? }} data
+ * @param {{
+ *   title?: string,
+ *   description?: string,
+ *   assignedToUserId?: string|null,
+ *   priority?: string,
+ *   dueDate?: string|null
+ * }} data
  * @returns {Promise<TaskResponse>}
  */
-export async function updateTask(projectId, taskId, data) {
-  if (USE_MOCK) {
-    // In mock mode we handle fields and status in one shot
-    const { status, position, ...fields } = data;
-    let result = await updateTaskMock(projectId, taskId, fields);
-    if (status !== undefined) {
-      result = await changeTaskStatusMock(projectId, taskId, { status, position });
-    }
-    return result;
-  }
-
-  // ── Real API: two calls if status is included ────────────────────────────
-  const { status, position, ...fields } = data;
-
-  // Always update the editable fields first
-  let result = await client.put(
-    `/api/projects/${projectId}/tasks/${taskId}`,
-    fields
-  );
-
-  // Then change status if it was included in the update
-  if (status !== undefined) {
-    result = await client.put(
-      `/api/projects/${projectId}/tasks/${taskId}/status`,
-      { status, ...(position !== undefined && { position }) }
-    );
-  }
-
-  return result;
-}
-
-// ── Delete ────────────────────────────────────────────────────────────────────
+export const updateTask = (projectId, taskId, data) =>
+  client.put(`/api/projects/${projectId}/tasks/${taskId}`, data);
 
 /**
- * Delete a task (soft delete on the real backend).
+ * Change a task's Kanban status. Caller must be the assignee or LEADER.
  *
+ * Maps to ChangeTaskStatusRequest: { status, position? }
+ * completedAt is auto-managed by the backend:
+ *   → set when status moves to DONE
+ *   → cleared when moving away from DONE
+ *
+ * @param {string} projectId
+ * @param {string} taskId
+ * @param {{ status: 'TODO'|'IN_PROGRESS'|'REVIEW'|'DONE', position?: number }} data
+ * @returns {Promise<TaskResponse>}
+ */
+export const changeTaskStatus = (projectId, taskId, data) =>
+  client.put(`/api/projects/${projectId}/tasks/${taskId}/status`, data);
+
+/**
+ * Soft-delete a task. Caller must be LEADER.
  * @param {string} projectId
  * @param {string} taskId
  * @returns {Promise<null>}
  */
-export async function deleteTask(projectId, taskId) {
-  if (USE_MOCK) return deleteTaskMock(projectId, taskId);
-  return client.delete(`/api/projects/${projectId}/tasks/${taskId}`);
-}
+export const deleteTask = (projectId, taskId) =>
+  client.delete(`/api/projects/${projectId}/tasks/${taskId}`);
+
+/**
+ * Get all tasks assigned to the current user, across every project.
+ * @returns {Promise<TaskResponse[]>}
+ */
+export const getMyTasks = () =>
+  client.get('/api/tasks/my');
+
+// ── Task Comments ─────────────────────────────────────────────────────────────
+
+/**
+ * List all comments on a task, oldest first.
+ * @param {string} projectId
+ * @param {string} taskId
+ * @returns {Promise<TaskCommentResponse[]>}
+ */
+export const getTaskComments = (projectId, taskId) =>
+  client.get(`/api/projects/${projectId}/tasks/${taskId}/comments`);
+
+/**
+ * Add a comment. Any project member can comment.
+ * @param {string} projectId
+ * @param {string} taskId
+ * @param {string} content
+ * @returns {Promise<TaskCommentResponse>}
+ */
+export const addComment = (projectId, taskId, content) =>
+  client.post(`/api/projects/${projectId}/tasks/${taskId}/comments`, { content });
+
+/**
+ * Edit a comment. Only the comment author can edit.
+ * @param {string} projectId
+ * @param {string} taskId
+ * @param {string} commentId
+ * @param {string} content
+ * @returns {Promise<TaskCommentResponse>}
+ */
+export const updateComment = (projectId, taskId, commentId, content) =>
+  client.put(
+    `/api/projects/${projectId}/tasks/${taskId}/comments/${commentId}`,
+    { content }
+  );
+
+/**
+ * Delete a comment. Author or project LEADER can delete.
+ * @param {string} projectId
+ * @param {string} taskId
+ * @param {string} commentId
+ * @returns {Promise<null>}
+ */
+export const deleteComment = (projectId, taskId, commentId) =>
+  client.delete(
+    `/api/projects/${projectId}/tasks/${taskId}/comments/${commentId}`
+  );

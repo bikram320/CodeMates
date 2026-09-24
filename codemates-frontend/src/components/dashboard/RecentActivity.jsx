@@ -140,7 +140,7 @@ function EmptyState() {
 export default function RecentActivity({ activities }) {
   return (
     <section>
-      <h2 className="text-sm font-semibold text-[#F5F5F5] mb-4">Recent Activity</h2>
+      <h2 className="page-section-heading mb-4">Recent Activity</h2>
 
       {!activities?.length ? (
         <EmptyState />

@@ -1,5 +1,5 @@
 
-import { FaGithub, FaLinkedin, FaDiscord } from "react-icons/fa";
+import { FaGithub } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { MessagesSquare } from "lucide-react";
 import Logo from "../ui/Logo";
@@ -24,7 +24,7 @@ const PLATFORM_LINKS = [
 ];
 
 const linkClass =
-  "text-sm text-[var(--cm-text-dim)] transition-colors hover:text-[var(--cm-text)]";
+  "text-base text-[var(--cm-text-dim)] transition-colors hover:text-[var(--cm-text)]";
 
 export default function Footer({ tagline = "BETTER TOGETHER", logoSrc = null }) {
   const year = new Date().getFullYear();
@@ -35,72 +35,72 @@ export default function Footer({ tagline = "BETTER TOGETHER", logoSrc = null }) 
 
   return (
     <footer className="border-t border-[var(--cm-border)] bg-[var(--cm-bg)]">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div
-          className={`grid gap-10 ${
-            hasCommunityLinks ? "md:grid-cols-[1.4fr_1fr_1fr]" : "md:grid-cols-[1.4fr_1fr]"
-          }`}
-        >
+      <div className="footer-content mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           <div>
             <Logo to="/" size="md" src={logoSrc} />
-            <p className="mt-4 font-[var(--cm-font-mono)] text-xs tracking-[0.2em] text-[var(--cm-lavender)]">
+            <p className="mt-4 font-[var(--cm-font-mono)] text-sm tracking-[0.2em] text-[var(--cm-lavender)]">
               {tagline}
             </p>
-            <p className="mt-3 max-w-xs text-sm leading-relaxed text-[var(--cm-muted)]">
+            <p className="mt-3 max-w-xs text-base leading-relaxed text-[var(--cm-muted)]">
               Find collaborators, form a team, and ship the project — without
               stitching five tools together.
             </p>
           </div>
 
-          <div>
-            <h3 className="text-sm font-medium text-[var(--cm-text)]">Platform</h3>
-            <ul className="mt-4 flex flex-col gap-2.5">
-              {PLATFORM_LINKS.map((link) => (
-                <li key={link.to}>
-                  <Link to={link.to} className={linkClass}>
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {hasCommunityLinks && (
+          <div className="flex flex-wrap gap-10 md:justify-end">
             <div>
-              <h3 className="text-sm font-medium text-[var(--cm-text)]">Community</h3>
+              <h3 className="text-base font-medium text-[var(--cm-text)]">Platform</h3>
               <ul className="mt-4 flex flex-col gap-2.5">
-                {githubUrl && (
-                  <li>
-                    <a
-                      href={githubUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={`${linkClass} inline-flex items-center gap-1.5`}
-                    >
-                      <FaGithub size={14} />
-                      GitHub
-                    </a>
+                {PLATFORM_LINKS.map((link) => (
+                  <li key={link.to}>
+                    <Link to={link.to} className={linkClass}>
+                      {link.label}
+                    </Link>
                   </li>
-                )}
-                {discordUrl && (
-                  <li>
-                    <a
-                      href={discordUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={`${linkClass} inline-flex items-center gap-1.5`}
-                    >
-                      <MessagesSquare size={14} />
-                      Discord
-                    </a>
-                  </li>
-                )}
+                ))}
               </ul>
             </div>
-          )}
+
+            {hasCommunityLinks && (
+              <div>
+                <h3 className="text-base font-medium text-[var(--cm-text)]">Community</h3>
+                <ul className="mt-4 flex flex-col gap-2.5">
+                  {githubUrl && (
+                    <li>
+                      <a
+                        href={githubUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`${linkClass} inline-flex items-center gap-1.5`}
+                      >
+                        <FaGithub size={14} />
+                        GitHub
+                      </a>
+                    </li>
+                  )}
+                  {discordUrl && (
+                    <li>
+                      <a
+                        href={discordUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`${linkClass} inline-flex items-center gap-1.5`}
+                      >
+                        <MessagesSquare size={14} />
+                        Discord
+                      </a>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="mt-12 border-t border-[var(--cm-border)] pt-6">
+      </div>
+      <div className="footer-bottom border-t border-[var(--cm-border)]">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <p className="text-xs text-[var(--cm-muted)]">
             © {year} CodeMates. All rights reserved.
           </p>

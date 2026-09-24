@@ -188,28 +188,18 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-5">
       {/* 1 ── Greeting */}
       <WelcomeSection user={data.user} />
 
       {/* 2 ── Key metrics */}
       <DashboardStats stats={data.stats} />
 
-      {/* 3 ── Projects (2/3) + Tasks (1/3) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <ActiveProjects projects={data.activeProjects} />
-        </div>
-        <div>
-          <UpcomingTasks tasks={data.upcomingTasks} />
-        </div>
-      </div>
-
-      {/* 4 ── Activity feed + Suggested developers */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RecentActivity activities={data.recentActivity} />
-        <SuggestedDevelopers developers={data.suggestedDevelopers} />
-      </div>
+      {/* Keep dashboard sections in one predictable scan order. */}
+      <ActiveProjects projects={data.activeProjects} />
+      <UpcomingTasks tasks={data.upcomingTasks} />
+      <RecentActivity activities={data.recentActivity} />
+      <SuggestedDevelopers developers={data.suggestedDevelopers} />
     </div>
   );
 }

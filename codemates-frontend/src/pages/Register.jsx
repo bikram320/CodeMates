@@ -2,26 +2,28 @@
  * src/pages/Register.jsx
  *
  * Register page (/register). Renders inside PublicLayout, using the same
- * AuthLayout / AuthInput / AuthDivider as Login.
+ * AuthLayout / AuthInput as Login.
  *
  * ── Data flow ─────────────────────────────────────────────────────────────────
+ *   Register.jsx → useAuth() → authApi.js → POST /api/auth/register (real backend)
  *
- *   Register.jsx → useAuth() → authApi.js → authMock.js
+ * RegisterRequest only accepts { email, password, username, fullName } — that's
+ * all this page sends. The "Developer profile" section (skills, bio,
+ * availability, GitHub, LinkedIn) is still collected because the product spec
+ * asks for it, but it currently isn't sent anywhere: there's no profile
+ * endpoint in the files provided. The section says so, so the form doesn't
+ * silently discard what someone filled in without telling them. Once a
+ * profile endpoint exists, send `profile` (built below) to it right after
+ * register() resolves.
  *
- * ⚠️ MOCK AUTH ONLY (src/mock/authMock.js): the account is stored in this
- * browser only and nothing is sent anywhere.
- *   - email demo@codemates.dev             → "already exists"
- *   - username admin / codemates / demo    → "already taken"
- *   - anything else valid                  → creates the account, signs in, goes to /dashboard
- *   - "Sign up with GitHub"                → signs in the mock GitHub user
- *   - ?mockAuth=error in the URL           → simulates the service being unreachable
+ * Validation mirrors the backend's actual rules, not stricter ones:
+ *   - username: @Size(min=3, max=50), any characters — RegisterRequest doesn't
+ *     restrict which ones, so neither does this page.
+ *   - password: @Size(min=8) only — no uppercase/lowercase/number requirement.
+ * (Keep ResetPassword.jsx's PASSWORD_RULES in sync if this changes.)
  *
- * The form collects more than POST /api/auth/register accepts
- * ({ email, password, username, fullName }). toRegisterRequests() splits it
- * into `account` and `profile`, and authApi.register() is responsible for the
- * follow-up profile calls when the real backend is connected.
- * The backend's real password/username rules aren't documented; the ones
- * below are a UI guess, so align them with the backend.
+ * There is no "Sign up with GitHub" button here: the provided AuthController
+ * has no OAuth endpoint, so nothing was left to call. Re-add it once one exists.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -29,33 +31,33 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   AlertCircle, AtSign, Check, ChevronDown, Loader2, Lock, Mail, User, X,
 } from "lucide-react";
-import { FaGithub, FaLinkedin } from "react-icons/fa";
+import {FaGithub as Github, FaLinkedin as Linkedin} from "react-icons/fa";
 
 import AuthLayout from "../components/auth/AuthLayout";
 import AuthInput from "../components/auth/AuthInput";
-import AuthDivider from "../components/auth/AuthDivider";
 import useAuth from "../hooks/useAuth";
-import { DEMO_ACCOUNT } from "../mock/authMock"; // only for the demo note below
 
-const DEFAULT_REDIRECT = "/dashboard";
-const BIO_MAX = 200;
+/* ── Options ─────────────────────────────────────────────────────────────── */
+
 const SKILLS_MAX = 10;
 const SKILL_NAME_MAX = 30;
+const BIO_MAX = 200;
+
+// Kept in sync with ResetPassword.jsx's PASSWORD_RULES: both mirror the
+// backend's @Size(min=8) on password fields, nothing more.
+const PASSWORD_RULES = [{ id: "len", label: "At least 8 characters", test: (p) => p.length >= 8 }];
+
+const AVAILABILITY = [
+  { id: "OPEN", label: "Open to collaborate", desc: "Appear in searches for available developers." },
+  { id: "CLOSED", label: "Not right now", desc: "Stay out of availability searches for now." },
+];
 
 /* ── Validation ──────────────────────────────────────────────────────────── */
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
 const GITHUB_NAME_RE = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
 const GITHUB_URL_RE = /^https?:\/\/(?:www\.)?github\.com\/([^/?#\s]+)\/?$/i;
 const LINKEDIN_RE = /^https:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/(?:in|pub)\/[^\s/]+\/?$/i;
-
-const PASSWORD_RULES = [
-  { id: "len", label: "At least 8 characters", test: (p) => p.length >= 8 },
-  { id: "upper", label: "One uppercase letter", test: (p) => /[A-Z]/.test(p) },
-  { id: "lower", label: "One lowercase letter", test: (p) => /[a-z]/.test(p) },
-  { id: "number", label: "One number", test: (p) => /\d/.test(p) },
-];
 
 /** "octocat", "@octocat" or a github.com/octocat link → "octocat"; invalid → null; empty → "". */
 function parseGithubUsername(input) {
@@ -70,25 +72,25 @@ function validate(v) {
 
   const name = v.fullName.trim();
   if (!name) e.fullName = "Enter your full name.";
-  else if (name.length < 2) e.fullName = "Full name needs at least 2 characters.";
 
-  if (!v.username) e.username = "Choose a username.";
-  else if (!USERNAME_RE.test(v.username)) e.username = "Use 3 to 20 letters, numbers or underscores.";
+  const username = v.username.trim();
+  if (!username) e.username = "Choose a username.";
+  else if (username.length < 3 || username.length > 50) e.username = "Username must be between 3 and 50 characters.";
 
   const email = v.email.trim();
   if (!email) e.email = "Enter your email address.";
-  else if (!EMAIL_RE.test(email)) e.email = "Enter a valid email address.";
+  else if (!EMAIL_RE.test(email)) e.email = "Enter a valid email address, like name@example.com.";
 
   if (!v.password) e.password = "Create a password.";
-  else if (!PASSWORD_RULES.every((r) => r.test(v.password))) e.password = "Password doesn't meet all the requirements below.";
+  else if (v.password.length < 8) e.password = "Password must be at least 8 characters.";
 
   if (!v.confirmPassword) e.confirmPassword = "Confirm your password.";
   else if (v.confirmPassword !== v.password) e.confirmPassword = "Passwords don't match.";
 
   if (v.bio.trim().length > BIO_MAX) e.bio = `Keep your bio under ${BIO_MAX} characters.`;
-  if (parseGithubUsername(v.githubUsername) === null) e.githubUsername = "Enter a GitHub username or profile link.";
+  if (parseGithubUsername(v.githubUsername) === null) e.githubUsername = "Enter a GitHub username (like octocat) or your profile link.";
   if (v.linkedinUrl.trim() && !LINKEDIN_RE.test(v.linkedinUrl.trim())) {
-    e.linkedinUrl = "Use your LinkedIn profile link.";
+    e.linkedinUrl = "Use your LinkedIn profile link, like https://www.linkedin.com/in/your-name.";
   }
   if (!v.terms) e.terms = "Accept the terms to create your account.";
 
@@ -99,20 +101,6 @@ function validate(v) {
 const FIELD_ORDER = ["fullName", "username", "email", "password", "confirmPassword", "bio", "githubUsername", "linkedinUrl", "terms"];
 const PROFILE_FIELDS = ["bio", "githubUsername", "linkedinUrl"];
 
-/** Form values → the calls the real backend needs. */
-function toRegisterRequests(v) {
-  return {
-    account: { email: v.email.trim(), password: v.password, username: v.username, fullName: v.fullName.trim() },
-    profile: {
-      bio: v.bio.trim(),
-      githubUsername: parseGithubUsername(v.githubUsername),
-      linkedinUrl: v.linkedinUrl.trim(),
-      isOpenToCollaborate: v.availability === "OPEN",
-      skills: v.skills,
-    },
-  };
-}
-
 /* ── Styles ──────────────────────────────────────────────────────────────── */
 
 const primaryButton =
@@ -121,19 +109,8 @@ const primaryButton =
   "disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-[#6C7BFF] " +
   "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A8FF]";
 
-const outlineButton =
-  "inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#9CA3AF] px-4 py-2.5 text-sm font-medium " +
-  "text-[#F3F4F6] transition-colors hover:border-[#C9A8FF] hover:bg-white/[0.03] " +
-  "disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-[#9CA3AF] disabled:hover:bg-transparent " +
-  "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60";
-
 const textLink =
   "rounded text-[#C9A8FF] transition-colors hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A8FF]/60";
-
-const AVAILABILITY = [
-  { id: "OPEN", label: "Open to collaborate", desc: "Appear in searches for available developers." },
-  { id: "CLOSED", label: "Not right now", desc: "Stay out of availability searches for now." },
-];
 
 const INITIAL = {
   fullName: "", username: "", email: "", password: "", confirmPassword: "",
@@ -144,13 +121,13 @@ const INITIAL = {
 
 export default function Register() {
   const navigate = useNavigate();
-  const { register, loginWithGithub } = useAuth();
+  const { register } = useAuth();
 
   const [values, setValues] = useState(INITIAL);
   const [touched, setTouched] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [serverErrors, setServerErrors] = useState({});
-  const [pending, setPending] = useState(null); // null | "password" | "github"
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
   const [skillInput, setSkillInput] = useState("");
@@ -161,7 +138,6 @@ export default function Register() {
     if (error) bannerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [error]);
 
-  const isBusy = pending !== null;
   const errors = validate(values);
   const errorFor = (f) => serverErrors[f] || ((touched[f] || submitted) && errors[f]) || undefined;
   const showRules = values.password.length > 0 || touched.password || submitted;
@@ -185,7 +161,8 @@ export default function Register() {
   /* Skills */
   const addSkills = (raw) => {
     const items = raw.split(",").map((s) => s.trim().replace(/\s+/g, " ")).filter(Boolean);
-    if (!items.length) return;
+    if (items.length === 0) return;
+
     const next = [...values.skills];
     let note = "";
     for (const item of items) {
@@ -200,37 +177,39 @@ export default function Register() {
     setSkillNote(note);
     setSkillInput(note && next.length === values.skills.length ? raw : "");
   };
+  const removeSkill = (name) => {
+    setField("skills", values.skills.filter((s) => s !== name));
+    setSkillNote("");
+  };
 
-  /* Submit */
-  const submit = async (method) => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitted(true);
+
+    const firstInvalid = FIELD_ORDER.find((f) => errors[f]);
+    if (firstInvalid) return focusField(firstInvalid);
+
     setError(null);
     setServerErrors({});
-    setPending(method);
+    setIsSubmitting(true);
     try {
-      if (method === "github") await loginWithGithub();
-      else {
-        const { account, profile } = toRegisterRequests(values);
-        await register({ ...account, profile });
-      }
-      navigate(DEFAULT_REDIRECT, { replace: true });
+      await register({
+        email: values.email.trim(),
+        password: values.password,
+        username: values.username.trim(),
+        fullName: values.fullName.trim(),
+      });
+      navigate("/dashboard", { replace: true });
     } catch (err) {
-      setPending(null);
+      setIsSubmitting(false);
       if (err.fieldErrors) {
         setServerErrors(err.fieldErrors);
-        setError("We couldn't create your account. Check the highlighted fields and try again.");
-        focusField(FIELD_ORDER.find((f) => err.fieldErrors[f]));
+        setError("We couldn't create your account. Check the highlighted field and try again.");
+        focusField(FIELD_ORDER.find((f) => err.fieldErrors[f]) ?? "fullName");
       } else {
         setError(err.message || "Something went wrong. Try again.");
       }
     }
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setSubmitted(true);
-    const firstInvalid = FIELD_ORDER.find((f) => errors[f]);
-    if (firstInvalid) return focusField(firstInvalid);
-    submit("password");
   };
 
   return (
@@ -257,15 +236,8 @@ export default function Register() {
         </div>
       )}
 
-      <button type="button" onClick={() => submit("github")} disabled={isBusy} className={outlineButton}>
-        {pending === "github" ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <FaGithub size={16} aria-hidden="true" />}
-        {pending === "github" ? "Connecting to GitHub…" : "Sign up with GitHub"}
-      </button>
-
-      <AuthDivider label="or sign up with email" className="my-6" />
-
-      <form onSubmit={handleSubmit} noValidate aria-busy={pending === "password"}>
-        <fieldset disabled={isBusy} className="m-0 flex min-w-0 flex-col gap-5 border-0 p-0">
+      <form onSubmit={handleSubmit} noValidate aria-busy={isSubmitting}>
+        <fieldset disabled={isSubmitting} className="m-0 flex min-w-0 flex-col gap-5 border-0 p-0">
           <AuthInput
             id="register-fullName" label="Full name" icon={User} placeholder="Ada Lovelace"
             autoComplete="name" error={errorFor("fullName")} {...bind("fullName")}
@@ -274,7 +246,7 @@ export default function Register() {
           <AuthInput
             id="register-username" label="Username" icon={AtSign} placeholder="ada_codes"
             autoComplete="username" autoCapitalize="none" spellCheck={false}
-            hint="3 to 20 letters, numbers or underscores. Shown on your public profile."
+            hint="3 to 50 characters. Shown on your public profile."
             error={errorFor("username")} {...bind("username")}
           />
 
@@ -291,11 +263,11 @@ export default function Register() {
               {...(showRules
                 ? { "aria-describedby": `register-password-rules${errorFor("password") ? " register-password-error" : ""}` }
                 : {})}
-              hint={showRules ? undefined : "Use 8+ characters with upper and lower case letters and a number."}
+              hint={showRules ? undefined : "Use at least 8 characters."}
               {...bind("password")}
             />
             {showRules && (
-              <ul id="register-password-rules" aria-label="Password requirements" className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+              <ul id="register-password-rules" aria-label="Password requirements" className="flex flex-col gap-1">
                 {PASSWORD_RULES.map((r) => {
                   const met = r.test(values.password);
                   return (
@@ -334,13 +306,19 @@ export default function Register() {
                 <span className="block text-sm font-medium text-[#F3F4F6]">
                   Developer profile <span className="text-xs font-normal text-[#9CA3AF]">(optional)</span>
                 </span>
-                <span className="block text-xs text-[#9CA3AF]">Skills, bio, availability and links. You can add these later.</span>
+                <span className="block text-xs text-[#9CA3AF]">Skills, bio, availability and links.</span>
               </span>
               <ChevronDown size={16} aria-hidden="true" className={`shrink-0 text-[#9CA3AF] transition-transform ${showProfile ? "rotate-180" : ""}`} />
             </button>
 
             {showProfile && (
               <div id="register-profile" className="mt-4 flex flex-col gap-5">
+                <p className="rounded-lg border border-[#C9A8FF]/25 bg-[#C9A8FF]/5 px-3.5 py-2.5 text-xs leading-relaxed text-[#9CA3AF]">
+                  <span className="font-medium text-[#F3F4F6]">Not saved yet.</span> Account creation isn't connected
+                  to a profile service yet, so anything entered here won't be stored. It's included so the form is
+                  ready once that's wired up.
+                </p>
+
                 <div className="flex flex-col gap-2.5">
                   <AuthInput
                     id="register-skills"
@@ -376,7 +354,7 @@ export default function Register() {
                           <button
                             type="button"
                             aria-label={`Remove ${s}`}
-                            onClick={() => setField("skills", values.skills.filter((x) => x !== s))}
+                            onClick={() => removeSkill(s)}
                             className="rounded text-[#9CA3AF] hover:text-[#F3F4F6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
                           >
                             <X size={12} />
@@ -421,7 +399,7 @@ export default function Register() {
                 <AuthInput
                   id="register-githubUsername"
                   label={<>GitHub <span className="text-xs font-normal text-[#9CA3AF]">(optional)</span></>}
-                  icon={FaGithub} placeholder="Enter your GitHub username or profile link"
+                  icon={Github} placeholder="username or github.com/username"
                   autoComplete="off" autoCapitalize="none" spellCheck={false}
                   error={errorFor("githubUsername")} {...bind("githubUsername")}
                 />
@@ -429,7 +407,7 @@ export default function Register() {
                 <AuthInput
                   id="register-linkedinUrl"
                   label={<>LinkedIn <span className="text-xs font-normal text-[#9CA3AF]">(optional)</span></>}
-                  type="url" icon={FaLinkedin} placeholder="Enter your LinkedIn profile link"
+                  type="url" icon={Linkedin} placeholder="https://www.linkedin.com/in/your-name"
                   autoComplete="off" autoCapitalize="none" spellCheck={false}
                   error={errorFor("linkedinUrl")} {...bind("linkedinUrl")}
                 />
@@ -466,19 +444,11 @@ export default function Register() {
           </div>
 
           <button type="submit" className={primaryButton}>
-            {pending === "password" && <Loader2 size={15} className="animate-spin" aria-hidden="true" />}
-            {pending === "password" ? "Creating account…" : "Create Account"}
+            {isSubmitting && <Loader2 size={15} className="animate-spin" aria-hidden="true" />}
+            {isSubmitting ? "Creating account…" : "Create Account"}
           </button>
         </fieldset>
       </form>
-
-      <p
-        role="note"
-        className="mt-6 rounded-lg border border-[#C9A8FF]/25 bg-[#C9A8FF]/5 px-3.5 py-2.5 text-xs leading-relaxed text-[#9CA3AF]"
-      >
-        <span className="font-medium text-[#F3F4F6]">Demo mode.</span> Accounts are stored only in this browser and
-        nothing is sent anywhere. To see the "already taken" errors, try the email {DEMO_ACCOUNT.email} or the username admin.
-      </p>
     </AuthLayout>
   );
 }

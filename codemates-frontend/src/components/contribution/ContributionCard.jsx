@@ -1,6 +1,7 @@
 import { CheckCircle2, GitCommit, MessageSquare } from "lucide-react";
 import Card from "../ui/Card";
 import Badge from "../ui/Badge";
+import Avatar from "../ui/Avatar";
 
 /**
  * One member's contribution summary card.
@@ -29,11 +30,7 @@ export default function ContributionCard({
             {rank}
           </span>
         )}
-        <img
-          src={avatarUrl}
-          alt={name}
-          className="h-10 w-10 shrink-0 rounded-full object-cover"
-        />
+        <Avatar name={name} src={avatarUrl} size={40} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-[var(--cm-text)]">{name}</p>
           {role && <p className="truncate text-xs text-[var(--cm-muted)]">{role}</p>}

@@ -68,7 +68,7 @@ export default function DirectMessageBubble({
       )}
 
       <div
-        className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed sm:max-w-[70%] ${
+        className={`max-w-[85%] rounded-2xl px-5 py-3 text-lg leading-relaxed sm:max-w-[70%] ${
           pending ? 'opacity-70' : ''
         } ${
           isOwn
@@ -80,7 +80,7 @@ export default function DirectMessageBubble({
         <p className="whitespace-pre-wrap break-words">{renderContent(message.content, isOwn)}</p>
 
         <div
-          className={`mt-1 flex items-center justify-end gap-1.5 text-[10px] ${
+          className={`mt-1.5 flex items-center justify-end gap-1.5 text-xs ${
             isOwn ? 'text-[#0A0918]/70' : 'text-[#8B88AE]'
           }`}
         >

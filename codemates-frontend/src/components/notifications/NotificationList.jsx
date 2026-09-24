@@ -113,7 +113,7 @@ export default function NotificationList({
     <div className="flex flex-col gap-6">
       {groupByDay(notifications).map((group) => (
         <section key={group.key} aria-labelledby={`notif-group-${group.key}`}>
-          <h2 id={`notif-group-${group.key}`} className="mb-3 text-sm font-semibold text-[#A9A6C8]">
+          <h2 id={`notif-group-${group.key}`} className="page-section-heading mb-3">
             {group.label}
           </h2>
           <ul className="overflow-hidden rounded-xl border border-[#1C1A38] bg-[#0A0918] divide-y divide-[#1C1A38]">

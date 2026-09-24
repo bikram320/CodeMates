@@ -1,29 +1,22 @@
 /**
  * src/hooks/useTasks.js
  *
- * React Query hook for project task data.
+ * React Query hooks for project tasks.
+ * Wired directly to the real Spring Boot API — no mock.
  *
- * Data flow:
- *   ProjectTasks.jsx
- *     → useTasks(projectId)
- *       → taskApi.getTasks / createTask / updateTask / deleteTask
- *         → mock (VITE_USE_MOCK=true) or real Spring Boot (VITE_USE_MOCK=false)
+ * Two separate mutations match the two distinct backend endpoints:
  *
- * All three mutations use optimistic updates so the Kanban board feels instant:
- *   1. onMutate  — update the React Query cache immediately (no flicker)
- *   2. onError   — roll back to the previous cache snapshot if the call fails
- *   3. onSuccess — replace the optimistic placeholder with the real server response
+ *   updateTask({ taskId, data })
+ *     → PUT /api/projects/{projectId}/tasks/{taskId}
+ *     → Fields only: title, description, assignedToUserId, priority, dueDate
+ *     → NEVER send status here
  *
- * Usage:
- *   const {
- *     tasks, isLoading, isError, error, refetch,
- *     createTask, updateTask, deleteTask,
- *     isCreating, isUpdating, isDeleting,
- *   } = useTasks(projectId);
+ *   changeStatus({ taskId, status, position? })
+ *     → PUT /api/projects/{projectId}/tasks/{taskId}/status
+ *     → Status only: TODO | IN_PROGRESS | REVIEW | DONE
  *
- *   createTask(data)                      // data = CreateTaskRequest fields
- *   updateTask({ taskId, data })          // data can include status
- *   deleteTask(taskId)
+ * ProjectTasks.jsx calls them independently based on what changed in the form.
+ * Both use optimistic updates so the board feels instant.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -31,75 +24,70 @@ import * as taskApi from '../api/taskApi';
 
 export function useTasks(projectId) {
   const queryClient = useQueryClient();
+  const queryKey    = ['tasks', projectId];
 
-  // Unique cache key per project — React Query uses this for cache lookup and invalidation
-  const queryKey = ['tasks', projectId];
-
-  // ── Query ───────────────────────────────────────────────────────────────────
+  // ── Query ─────────────────────────────────────────────────────────────────
   const query = useQuery({
     queryKey,
-    queryFn:  () => taskApi.getTasks(projectId),
-    enabled:  !!projectId,          // don't fetch if projectId is missing
-    staleTime: 1000 * 60 * 2,       // treat data as fresh for 2 minutes
-    retry: 2,
+    queryFn:   () => taskApi.getTasks(projectId),
+    enabled:   !!projectId,
+    staleTime: 1000 * 60 * 2,
+    retry:     2,
+    refetchOnWindowFocus: false,
   });
 
-  // ── Create mutation ─────────────────────────────────────────────────────────
+  // ── Create ────────────────────────────────────────────────────────────────
+  // Backend always sets status = TODO. Do not include status in data.
   const createMutation = useMutation({
     mutationFn: (data) => taskApi.createTask(projectId, data),
 
     onMutate: async (data) => {
-      // Cancel any in-flight refetch so it doesn't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey });
-
-      // Save current cache for rollback
       const previous = queryClient.getQueryData(queryKey);
 
-      // Add a temporary placeholder task immediately
-      const optimisticTask = {
+      const optimistic = {
         id:               `optimistic-${Date.now()}`,
-        projectId:        projectId ?? '',
-        createdByUserId:  'user-uuid-001',
+        projectId,
+        createdByUserId:  null,
         assignedToUserId: data.assignedToUserId ?? null,
         title:            data.title,
         description:      data.description ?? '',
-        status:           'TODO',   // always TODO — mirrors the API rule
+        status:           'TODO',            // always TODO on create
         priority:         data.priority ?? 'MEDIUM',
         dueDate:          data.dueDate ?? null,
         completedAt:      null,
-        position:         (previous ?? []).filter((t) => t.status === 'TODO').length,
+        position:         data.position ?? 0,
         createdAt:        new Date().toISOString(),
         updatedAt:        new Date().toISOString(),
-        _optimistic:      true,     // flag so we can identify and replace it on success
+        _optimistic:      true,
       };
 
-      queryClient.setQueryData(queryKey, (old) => [...(old ?? []), optimisticTask]);
-
-      return { previous, optimisticId: optimisticTask.id };
+      queryClient.setQueryData(queryKey, (old) => [...(old ?? []), optimistic]);
+      return { previous, optimisticId: optimistic.id };
     },
 
-    onError: (_, __, context) => {
-      // Roll back the cache to the snapshot taken before the mutation started
-      queryClient.setQueryData(queryKey, context.previous);
+    onError: (_, __, ctx) => {
+      queryClient.setQueryData(queryKey, ctx.previous);
     },
 
-    onSuccess: (newTask, _, context) => {
-      // Replace the optimistic placeholder with the real server response
+    onSuccess: (newTask, _, ctx) => {
+      // Replace optimistic placeholder with the real server response
       queryClient.setQueryData(queryKey, (old) =>
-        (old ?? []).map((t) => (t.id === context.optimisticId ? newTask : t))
+        (old ?? []).map((t) => (t.id === ctx.optimisticId ? newTask : t))
       );
     },
   });
 
-  // ── Update mutation ─────────────────────────────────────────────────────────
-  const updateMutation = useMutation({
-    mutationFn: ({ taskId, data }) => taskApi.updateTask(projectId, taskId, data),
+  // ── Update fields (no status) ─────────────────────────────────────────────
+  // Maps to PUT /tasks/{taskId} — UpdateTaskRequest
+  const updateFieldsMutation = useMutation({
+    mutationFn: ({ taskId, data }) =>
+      taskApi.updateTask(projectId, taskId, data),
 
     onMutate: async ({ taskId, data }) => {
       await queryClient.cancelQueries({ queryKey });
       const previous = queryClient.getQueryData(queryKey);
 
-      // Immediately apply the update to the cache
       queryClient.setQueryData(queryKey, (old) =>
         (old ?? []).map((t) =>
           t.id === taskId
@@ -111,42 +99,83 @@ export function useTasks(projectId) {
       return { previous };
     },
 
-    onError: (_, __, context) => {
-      queryClient.setQueryData(queryKey, context.previous);
+    onError: (_, __, ctx) => {
+      queryClient.setQueryData(queryKey, ctx.previous);
     },
 
     onSuccess: (updatedTask) => {
-      // Replace the optimistic version with the real server response
+      // Replace optimistic patch with real server response
       queryClient.setQueryData(queryKey, (old) =>
         (old ?? []).map((t) => (t.id === updatedTask.id ? updatedTask : t))
       );
     },
   });
 
-  // ── Delete mutation ─────────────────────────────────────────────────────────
+  // ── Change status (separate endpoint) ────────────────────────────────────
+  // Maps to PUT /tasks/{taskId}/status — ChangeTaskStatusRequest
+  // completedAt is auto-managed by the backend (set on DONE, cleared otherwise)
+  const changeStatusMutation = useMutation({
+    mutationFn: ({ taskId, status, position }) =>
+      taskApi.changeTaskStatus(projectId, taskId, {
+        status,
+        ...(position !== undefined && { position }),
+      }),
+
+    onMutate: async ({ taskId, status, position }) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData(queryKey);
+
+      queryClient.setQueryData(queryKey, (old) =>
+        (old ?? []).map((t) =>
+          t.id === taskId
+            ? {
+                ...t,
+                status,
+                ...(position !== undefined && { position }),
+                // Mirror backend's completedAt logic for the optimistic update
+                completedAt:
+                  status === 'DONE'
+                    ? (t.completedAt ?? new Date().toISOString())
+                    : null,
+                updatedAt: new Date().toISOString(),
+              }
+            : t
+        )
+      );
+
+      return { previous };
+    },
+
+    onError: (_, __, ctx) => {
+      queryClient.setQueryData(queryKey, ctx.previous);
+    },
+
+    onSuccess: (updatedTask) => {
+      queryClient.setQueryData(queryKey, (old) =>
+        (old ?? []).map((t) => (t.id === updatedTask.id ? updatedTask : t))
+      );
+    },
+  });
+
+  // ── Delete ────────────────────────────────────────────────────────────────
   const deleteMutation = useMutation({
     mutationFn: (taskId) => taskApi.deleteTask(projectId, taskId),
 
     onMutate: async (taskId) => {
       await queryClient.cancelQueries({ queryKey });
       const previous = queryClient.getQueryData(queryKey);
-
-      // Remove the task from the cache immediately
       queryClient.setQueryData(queryKey, (old) =>
         (old ?? []).filter((t) => t.id !== taskId)
       );
-
       return { previous };
     },
 
-    onError: (_, __, context) => {
-      queryClient.setQueryData(queryKey, context.previous);
+    onError: (_, __, ctx) => {
+      queryClient.setQueryData(queryKey, ctx.previous);
     },
-
-    // No onSuccess needed — the task is already removed from the cache
   });
 
-  // ── Public interface ─────────────────────────────────────────────────────────
+  // ── Public interface ──────────────────────────────────────────────────────
   return {
     // Query state
     tasks:     query.data ?? [],
@@ -155,14 +184,16 @@ export function useTasks(projectId) {
     error:     query.error,
     refetch:   query.refetch,
 
-    // Mutations — call these directly with the required arguments
-    createTask: createMutation.mutate,   // (data) => void
-    updateTask: updateMutation.mutate,   // ({ taskId, data }) => void
-    deleteTask: deleteMutation.mutate,   // (taskId) => void
+    // Mutations — deliberately split to match the two backend endpoints
+    createTask:   createMutation.mutate,       // (data) — no status
+    updateTask:   updateFieldsMutation.mutate, // ({ taskId, data }) — no status
+    changeStatus: changeStatusMutation.mutate, // ({ taskId, status, position? })
+    deleteTask:   deleteMutation.mutate,       // (taskId)
 
-    // Pending states — useful for disabling buttons or showing spinners
+    // Pending flags
     isCreating: createMutation.isPending,
-    isUpdating: updateMutation.isPending,
+    isUpdating:
+      updateFieldsMutation.isPending || changeStatusMutation.isPending,
     isDeleting: deleteMutation.isPending,
   };
 }

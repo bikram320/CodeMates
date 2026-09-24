@@ -9,7 +9,6 @@ export const CATEGORY_OPTIONS = [
   { id: "projects", label: "Projects" },
   { id: "tasks", label: "Tasks" },
   { id: "messages", label: "Messages" },
-  { id: "connections", label: "Connections" },
   { id: "github", label: "GitHub" },
 ];
 

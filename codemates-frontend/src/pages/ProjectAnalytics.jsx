@@ -65,12 +65,12 @@ function AnalyticsSkeleton() {
 
       <div aria-hidden="true" className={`${skeletonCard} h-[260px]`} />
 
-      <div aria-hidden="true" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div aria-hidden="true" className="flex flex-col gap-5">
         <div className={`${skeletonCard} h-[380px]`} />
         <div className={`${skeletonCard} h-[380px]`} />
       </div>
 
-      <div aria-hidden="true" className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
+      <div aria-hidden="true" className="flex flex-col gap-5">
         <div className={`${skeletonCard} h-[340px]`} />
         <div className={`${skeletonCard} h-[340px]`} />
       </div>
@@ -121,11 +121,8 @@ export default function ProjectAnalytics() {
             <ProjectOverviewStats tasks={data.tasks} milestone={data.milestone} />
             <TaskAnalytics tasks={data.tasks} />
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <TeamActivity members={data.team} />
-              <ContributionAnalytics contributions={data.contributions} />
-            </div>
-
+            <TeamActivity members={data.team} />
+            <ContributionAnalytics contributions={data.contributions} />
             <ActivityTimeline trend={data.trend} activity={data.activity} />
           </>
         )}

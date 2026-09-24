@@ -1,20 +1,10 @@
-/**
- * Small helpers shared by the GitHub page components.
- *
- *   formatRelativeTime(iso)  "12m ago", "3h ago", "2d ago", then "Sep 3"
- *   formatDate(iso)          "Mar 6, 2026"
- *   <GitHubMark />           GitHub logo (inline SVG — lucide dropped brand icons)
- *   <SampleDataBadge />      "sample data" chip. Every card that shows mock
- *                            numbers renders this so it's obvious nothing here
- *                            comes from GitHub yet.
- */
-
 export function formatRelativeTime(iso) {
   if (!iso) return '';
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return '';
 
   const minutes = Math.floor((Date.now() - then) / 60000);
+  if (minutes < 0) return 'just now';
   if (minutes < 1) return 'just now';
   if (minutes < 60) return `${minutes}m ago`;
 
@@ -32,9 +22,9 @@ export function formatRelativeTime(iso) {
 
 export function formatDate(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('en-US', {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -59,9 +49,8 @@ export function GitHubMark({ size = 20, className = '' }) {
 export function SampleDataBadge() {
   return (
     <span
-      title="Mock data — not synced from GitHub"
-      className="inline-flex items-center rounded-md border border-[#C9A8FF]/30 bg-[#C9A8FF]/10
-                 px-1.5 py-0.5 font-mono text-[10px] text-[#C9A8FF]"
+      title="Mock data - not synced from GitHub"
+      className="inline-flex items-center rounded-md border border-[#C9A8FF]/30 bg-[#C9A8FF]/10 px-1.5 py-0.5 font-mono text-[10px] text-[#C9A8FF]"
     >
       sample data
     </span>

@@ -7,7 +7,6 @@ import {
   FolderGit2,
   LayoutDashboard,
   MessageSquare,
-  Settings,
   Users,
 } from "lucide-react";
 
@@ -27,11 +26,10 @@ const DEFAULT_ITEMS = [
   { label: "Connections", to: "/connections", icon: Users },
   { label: "Messages", to: "/messages", icon: MessageSquare },
   { label: "Notifications", to: "/notifications", icon: Bell },
-  { label: "Settings", to: "/settings", icon: Settings },
 ];
 
 function itemClass(isActive) {
-  return `group flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
+  return `group flex w-full items-center gap-2.5 rounded-[var(--cm-radius-sm)] px-2.5 py-1.5 text-sm transition-colors ${
     isActive
       ? "bg-[var(--cm-indigo-soft)] text-[var(--cm-text)]"
       : "text-[var(--cm-text-dim)] hover:bg-[var(--cm-surface)] hover:text-[var(--cm-text)]"
@@ -66,7 +64,7 @@ export default function AppSidebar({
       }}
       className={`flex h-full shrink-0 flex-col border-r border-[var(--cm-border)] bg-[var(--cm-bg)] ${className}`}
     >
-      <nav className="flex-1 overflow-y-auto p-3">
+      <nav className="flex-1 overflow-y-auto p-2.5">
         <ul className="flex flex-col gap-0.5">
           {items.map((item) => {
             const Icon = item.icon;

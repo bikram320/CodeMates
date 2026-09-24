@@ -11,16 +11,15 @@ import {
   Sparkles,
   UserCheck,
   UserMinus,
-  UserPlus,
 } from "lucide-react";
 
 const INDIGO = "#6C7BFF";
 const LAVENDER = "#C9A8FF";
 
 /**
- * Presentation config per notification `type`.
- * Keys are the backend NotificationType constants, plus CONNECTION_REQUEST
- * (UI-only until social-service publishes events).
+ * Presentation config per notification `type`. Keys are exactly the
+ * NotificationType constants the backend defines (notification-service) —
+ * nothing here is invented or UI-only.
  * `category` drives the filter chips in NotificationFilters.
  */
 export const NOTIFICATION_TYPES = {
@@ -33,7 +32,6 @@ export const NOTIFICATION_TYPES = {
   TASK_STATUS_CHANGED: { label: "Task update", icon: RefreshCw, category: "tasks", accent: INDIGO },
   TASK_COMPLETED: { label: "Task update", icon: CheckCircle2, category: "tasks", accent: INDIGO },
   MESSAGE_RECEIVED: { label: "Project message", icon: MessageSquare, category: "messages", accent: INDIGO },
-  CONNECTION_REQUEST: { label: "Connection request", icon: UserPlus, category: "connections", accent: LAVENDER },
   GITHUB_SYNC_COMPLETED: { label: "GitHub activity", icon: GitBranch, category: "github", accent: INDIGO },
   WELCOME: { label: "Welcome", icon: Sparkles, category: "general", accent: LAVENDER },
 };
