@@ -92,11 +92,18 @@ public class GithubSyncService {
             repo.setIsPrivate(Boolean.TRUE.equals(apiRepo.getIsPrivate()));
             repo.setIsForked(Boolean.TRUE.equals(apiRepo.getFork()));
             repo.setLastPushedAt(parseGithubDate(apiRepo.getPushedAt()));
+            repo.setOpenIssuesCount(apiRepo.getOpenIssuesCount());
+            repo.setSizeKb(apiRepo.getSize());
+            repo.setLicense(apiRepo.getLicense() != null ? apiRepo.getLicense().getName() : null);
+            repo.setRepoCreatedAt(parseGithubDate(apiRepo.getCreatedAt()));
             repo.setLastSyncedAt(LocalDateTime.now());
             repo.setIsDeleted(false);
 
             Repository savedRepo = repositoryRepository.save(repo);
             syncCommitStats(savedRepo, profile.getGithubUsername(), token);
+            int contributors = githubApiClient.fetchContributorsCount(token, savedRepo.getRepoFullName());
+            savedRepo.setContributorsCount(contributors);
+            repositoryRepository.save(savedRepo);
             syncedCount++;
         }
 
@@ -124,6 +131,30 @@ public class GithubSyncService {
         stat.setIsDeleted(false);
 
         commitStatRepository.save(stat);
+    }
+    /**
+     * Internal lookup used by project-service's health-prediction sync job.
+     * repoFullName format: "owner/repo" (matches GitHub's own fullName field).
+     */
+    public RepoHealthStatsDto getRepoStatsForHealth(String repoFullName) {
+        Repository repo = repositoryRepository.findByRepoFullNameAndIsDeletedFalse(repoFullName)
+                .orElseThrow(() -> new GithubProfileNotFoundException("No synced data for repo: " + repoFullName));
+
+        int ageDays = repo.getRepoCreatedAt() != null
+                ? (int) java.time.temporal.ChronoUnit.DAYS.between(repo.getRepoCreatedAt(), LocalDateTime.now())
+                : 0;
+
+        return RepoHealthStatsDto.builder()
+                .repoFullName(repo.getRepoFullName())
+                .stars(repo.getStarsCount())
+                .forks(repo.getForksCount())
+                .openIssues(repo.getOpenIssuesCount())
+                .contributors(repo.getContributorsCount())
+                .sizeKb(repo.getSizeKb())
+                .projectAgeDays(ageDays)
+                .language(repo.getPrimaryLanguage())
+                .license(repo.getLicense())
+                .build();
     }
 
     public GithubProfileResponseDto getProfile(UUID userId) {

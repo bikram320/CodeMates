@@ -77,4 +77,29 @@ public class GithubApiClient {
             return 0;
         }
     }
+    /**
+     * Returns the contributor count for a repo. Uses the same per_page=1 +
+     * Link header trick as fetchCommitCount: GitHub's last-page number
+     * equals the total count when each page has exactly 1 item.
+     */
+    public int fetchContributorsCount(String token, String repoFullName) {
+        try {
+            String url = BASE_URL + "/repos/" + repoFullName + "/contributors?per_page=1&anon=false";
+            HttpEntity<Void> entity = new HttpEntity<>(authHeaders(token));
+            ResponseEntity<Object[]> response = restTemplate.exchange(
+                    url, HttpMethod.GET, entity, Object[].class);
+
+            List<String> linkHeaders = response.getHeaders().get("Link");
+            if (linkHeaders != null && !linkHeaders.isEmpty()) {
+                Matcher matcher = LAST_PAGE_PATTERN.matcher(linkHeaders.get(0));
+                if (matcher.find()) {
+                    return Integer.parseInt(matcher.group(1));
+                }
+            }
+            return response.getBody() != null ? response.getBody().length : 0;
+        } catch (Exception e) {
+            // empty repos / repos with no accessible contributor data -> treat as 0, not a failure
+            return 0;
+        }
+    }
 }

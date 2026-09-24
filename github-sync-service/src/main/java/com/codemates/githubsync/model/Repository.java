@@ -95,4 +95,22 @@ public class Repository {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @ColumnDefault("0")
+    @Column(name = "open_issues_count")
+    private Integer openIssuesCount;
+
+    @ColumnDefault("0")
+    @Column(name = "size_kb")
+    private Integer sizeKb;
+
+    @Size(max = 100)
+    @Column(name = "license", length = 100)
+    private String license;
+
+    @Column(name = "repo_created_at")
+    private LocalDateTime repoCreatedAt; // GitHub's created_at -- NOT this row's own created_at above
+
+    @ColumnDefault("0")
+    @Column(name = "contributors_count")
+    private Integer contributorsCount;
 }

@@ -1,0 +1,18 @@
+[
+  "stars_log",
+  "forks_log",
+  "open_issues_log",
+  "contributors_log",
+  "size_kb_log",
+  "project_age_days",
+  "language_Go",
+  "language_Java",
+  "language_JavaScript",
+  "language_Python",
+  "language_Rust",
+  "language_Unknown",
+  "license_grouped_GNU General Public License v3.0",
+  "license_grouped_MIT License",
+  "license_grouped_Other",
+  "license_grouped_Unlicensed"
+]

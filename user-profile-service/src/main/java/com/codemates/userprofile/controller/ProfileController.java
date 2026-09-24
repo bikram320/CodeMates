@@ -1,9 +1,8 @@
 package com.codemates.userprofile.controller;
 
 import com.codemates.userprofile.dto.*;
+import com.codemates.userprofile.security.JwtCookieExtractor;
 import com.codemates.userprofile.service.ProfileService;
-import com.codemates.userprofile.service.JwtService;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +11,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,7 +21,7 @@ import java.util.UUID;
 public class ProfileController {
 
     private final ProfileService profileService;
-    private final JwtService jwtService;
+    private final JwtCookieExtractor jwtCookieExtractor;
 
     // GET /api/users/me
     // get own profile using userId from cookie
@@ -149,18 +147,6 @@ public class ProfileController {
     }
 
     private UUID extractUserId(HttpServletRequest request) {
-        if (request.getCookies() != null) {
-            String token = Arrays.stream(request.getCookies())
-                    .filter(c -> c.getName().equals("access_token"))
-                    .map(Cookie::getValue)
-                    .findFirst()
-                    .orElse(null);
-
-            if (token != null) {
-                return jwtService.extractUserId(token);
-            }
-        }
-
-        throw new IllegalArgumentException("User not authenticated");
+        return jwtCookieExtractor.extractUserId(request);
     }
 }

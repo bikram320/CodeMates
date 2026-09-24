@@ -25,4 +25,13 @@ public class GithubRepoApiResponse {
     private Boolean fork;
     @JsonProperty("pushed_at")
     private String pushedAt;
+    @JsonProperty("open_issues_count")
+    private Integer openIssuesCount;
+
+    private Integer size; // GitHub returns this in KB already -- no conversion needed
+
+    private GithubLicenseApiResponse license; // nullable -- GitHub returns null if no license detected
+
+    @JsonProperty("created_at")
+    private String createdAt;
 }

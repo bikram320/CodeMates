@@ -1,0 +1,56 @@
+{
+  "best_model": "random_forest",
+  "candidates": {
+    "logistic_regression": {
+      "accuracy": 0.7537837416133563,
+      "precision_abandoned": 0.5789283128167995,
+      "recall_abandoned": 0.7939424031777557,
+      "f1_abandoned": 0.6695979899497487,
+      "roc_auc": 0.840957100071965,
+      "confusion_matrix": [
+        [
+          3232,
+          1163
+        ],
+        [
+          415,
+          1599
+        ]
+      ]
+    },
+    "random_forest": {
+      "accuracy": 0.7615852707130598,
+      "precision_abandoned": 0.5906716417910448,
+      "recall_abandoned": 0.7859980139026812,
+      "f1_abandoned": 0.6744780570941628,
+      "roc_auc": 0.8495284995927258,
+      "confusion_matrix": [
+        [
+          3298,
+          1097
+        ],
+        [
+          431,
+          1583
+        ]
+      ]
+    },
+    "gradient_boosting": {
+      "accuracy": 0.7923232953658917,
+      "precision_abandoned": 0.6975130133024869,
+      "recall_abandoned": 0.5988083416087389,
+      "f1_abandoned": 0.644402885386054,
+      "roc_auc": 0.8484828046676676,
+      "confusion_matrix": [
+        [
+          3872,
+          523
+        ],
+        [
+          808,
+          1206
+        ]
+      ]
+    }
+  }
+}

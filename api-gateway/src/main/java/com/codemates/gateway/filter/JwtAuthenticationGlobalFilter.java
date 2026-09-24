@@ -18,6 +18,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
+import static reactor.netty.http.HttpConnectionLiveness.log;
+
 /**
  * Fail-fast JWT check at the edge, PLUS every downstream service still
  * validates the same cookie itself — chosen deliberately as defense in
@@ -76,6 +78,8 @@ public class JwtAuthenticationGlobalFilter implements GlobalFilter, Ordered {
         try {
             userId = jwtValidator.extractUserId(cookie.getValue());
         } catch (Exception e) {
+            log.error("JWT validation failed: {}", e.getClass().getName());
+            log.error("JWT validation message: {}", e.getMessage());
             return unauthorized(exchange, "Invalid or expired access token");
         }
 
