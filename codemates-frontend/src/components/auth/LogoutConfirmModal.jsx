@@ -75,7 +75,7 @@ export default function LogoutConfirmModal({ open, onClose }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="logout-confirm-title"
-        className="relative z-10 flex w-full max-w-sm flex-col items-center gap-5 rounded-lg border border-[var(--cm-border)] bg-[var(--cm-surface-2)] p-6 text-center"
+        className="relative z-10 flex w-full max-w-md flex-col items-center gap-6 rounded-lg border border-[var(--cm-border)] bg-[var(--cm-surface-2)] p-8 text-center"
       >
         <button
           type="button"

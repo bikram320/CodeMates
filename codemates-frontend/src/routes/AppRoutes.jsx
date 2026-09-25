@@ -87,6 +87,10 @@ export default function AppRoutes() {
         />
       </Route>
 
+      <Route element={<Publiclayout showFooter={false} />}>
+        <Route path="/logged-out" element={<LoggedOut />} />
+      </Route>
+
       {/* Authenticated app pages */}
       <Route element={<Applayout />}>
         <Route path="/dashboard" element={<Dashboard />} />
@@ -97,7 +101,6 @@ export default function AppRoutes() {
           menu), so it pops up over whatever page the user is already on
           instead of navigating them to a blank /logout route first.
         */}
-        <Route path="/logged-out" element={<LoggedOut />} />
         <Route path="/discover/developers" element={<DiscoverDevelopers />} />
         <Route path="/discover/developers/:username" element={<DeveloperProfile />} />
         <Route path="/discover/projects" element={<DiscoverProjects />} />

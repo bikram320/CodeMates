@@ -15,7 +15,7 @@ import Logo from "src/components/ui/Logo";
  */
 export default function LoggedOut() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-10 bg-[var(--cm-surface)] px-6 py-16 text-center">
+    <div className="flex min-h-[calc(100svh-var(--cm-navbar-h))] w-full flex-col items-center justify-center gap-10 bg-[var(--cm-surface)] px-6 py-16 text-center">
       <div className="flex items-center gap-2.5">
         <Logo to="/" size="md" src={sleepyCapybara} />
       </div>
