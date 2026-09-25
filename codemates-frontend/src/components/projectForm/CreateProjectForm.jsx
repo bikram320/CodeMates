@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import { ChevronDown, Globe, Loader2, Lock, Plus, X } from "lucide-react";
 
 import ProjectFormSection, { FormField, controlClass, fieldProps } from "./ProjectFormSection";
-import { TYPE_CONFIG } from "../../mock/projectMock";
+
 
 /* ── Options ─────────────────────────────────────────────────────────────── */
 
 // Single source of truth: the same types My Projects cards render from.
-const PROJECT_TYPES = Object.entries(TYPE_CONFIG).map(([id, { label }]) => ({ id, label }));
+//const PROJECT_TYPES = Object.entries(TYPE_CONFIG).map(([id, { label }]) => ({ id, label }));
 
 // Role names match the ones Discover Projects uses in `requiredRoles`.
 const ROLE_OPTIONS = [

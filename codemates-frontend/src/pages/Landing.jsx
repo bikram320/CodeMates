@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { ArrowRight, BarChart3, Check, ChevronDown, FolderGit2, ListChecks, MessageSquare, Search, Sparkles, Users } from "lucide-react";
 import Button from "../components/ui/Button";
+import "../styles/landing.css";
 
 const FAQS = [
   ["What is CodeMates?", "A focused workspace for discovering developers, forming teams, and moving shared projects from idea to shipped work."],

@@ -1,23 +1,21 @@
-import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Bell, BellOff } from "lucide-react";
 
-import ConversationList from "../components/chat/ConversationList";
 import ChatHeader from "../components/chat/ChatHeader";
 import MessageList from "../components/chat/MessageList";
+import TypingIndicator from "../components/chat/TypingIndicator";
 import MessageInput from "../components/chat/MessageInput";
+import Button from "../components/ui/Button";
 import Spinner from "../components/ui/Spinner";
 import EmptyState from "../components/ui/EmptyState";
 
-import { useProjectChat } from "../hooks/useProjectChat";
+import { useConversations } from "../hooks/useConversations";
+import { useConversation } from "../hooks/useConversation";
+import { usePresence } from "../hooks/usePresence";
 import { useAuth } from "../hooks/useAuth";
 
-// ⚠️ Temporary display fallback. ConversationResponse/MessageResponse
-// only ever carry raw UUIDs — never a name, avatar, or project title.
-// useAuth() resolves WHO you are (userId) via UserInfoResponse, but that
-// DTO has no name/avatar either — real name/avatar resolution still
-// needs project-service (project name) and user-profile-service (person
-// names/avatars), neither provided yet.
+// ⚠️ Temporary display fallback — see the Messages.jsx header comment for
+// the full explanation. Same gap, same fix needed (user-profile-service).
 function shortLabel(id) {
   return id ? `User ${id.slice(0, 8)}` : "Unknown";
 }
@@ -25,29 +23,50 @@ function shortLabel(id) {
 /**
  * Project Chat page (/projects/:projectId/chat).
  *
- * Fully connected to the real backend for everything REST can do
- * (conversation list, history, edit, delete). Sending is disabled with
- * a visible message rather than silently doing nothing — see
- * hooks/useProjectChat.js for why.
+ * A project has exactly one PROJECT-type conversation, created
+ * automatically by the backend the moment the project is created
+ * (ConversationService.ensureProjectConversation — idempotent, it will
+ * never create a second one for the same project). There's nothing to
+ * switch between here, which is why this page has no conversation
+ * sidebar. See Messages.jsx for the page where switching between
+ * conversations actually applies (your DIRECT conversations with other
+ * developers).
+ *
+ * Fully real: message history, sending, typing, presence, edit, delete,
+ * mute, and pagination all talk to the actual backend.
  */
 export default function ProjectChat() {
   const { projectId } = useParams();
-  const [sendError, setSendError] = useState(null);
   const { user } = useAuth();
   const currentUserId = user?.userId ?? null;
 
   const {
     conversations,
-    isLoadingConversations,
-    isConversationsError,
-    activeConversationId,
-    setActiveConversationId,
+    isLoading: isLoadingConversations,
+    isError: isConversationsError,
+  } = useConversations();
+
+  const projectConversation = conversations.find(
+    (c) => c.type === "PROJECT" && c.projectId === projectId
+  );
+
+  const {
     messages,
+    hasMoreMessages,
     isLoadingMessages,
+    isLoadingMore,
     isMessagesError,
     messagesError,
+    loadMoreMessages,
+    typingUserIds,
     sendMessage,
-  } = useProjectChat(projectId);
+    notifyTyping,
+    editMessage,
+    deleteMessage,
+    setMuted,
+  } = useConversation(projectConversation?.id);
+
+  const presence = usePresence();
 
   if (isLoadingConversations) {
     return (
@@ -61,103 +80,78 @@ export default function ProjectChat() {
     return (
       <EmptyState
         icon={AlertTriangle}
-        title="Couldn't load conversations"
-        description="Something went wrong loading this project's chat. Please try again."
+        title="Couldn't load this project's chat"
+        description="Something went wrong. Please try again."
       />
     );
   }
 
-  const enrichedConversations = conversations.map((conversation) => {
-    const selfParticipant = conversation.participants?.find(
-      (p) => p.userId === currentUserId
+  if (!projectConversation) {
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="No chat found for this project"
+        description="This project's conversation hasn't been created yet."
+      />
     );
-    const otherParticipant = conversation.participants?.find(
-      (p) => p.userId !== currentUserId
-    );
-
-    const unread =
-      !!conversation.lastMessageAt &&
-      (!selfParticipant?.lastReadAt ||
-        new Date(selfParticipant.lastReadAt) < new Date(conversation.lastMessageAt));
-
-    return {
-      ...conversation,
-      displayName:
-        conversation.type === "PROJECT"
-          ? `Project ${conversation.projectId?.slice(0, 8)}`
-          : shortLabel(otherParticipant?.userId),
-      displayAvatar: null,
-      isGroup: conversation.type === "PROJECT",
-      isOnline: false, // presence isn't wired up yet — needs the WebSocket /topic/presence subscription
-      unread,
-    };
-  });
-
-  const activeConversation = enrichedConversations.find(
-    (c) => c.id === activeConversationId
-  );
-
-  // Empty until user-profile-service is available to resolve names/avatars.
-  const userDirectory = {};
-
-  function handleSend(content) {
-    try {
-      sendMessage(content);
-      setSendError(null);
-    } catch (err) {
-      setSendError(err.message);
-    }
   }
+
+  const onlineCount = (projectConversation.participants ?? []).filter(
+    (p) => presence[p.userId] === "ONLINE"
+  ).length;
+
+  const selfParticipant = projectConversation.participants?.find(
+    (p) => p.userId === currentUserId
+  );
+  const isMuted = selfParticipant?.isMuted ?? false;
+
+  const typingNames = typingUserIds.filter((id) => id !== currentUserId).map(shortLabel);
 
   return (
-    <div className="project-chat-page flex h-[calc(100vh-var(--cm-navbar-h)-4rem)] overflow-hidden rounded-lg border border-[var(--cm-border)]">
-      <ConversationList
-        conversations={enrichedConversations}
-        activeConversationId={activeConversationId}
-        onSelect={setActiveConversationId}
-        className="hidden w-72 shrink-0 sm:flex"
+    <div className="project-chat-page flex h-[calc(100vh-var(--cm-navbar-h)-4rem)] flex-col overflow-hidden rounded-lg border border-[var(--cm-border)]">
+      <ChatHeader
+        title={`Project ${projectId?.slice(0, 8)}`}
+        subtitle={`${projectConversation.participants?.length ?? 0} members · ${onlineCount} online`}
+        isGroup
+        action={
+          <Button
+            variant="ghost"
+            size="sm"
+            leftIcon={isMuted ? BellOff : Bell}
+            onClick={() => setMuted(!isMuted)}
+          >
+            {isMuted ? "Unmute" : "Mute"}
+          </Button>
+        }
       />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        {activeConversation && (
-          <ChatHeader
-            title={activeConversation.displayName}
-            subtitle={
-              activeConversation.isGroup
-                ? `${activeConversation.participants?.length ?? 0} members`
-                : undefined
-            }
-            avatarUrl={activeConversation.displayAvatar}
-            isGroup={activeConversation.isGroup}
+      {isLoadingMessages ? (
+        <div className="flex flex-1 items-center justify-center">
+          <Spinner size="lg" />
+        </div>
+      ) : isMessagesError ? (
+        <div className="flex flex-1 items-center justify-center p-6">
+          <EmptyState
+            icon={AlertTriangle}
+            title="Couldn't load messages"
+            description={messagesError?.message || "Please try again."}
           />
-        )}
+        </div>
+      ) : (
+        <MessageList
+          messages={messages}
+          currentUserId={currentUserId}
+          userDirectory={{}}
+          hasMore={hasMoreMessages}
+          onLoadMore={isLoadingMore ? undefined : loadMoreMessages}
+          onEditMessage={editMessage}
+          onDeleteMessage={deleteMessage}
+        />
+      )}
 
-        {isLoadingMessages ? (
-          <div className="flex flex-1 items-center justify-center">
-            <Spinner size="lg" />
-          </div>
-        ) : isMessagesError ? (
-          <div className="flex flex-1 items-center justify-center p-6">
-            <EmptyState
-              icon={AlertTriangle}
-              title="Couldn't load messages"
-              description={messagesError?.message || "Please try again."}
-            />
-          </div>
-        ) : (
-          <MessageList
-            messages={messages}
-            currentUserId={currentUserId}
-            userDirectory={userDirectory}
-          />
-        )}
+      <TypingIndicator typingUsers={typingNames} />
 
-        {sendError && (
-          <p className="px-5 pb-2 text-xs text-[var(--cm-lavender)]">{sendError}</p>
-        )}
-
-        <MessageInput onSend={handleSend} />
-      </div>
+      <MessageInput onSend={(content) => sendMessage(content)} onTyping={notifyTyping} />
     </div>
   );
 }

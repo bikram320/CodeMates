@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Outlet, useParams } from "react-router-dom";
+import { Navigate, Outlet, useLocation, useParams } from "react-router-dom";
 import { X } from "lucide-react";
 import Navbar from "src/components/layout/Navbar";
 import ProjectSidebar from "src/components/layout/ProjectSidebar";
-
+import { useAuth } from "src/context/AuthContext";
 
 export default function ProjectLayout({
   project,
@@ -12,7 +12,9 @@ export default function ProjectLayout({
   notificationCount = 0,
   logoSrc = null,
 }) {
+  const { user: authUser, isAuthenticated, isLoading } = useAuth();
   const params = useParams();
+  const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Fall back to the route param when no project object was supplied.
@@ -28,11 +30,19 @@ export default function ProjectLayout({
     return () => document.removeEventListener("keydown", handleKey);
   }, [drawerOpen]);
 
+  if (isLoading) return null;
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  }
+
+  const activeUser = user || authUser;
+
   return (
     <div className="project-layout flex h-screen w-full flex-col overflow-hidden bg-[var(--cm-bg)]">
       <div className="head-container shrink-0">
         <Navbar
-          user={user}
+          user={activeUser}
           notificationCount={notificationCount}
           onMenuToggle={() => setDrawerOpen(true)}
           logoSrc={logoSrc}
@@ -72,7 +82,7 @@ export default function ProjectLayout({
 
         {/* Scrollable project content */}
         <main className="main-container flex-1 overflow-y-auto">
-          <div className="content-container mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <div className="content-container w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
             {children || <Outlet context={{ project: activeProject }} />}
           </div>
         </main>

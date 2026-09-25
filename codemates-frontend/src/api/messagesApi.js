@@ -55,8 +55,6 @@
  *   /messages?mock=send-error      sending a message fails (the text is put back)
  */
 
-import { createMockMessagingData } from '../mock/messagesMock';
-
 /* ── Public API ──────────────────────────────────────────────────────────── */
 
 /** Error type thrown by every function here. `status` is the HTTP status. */

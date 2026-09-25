@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { X } from "lucide-react";
 import Navbar from "src/components/layout/Navbar";
 import AppSidebar from "src/components/layout/AppSidebar";
-
+import { useAuth } from "src/context/AuthContext";
 
 export default function AppLayout({
   children,
@@ -13,6 +13,8 @@ export default function AppLayout({
   sidebarFooter = null,
   logoSrc = null,
 }) {
+  const { user: authUser, isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Close the mobile drawer with Escape.
@@ -26,11 +28,23 @@ export default function AppLayout({
     return () => document.removeEventListener("keydown", handleKey);
   }, [drawerOpen]);
 
+  // Still resolving the session (GET /api/users/me, possibly + one silent
+  // refresh) — render nothing rather than flash the authenticated shell.
+  if (isLoading) return null;
+
+  // No valid session: bounce to /login and remember where they were headed
+  // so Login can send them back after a successful sign-in.
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  }
+
+  const activeUser = user || authUser;
+
   return (
     <div className="app-layout flex h-screen w-full flex-col overflow-hidden bg-[var(--cm-bg)]">
       <div className="head-container shrink-0">
         <Navbar
-          user={user}
+          user={activeUser}
           notificationCount={notificationCount}
           onMenuToggle={() => setDrawerOpen(true)}
           logoSrc={logoSrc}
@@ -72,7 +86,7 @@ export default function AppLayout({
 
         {/* Scrollable page content */}
         <main className="main-container flex-1 overflow-y-auto">
-          <div className="content-container mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <div className="content-container w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
             {children || <Outlet />}
           </div>
         </main>

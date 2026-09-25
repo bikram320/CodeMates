@@ -1,280 +1,221 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Check, Info, MessageSquare } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, Bell, BellOff, MessagesSquare } from "lucide-react";
 
-import ConversationList from "../components/messages/ConversationList";
-import DirectMessageHeader from "../components/messages/DirectMessageHeader";
-import DirectMessageList from "../components/messages/DirectMessageList";
-import DirectMessageInput from "../components/messages/DirectMessageInput";
+import ConversationList from "../components/chat/ConversationList";
+import ChatHeader from "../components/chat/ChatHeader";
+import MessageList from "../components/chat/MessageList";
+import TypingIndicator from "../components/chat/TypingIndicator";
+import MessageInput from "../components/chat/MessageInput";
+import Button from "../components/ui/Button";
+import Spinner from "../components/ui/Spinner";
 import EmptyState from "../components/ui/EmptyState";
 
-import useMessages from "../hooks/useMessages";
+import { useConversations } from "../hooks/useConversations";
+import { useConversation } from "../hooks/useConversation";
+import { usePresence } from "../hooks/usePresence";
+import { useAuth } from "../hooks/useAuth";
+
+// ⚠️ Temporary display fallback. ConversationResponse/MessageResponse
+// only ever carry raw UUIDs — never a name or avatar. Real resolution
+// needs user-profile-service, which hasn't been provided yet — this is
+// the same gap flagged for chat, contributions, and connections; whoever
+// sends that file unblocks all four at once.
+function shortLabel(id) {
+  return id ? `User ${id.slice(0, 8)}` : "Unknown";
+}
 
 /**
- * Direct Messages page (/messages).
+ * Messages page (/messages) — the general inbox for DIRECT conversations
+ * with other developers, independent of any project. Project team chat
+ * lives at /projects/:projectId/chat instead (a project's one
+ * conversation, no switching needed); this page is specifically for
+ * conversations where switching between people genuinely applies.
  *
- * Private one-to-one conversations between developers. (Project Chat is a
- * separate feature and isn't touched here.)
- *
- * ⚠️ MOCK DATA ONLY. Data comes from useMessages() → messagesApi → mock data;
- * there's no backend call and no WebSocket yet, so nothing is sent anywhere
- * and replies never arrive on their own. Sending, deleting (after a
- * confirmation), marking read and muting all work against the mock data.
+ * Fully real: conversation list, message history, sending, typing,
+ * presence, edit, delete, mute, pagination, and starting a new direct
+ * conversation all talk to the actual backend.
  */
-
-const getErrorMessage = (err) =>
-  err?.message || "Something went wrong. Try again.";
-
-const byRecentActivity = (a, b) => {
-  if (!a.lastMessageAt && !b.lastMessageAt) return a.participant.name.localeCompare(b.participant.name);
-  if (!a.lastMessageAt) return 1;
-  if (!b.lastMessageAt) return -1;
-  return new Date(b.lastMessageAt) - new Date(a.lastMessageAt);
-};
-
-const excerpt = (text, max = 80) =>
-  text.length > max ? `${text.slice(0, max).trimEnd()}…` : text;
-
 export default function Messages() {
+  const { user } = useAuth();
+  const currentUserId = user?.userId ?? null;
+  const presence = usePresence();
+
   const {
     conversations,
-    isLoadingConversations,
-    conversationsError,
-    isEmpty,
-    refetchConversations,
-    selectedConversation,
-    selectConversation,
-    clearSelection,
+    isLoading: isLoadingConversations,
+    isError: isConversationsError,
+    startDirectConversation,
+    isStartingConversation,
+  } = useConversations();
+
+  const directConversations = conversations.filter((c) => c.type === "DIRECT");
+
+  const [activeConversationId, setActiveConversationId] = useState(null);
+  const [newUserId, setNewUserId] = useState("");
+  const [startError, setStartError] = useState(null);
+
+  const enrichedConversations = directConversations.map((c) => {
+    const otherParticipant = c.participants?.find((p) => p.userId !== currentUserId);
+    const selfParticipant = c.participants?.find((p) => p.userId === currentUserId);
+    const unread =
+      !!c.lastMessageAt &&
+      (!selfParticipant?.lastReadAt ||
+        new Date(selfParticipant.lastReadAt) < new Date(c.lastMessageAt));
+
+    return {
+      ...c,
+      displayName: shortLabel(otherParticipant?.userId),
+      displayAvatar: null,
+      isGroup: false,
+      isOnline: presence[otherParticipant?.userId] === "ONLINE",
+      unread,
+    };
+  });
+
+  const activeConversation = enrichedConversations.find((c) => c.id === activeConversationId);
+
+  const {
     messages,
+    hasMoreMessages,
     isLoadingMessages,
+    isLoadingMore,
+    isMessagesError,
     messagesError,
-    refetchMessages,
-    unreadDividerId,
+    loadMoreMessages,
+    typingUserIds,
     sendMessage,
+    notifyTyping,
+    editMessage,
     deleteMessage,
-    setConversationMuted,
-    currentUserId,
-  } = useMessages();
+    setMuted,
+  } = useConversation(activeConversation?.id);
 
-  const [drafts, setDrafts] = useState({});
-  const [search, setSearch] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState(null); // message awaiting confirmation
-  const [notice, setNotice] = useState(null); // { text, tone: 'success' | 'error' }
+  async function handleStartConversation(e) {
+    e.preventDefault();
+    if (!newUserId.trim()) return;
+    try {
+      const conversation = await startDirectConversation(newUserId.trim());
+      setActiveConversationId(conversation.id);
+      setNewUserId("");
+      setStartError(null);
+    } catch (err) {
+      setStartError(err.message);
+    }
+  }
 
-  /* Auto-dismiss the toast (errors stay a little longer) */
-  useEffect(() => {
-    if (!notice) return undefined;
-    const timer = setTimeout(
-      () => setNotice(null),
-      notice.tone === "error" ? 6000 : 4000
+  const typingNames = typingUserIds.filter((id) => id !== currentUserId).map(shortLabel);
+
+  if (isLoadingConversations) {
+    return (
+      <div className="flex h-[calc(100vh-var(--cm-navbar-h)-4rem)] items-center justify-center">
+        <Spinner size="lg" />
+      </div>
     );
-    return () => clearTimeout(timer);
-  }, [notice]);
+  }
 
-  const notify = (text, tone = "success") => setNotice({ text, tone });
+  if (isConversationsError) {
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="Couldn't load your messages"
+        description="Something went wrong. Please try again."
+      />
+    );
+  }
 
-  const list = conversations ?? [];
-
-  const visibleConversations = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return (conversations ?? [])
-      .filter(
-        (c) =>
-          !query ||
-          c.participant.name.toLowerCase().includes(query) ||
-          c.participant.username.toLowerCase().includes(query) ||
-          (c.lastMessagePreview ?? "").toLowerCase().includes(query)
-      )
-      .sort(byRecentActivity);
-  }, [conversations, search]);
-
-  const unreadTotal = list.reduce(
-    (sum, c) => (c.isMuted ? sum : sum + c.unreadCount),
-    0
-  );
-
-  /* ── Actions ───────────────────────────────────────────────────────────── */
-
-  const handleSend = async (text) => {
-    if (!selectedConversation) return;
-    const conversationId = selectedConversation.id;
-
-    setDrafts((prev) => ({ ...prev, [conversationId]: "" }));
-    try {
-      await sendMessage(text);
-    } catch (err) {
-      // The message was taken back out of the thread — put the text back so it isn't lost.
-      setDrafts((prev) => ({
-        ...prev,
-        [conversationId]: prev[conversationId]
-          ? `${text}\n${prev[conversationId]}`
-          : text,
-      }));
-      notify(getErrorMessage(err), "error");
-    }
-  };
-
-  const handleConfirmDelete = async () => {
-    const target = deleteTarget;
-    setDeleteTarget(null);
-    if (!target) return;
-    try {
-      await deleteMessage(target.id);
-      notify("Message deleted.");
-    } catch (err) {
-      notify(getErrorMessage(err), "error");
-    }
-  };
-
-  const handleToggleMute = async () => {
-    if (!selectedConversation) return;
-    try {
-      await setConversationMuted(
-        selectedConversation.id,
-        !selectedConversation.isMuted
-      );
-    } catch (err) {
-      notify(getErrorMessage(err), "error");
-    }
-  };
-
-  const selected = selectedConversation;
-
-  /* ── Render ────────────────────────────────────────────────────────────── */
+  const isMuted = activeConversation?.participants?.find((p) => p.userId === currentUserId)?.isMuted ?? false;
 
   return (
-    <div className="messages-page">
-      {/* Title is hidden on small screens while a conversation is open, to give it the room */}
-      <div className={`head-container ${selected ? "hidden lg:block" : ""}`}>
-        <h1 className="text-2xl font-bold text-[#F5F5F5]">Messages</h1>
-        <p className="mt-1 text-sm text-[#8B88AE]">
-          Private conversations with other developers.
-        </p>
-      </div>
+    <div className="messages-page flex h-[calc(100vh-var(--cm-navbar-h)-4rem)] overflow-hidden rounded-lg border border-[var(--cm-border)]">
+      <div className="flex w-72 shrink-0 flex-col border-r border-[var(--cm-border)]">
+        <ConversationList
+          conversations={enrichedConversations}
+          activeConversationId={activeConversationId}
+          onSelect={setActiveConversationId}
+          className="flex-1 border-r-0"
+        />
 
-      <div
-        role="note"
-        className={`mt-4 items-start gap-2.5 rounded-xl border border-[#C9A8FF]/25 bg-[#C9A8FF]/5 px-4 py-3 ${
-          selected ? "hidden lg:flex" : "flex"
-        }`}
-      >
-        <Info size={15} className="mt-0.5 shrink-0 text-[#C9A8FF]" />
-        <p className="text-xs leading-relaxed text-[#A9A6C8]">
-          <span className="font-medium text-[#F5F5F5]">Sample data.</span>{" "}
-          These conversations are mock values. Messages aren&apos;t sent anywhere yet.
-        </p>
-      </div>
-
-      <div className="messages-surface body-container mt-4 flex h-[calc(100vh-14rem)] min-h-[520px] overflow-hidden rounded-xl border border-[#1C1A38] bg-[#0A0918]">
-        {/* ── Conversation list ───────────────────────────────────────────── */}
-        <div
-          className={`min-h-0 w-full flex-col border-[#1C1A38] lg:flex lg:w-[340px] lg:shrink-0 lg:border-r ${
-            selected ? "hidden" : "flex"
-          }`}
+        {/* Minimal "start a new conversation" affordance — pastes a
+            user's UUID directly. There's no developer search/picker
+            wired to this yet (that needs user-profile-service or
+            discovery-service, neither provided). Once a real "Message"
+            button exists on a developer's profile page, this becomes a
+            fallback rather than the only entry point. */}
+        <form
+          onSubmit={handleStartConversation}
+          className="flex flex-col gap-2 border-t border-[var(--cm-border)] p-3"
         >
-          <ConversationList
-            conversations={visibleConversations}
-            totalCount={list.length}
-            unreadTotal={unreadTotal}
-            selectedId={selected?.id ?? null}
-            onSelect={selectConversation}
-            search={search}
-            onSearchChange={setSearch}
-            isLoading={isLoadingConversations}
-            error={conversationsError}
-            onRetry={() => refetchConversations()}
+          <input
+            type="text"
+            value={newUserId}
+            onChange={(e) => setNewUserId(e.target.value)}
+            placeholder="Start chat — paste a user ID"
+            className="rounded-md border border-[var(--cm-border)] bg-[var(--cm-surface)] px-3 py-2 text-xs text-[var(--cm-text)] placeholder:text-[var(--cm-muted)] focus:border-[var(--cm-indigo)] focus:outline-none"
           />
-        </div>
+          <Button type="submit" variant="secondary" size="sm" disabled={isStartingConversation}>
+            {isStartingConversation ? "Starting..." : "Start Conversation"}
+          </Button>
+          {startError && <p className="text-xs text-[var(--cm-lavender)]">{startError}</p>}
+        </form>
+      </div>
 
-        {/* ── Open conversation ───────────────────────────────────────────── */}
-        <section
-          aria-label="Conversation"
-          className={`min-h-0 min-w-0 flex-1 flex-col lg:flex ${selected ? "flex" : "hidden"}`}
-        >
-          {selected ? (
-            <>
-              <DirectMessageHeader
-                participant={selected.participant}
-                isMuted={selected.isMuted}
-                onToggleMute={handleToggleMute}
-                onBack={clearSelection}
-              />
+      <div className="flex min-w-0 flex-1 flex-col">
+        {activeConversation ? (
+          <>
+            <ChatHeader
+              title={activeConversation.displayName}
+              subtitle={activeConversation.isOnline ? "Online" : "Offline"}
+              isGroup={false}
+              action={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  leftIcon={isMuted ? BellOff : Bell}
+                  onClick={() => setMuted(!isMuted)}
+                >
+                  {isMuted ? "Unmute" : "Mute"}
+                </Button>
+              }
+            />
 
-              <DirectMessageList
-                key={selected.id}
+            {isLoadingMessages ? (
+              <div className="flex flex-1 items-center justify-center">
+                <Spinner size="lg" />
+              </div>
+            ) : isMessagesError ? (
+              <div className="flex flex-1 items-center justify-center p-6">
+                <EmptyState
+                  icon={AlertTriangle}
+                  title="Couldn't load messages"
+                  description={messagesError?.message || "Please try again."}
+                />
+              </div>
+            ) : (
+              <MessageList
                 messages={messages}
                 currentUserId={currentUserId}
-                participant={selected.participant}
-                unreadDividerId={unreadDividerId}
-                isLoading={isLoadingMessages}
-                error={messagesError}
-                onRetry={() => refetchMessages()}
-                onDeleteMessage={setDeleteTarget}
+                userDirectory={{}}
+                hasMore={hasMoreMessages}
+                onLoadMore={isLoadingMore ? undefined : loadMoreMessages}
+                onEditMessage={editMessage}
+                onDeleteMessage={deleteMessage}
               />
+            )}
 
-              <DirectMessageInput
-                value={drafts[selected.id] ?? ""}
-                onChange={(value) =>
-                  setDrafts((prev) => ({ ...prev, [selected.id]: value }))
-                }
-                onSend={handleSend}
-                placeholder={`Message ${selected.participant.name.split(" ")[0]}`}
-                focusKey={selected.id}
-                disabled={isLoadingMessages || Boolean(messagesError)}
-              />
-            </>
-          ) : (
-            /* Nothing selected */
-            <div className="flex flex-1 items-center justify-center p-4">
-              <EmptyState
-                icon={MessageSquare}
-                title={isEmpty ? "No conversation selected" : "Select a conversation"}
-                description={
-                  isEmpty
-                    ? "Once you start a conversation with a developer, it will show up here."
-                    : "Choose a developer from the list to read your messages, or search to find someone."
-                }
-              />
-            </div>
-          )}
-        </section>
+            <TypingIndicator typingUsers={typingNames} />
+
+            <MessageInput onSend={(content) => sendMessage(content)} onTyping={notifyTyping} />
+          </>
+        ) : (
+          <div className="flex flex-1 items-center justify-center p-6">
+            <EmptyState
+              icon={MessagesSquare}
+              title="No conversation selected"
+              description="Choose a conversation from the list, or start a new one."
+            />
+          </div>
+        )}
       </div>
-
-      {/* ── Delete confirmation ───────────────────────────────────────────── */}
-      <ConfirmDialog
-        open={Boolean(deleteTarget)}
-        tone="danger"
-        title="Delete this message?"
-        description={
-          deleteTarget
-            ? `“${excerpt(deleteTarget.content)}” will be removed from this conversation for both of you. This can’t be undone.`
-            : ""
-        }
-        confirmLabel="Delete message"
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setDeleteTarget(null)}
-      />
-
-      {/* ── Toast ─────────────────────────────────────────────────────────── */}
-      {notice && (
-        <div
-          role={notice.tone === "error" ? "alert" : "status"}
-          aria-live={notice.tone === "error" ? "assertive" : "polite"}
-          className="fixed bottom-4 left-4 right-4 z-40 mx-auto flex max-w-sm items-center gap-2.5 rounded-xl
-                     border border-[#2E2A66] bg-[#0F0E24] px-4 py-3 text-sm text-[#F5F5F5]
-                     shadow-xl shadow-black/50 sm:left-auto sm:right-6 sm:mx-0"
-        >
-          <span
-            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
-              notice.tone === "error"
-                ? "bg-red-400/20 text-red-300"
-                : "bg-[#6C7BFF]/20 text-[#8E9BFF]"
-            }`}
-          >
-            {notice.tone === "error" ? <AlertCircle size={12} /> : <Check size={12} />}
-          </span>
-          {notice.text}
-        </div>
-      )}
     </div>
   );
 }

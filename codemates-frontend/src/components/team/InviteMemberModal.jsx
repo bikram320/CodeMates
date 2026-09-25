@@ -1,41 +1,43 @@
 /**
  * InviteMemberModal
  *
- * Invite a developer to the project by username or email, pick their role,
- * and optionally add a note. Mock-only for now: it just hands the result to
- * `onInvite` — wire that to teamApi when the backend is ready.
+ * Invite a developer to the project by their user ID, and pick their role.
+ *
+ * The real backend's invite endpoint (POST /api/projects/{projectId}/invitations)
+ * takes { invitedUserId, role } where invitedUserId is a UUID — there's no
+ * username/email lookup endpoint and no "message" field on the request, so
+ * this modal no longer collects a username/email/note or shows suggested
+ * developers (those were fabricated usernames that don't correspond to real
+ * user IDs). If a username/email → userId lookup gets added to the backend
+ * later, this is the file to bring that back into.
  *
  * Behaviour: Escape / backdrop click / close button dismiss it, focus is
  * trapped while open, body scroll is locked, and form state resets on every
  * open (the body is only mounted while `open` is true).
  *
  * Props:
- *   open               {boolean}
- *   onClose            {fn}
- *   onInvite           {fn}     ({ identifier, role, message })
- *                               identifier is normalised: no leading "@", lowercase
- *   takenIdentifiers   {Array}  Usernames/emails already on the team or invited
- *   suggestions        {Array}  Optional [{ username, name }] quick-pick developers
+ *   open          {boolean}
+ *   onClose       {fn}
+ *   onInvite      {fn}     ({ invitedUserId, role })
+ *   takenUserIds  {Array}  userIds already on the team
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Send, X } from 'lucide-react';
 import { ROLES, ROLE_META } from './TeamMemberCard';
 
-const HANDLE_RE = /^@?[a-z0-9][a-z0-9_-]{1,29}$/i;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MESSAGE_MAX = 240;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const normalize = (value) => value.trim().replace(/^@/, '').toLowerCase();
+const normalize = (value) => value.trim().toLowerCase();
 
 function validate(raw, taken) {
   const value = raw.trim();
-  if (!value) return 'Enter a username or email address.';
-  if (!EMAIL_RE.test(value) && !HANDLE_RE.test(value)) {
-    return 'Use a valid username (like @jane_dev) or an email address.';
+  if (!value) return "Enter the developer's user ID.";
+  if (!UUID_RE.test(value)) {
+    return 'Enter a valid user ID (UUID format).';
   }
   if (taken.has(normalize(value))) {
-    return 'This developer is already on the team or has a pending invite.';
+    return 'This user is already on the team.';
   }
   return '';
 }
@@ -43,10 +45,9 @@ function validate(raw, taken) {
 const FOCUSABLE =
   'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [href]';
 
-function ModalBody({ onClose, onInvite, takenIdentifiers, suggestions }) {
-  const [identifier, setIdentifier] = useState('');
+function ModalBody({ onClose, onInvite, takenUserIds }) {
+  const [userId, setUserId] = useState('');
   const [role, setRole] = useState('CONTRIBUTOR');
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
   const dialogRef = useRef(null);
@@ -58,12 +59,8 @@ function ModalBody({ onClose, onInvite, takenIdentifiers, suggestions }) {
   }, [onClose]);
 
   const taken = useMemo(
-    () => new Set(takenIdentifiers.map(normalize)),
-    [takenIdentifiers]
-  );
-
-  const availableSuggestions = suggestions.filter(
-    (s) => !taken.has(normalize(s.username))
+    () => new Set(takenUserIds.map(normalize)),
+    [takenUserIds]
   );
 
   /* Focus, scroll lock, Escape, and a minimal focus trap */
@@ -104,16 +101,15 @@ function ModalBody({ onClose, onInvite, takenIdentifiers, suggestions }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const problem = validate(identifier, taken);
+    const problem = validate(userId, taken);
     if (problem) {
       setError(problem);
       inputRef.current?.focus();
       return;
     }
     onInvite({
-      identifier: normalize(identifier),
+      invitedUserId: userId.trim(),
       role,
-      message: message.trim(),
     });
     onClose();
   };
@@ -157,66 +153,46 @@ function ModalBody({ onClose, onInvite, takenIdentifiers, suggestions }) {
 
         <form onSubmit={handleSubmit} noValidate>
           <div className="space-y-5 px-5 py-5">
-            {/* ── Username / email ────────────────────────────────────────── */}
+            {/* ── User ID ───────────────────────────────────────────────── */}
             <div>
               <label
-                htmlFor="invite-identifier"
+                htmlFor="invite-user-id"
                 className="mb-1.5 block text-sm font-medium text-[#F5F5F5]"
               >
-                Username or email
+                User ID
               </label>
               <input
                 ref={inputRef}
-                id="invite-identifier"
+                id="invite-user-id"
                 type="text"
                 autoComplete="off"
                 autoCapitalize="none"
                 spellCheck={false}
-                value={identifier}
+                value={userId}
                 onChange={(e) => {
-                  setIdentifier(e.target.value);
+                  setUserId(e.target.value);
                   if (error) setError('');
                 }}
-                placeholder="@username or name@example.com"
+                placeholder="e.g. 3fa85f64-5717-4562-b3fc-2c963f66afa6"
                 aria-invalid={Boolean(error)}
-                aria-describedby={error ? 'invite-identifier-error' : undefined}
-                className={`w-full rounded-lg border bg-[#1D1A40]/50 px-3 py-2.5 text-base text-[#F5F5F5]
-                            placeholder:text-[#6B6890] sm:text-sm
+                aria-describedby={error ? 'invite-user-id-error' : 'invite-user-id-hint'}
+                className={`w-full rounded-lg border bg-[#1D1A40]/50 px-3 py-2.5 font-mono text-sm text-[#F5F5F5]
+                            placeholder:text-[#6B6890]
                             focus:outline-none focus:ring-2 ${
                               error
                                 ? 'border-red-400/70 focus:border-red-400 focus:ring-red-400/20'
                                 : 'border-[#2E2A66] focus:border-[#6C7BFF] focus:ring-[#6C7BFF]/30'
                             }`}
               />
-              {error && (
-                <p id="invite-identifier-error" role="alert" className="mt-1.5 text-xs text-red-300">
+              {error ? (
+                <p id="invite-user-id-error" role="alert" className="mt-1.5 text-xs text-red-300">
                   {error}
                 </p>
-              )}
-
-              {availableSuggestions.length > 0 && (
-                <div className="mt-3">
-                  <p className="mb-1.5 text-xs text-[#6B6890]">Suggested developers</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {availableSuggestions.map((s) => (
-                      <button
-                        key={s.username}
-                        type="button"
-                        onClick={() => {
-                          setIdentifier(`@${s.username}`);
-                          setError('');
-                          inputRef.current?.focus();
-                        }}
-                        title={s.name}
-                        className="rounded-md bg-[#1D1A40] px-2 py-1 font-mono text-[11px] text-[#C9A8FF]
-                                   transition-colors hover:bg-[#2E2A66]
-                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
-                      >
-                        @{s.username}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+              ) : (
+                <p id="invite-user-id-hint" className="mt-1.5 text-xs text-[#6B6890]">
+                  There's no username or email lookup yet — paste the developer's
+                  user ID directly.
+                </p>
               )}
             </div>
 
@@ -266,29 +242,6 @@ function ModalBody({ onClose, onInvite, takenIdentifiers, suggestions }) {
                 })}
               </div>
             </fieldset>
-
-            {/* ── Note ────────────────────────────────────────────────────── */}
-            <div>
-              <div className="mb-1.5 flex items-baseline justify-between">
-                <label htmlFor="invite-message" className="text-sm font-medium text-[#F5F5F5]">
-                  Note <span className="font-normal text-[#6B6890]">(optional)</span>
-                </label>
-                <span className="font-mono text-[10px] text-[#6B6890]">
-                  {message.length}/{MESSAGE_MAX}
-                </span>
-              </div>
-              <textarea
-                id="invite-message"
-                rows={3}
-                maxLength={MESSAGE_MAX}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Tell them what you're building and why they'd be a good fit."
-                className="w-full resize-none rounded-lg border border-[#2E2A66] bg-[#1D1A40]/50 px-3 py-2.5
-                           text-base text-[#F5F5F5] placeholder:text-[#6B6890] sm:text-sm
-                           focus:border-[#6C7BFF] focus:outline-none focus:ring-2 focus:ring-[#6C7BFF]/30"
-              />
-            </div>
           </div>
 
           {/* ── Footer ──────────────────────────────────────────────────── */}
@@ -322,17 +275,11 @@ export default function InviteMemberModal({
   open,
   onClose,
   onInvite,
-  takenIdentifiers = [],
-  suggestions = [],
+  takenUserIds = [],
 }) {
   if (!open) return null;
 
   return (
-    <ModalBody
-      onClose={onClose}
-      onInvite={onInvite}
-      takenIdentifiers={takenIdentifiers}
-      suggestions={suggestions}
-    />
+    <ModalBody onClose={onClose} onInvite={onInvite} takenUserIds={takenUserIds} />
   );
 }

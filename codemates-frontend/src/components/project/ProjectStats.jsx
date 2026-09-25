@@ -1,4 +1,4 @@
-import { CheckCircle2, ListTodo, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import Card from "../ui/Card";
 
 function StatRow({ icon: Icon, label, value }) {
@@ -14,18 +14,17 @@ function StatRow({ icon: Icon, label, value }) {
 }
 
 /**
- * Sidebar card showing team size, task counts, and a completion bar.
+ * Sidebar card showing team size.
+ *
+ * The mock version also showed a task count + completion bar, but that
+ * comes from a separate task-service endpoint not covered by
+ * projectApi.js, so it's been dropped rather than faked. Wire it back
+ * in once a task-summary call is available for this page.
  *
  * Props:
- * - teamSize   { current, max }
- * - tasks      { total, completed }
+ * - teamSize   { current, max }  — from ProjectResponse's memberCount/maxMembers
  */
-export default function ProjectStats({ teamSize, tasks, className = "" }) {
-  const completionPct =
-    tasks && tasks.total > 0
-      ? Math.round((tasks.completed / tasks.total) * 100)
-      : 0;
-
+export default function ProjectStats({ teamSize, className = "" }) {
   return (
     <Card className={`flex flex-col gap-4 ${className}`}>
       <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--cm-muted)]">
@@ -36,34 +35,8 @@ export default function ProjectStats({ teamSize, tasks, className = "" }) {
         <StatRow
           icon={Users}
           label="Team size"
-          value={`${teamSize.current}/${teamSize.max}`}
+          value={`${teamSize.current}/${teamSize.max ?? "∞"}`}
         />
-      )}
-
-      {tasks && (
-        <>
-          <StatRow
-            icon={ListTodo}
-            label="Tasks"
-            value={`${tasks.completed}/${tasks.total}`}
-          />
-
-          <div>
-            <div className="mb-1.5 flex items-center justify-between text-xs text-[var(--cm-muted)]">
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 size={13} />
-                Progress
-              </span>
-              <span>{completionPct}%</span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--cm-surface)]">
-              <div
-                className="h-full rounded-full bg-[var(--cm-indigo)] transition-all"
-                style={{ width: `${completionPct}%` }}
-              />
-            </div>
-          </div>
-        </>
       )}
     </Card>
   );
