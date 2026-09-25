@@ -5,6 +5,7 @@ import com.codemates.discovery.dto.MatchScoreResponseDto;
 import com.codemates.discovery.dto.UpsertMatchScoreRequest;
 import com.codemates.discovery.security.JwtCookieExtractor;
 import com.codemates.discovery.service.MatchScoreService;
+import com.codemates.discovery.service.MatchSyncService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.util.UUID;
 public class MatchScoreController {
 
     private final MatchScoreService matchScoreService;
+    private final MatchSyncService matchSyncService;
     private final JwtCookieExtractor jwtCookieExtractor;
 
     // Intended to be called by the ML recommendation engine once built.
@@ -46,5 +48,16 @@ public class MatchScoreController {
             HttpServletRequest request, @PathVariable UUID matchedUserId) {
         UUID userId = jwtCookieExtractor.extractUserId(request);
         return ApiResponse.success("Match score fetched", matchScoreService.getMatchScore(userId, matchedUserId));
+    }
+
+    // Triggers real match-score computation via the ML service for one user
+    // against a given candidate list. Not tied to the caller's own JWT
+    // identity for the same reason as upsert() above -- userId is explicit.
+    @PostMapping("/sync")
+    public ApiResponse<Void> syncMatches(
+            @RequestParam UUID userId,
+            @RequestBody List<UUID> candidateIds) {
+        matchSyncService.syncMatchesForUser(userId, candidateIds);
+        return ApiResponse.success("Match sync triggered", null);
     }
 }

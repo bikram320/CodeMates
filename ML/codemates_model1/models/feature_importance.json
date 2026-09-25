@@ -1,0 +1,20 @@
+{
+  "language_jaccard": 0.5301995924316654,
+  "primary_language_match": 0.24968336428654547,
+  "topic_jaccard": 0.1554611637199466,
+  "account_age_days_min": 0.008587168732263572,
+  "account_age_days_absdiff": 0.008500395591558884,
+  "account_age_days_sum": 0.007040571313597009,
+  "public_repos_sum_log": 0.005358418929601989,
+  "public_repos_min_log": 0.00531179672134052,
+  "followers_sum_log": 0.004863128371324083,
+  "followers_min_log": 0.004807031143844046,
+  "followers_absdiff_log": 0.0035887930109502354,
+  "public_repos_absdiff_log": 0.0031108090492696287,
+  "following_sum_log": 0.0031038277274865254,
+  "public_gists_min_log": 0.0024318975695915156,
+  "following_absdiff_log": 0.0024163427475069957,
+  "public_gists_sum_log": 0.0020937537608066168,
+  "public_gists_absdiff_log": 0.001925642584511676,
+  "following_min_log": 0.0015163023081892616
+}

@@ -81,4 +81,10 @@ public class GithubProfile {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @ColumnDefault("0")
+    @Column(name = "public_gists_count")
+    private Integer publicGistsCount;
+
+    @Column(name = "account_created_at")
+    private LocalDateTime accountCreatedAt; // GitHub account creation date -- NOT this row's own created_at above
 }

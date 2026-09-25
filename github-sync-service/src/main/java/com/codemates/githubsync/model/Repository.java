@@ -113,4 +113,8 @@ public class Repository {
     @ColumnDefault("0")
     @Column(name = "contributors_count")
     private Integer contributorsCount;
+
+    @Size(max = 1000)
+    @Column(name = "topics", length = 1000)
+    private String topics; // comma-joined, e.g. "machine-learning,cli,api"
 }

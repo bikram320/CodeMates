@@ -55,4 +55,10 @@ public class GithubSyncController {
     public ApiResponse<RepoHealthStatsDto> lookupRepoStats(@RequestParam String repoFullName) {
         return ApiResponse.success("Repo stats fetched", githubSyncService.getRepoStatsForHealth(repoFullName));
     }
+
+    // Internal endpoint -- called by discovery-service's match-sync job, not the frontend
+    @GetMapping("/profiles/{userId}/skill-profile")
+    public ApiResponse<DeveloperSkillProfileDto> getSkillProfile(@PathVariable UUID userId) {
+        return ApiResponse.success("Skill profile fetched", githubSyncService.getDeveloperSkillProfile(userId));
+    }
 }
