@@ -3,7 +3,7 @@ import { AlertCircle, Check, RefreshCw, User } from "lucide-react";
 
 import ProfileHeader from "../components/profile/ProfileHeader";
 import BasicInfoSection from "../components/profile/BasicInfoSection";
-import LinksSection from "../components/profile/LinksSection";
+import LinksSection from "../components/profile/LinkSection";
 import AvailabilitySection from "../components/profile/AvailabilitySection";
 import SkillsSection from "../components/profile/SkillsSection";
 import InterestsSection from "../components/profile/InterestsSection.jsx";

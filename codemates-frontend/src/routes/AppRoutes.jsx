@@ -31,6 +31,7 @@ import CreateProject from "src/pages/CreateProject";
 import Connections from "src/pages/Connections";
 import Messages from "src/pages/Messages";
 import Placeholder from "src/pages/Placeholder";
+import Profile from "src/pages/Profile.jsx"
 
 function ProjectPlaceholder({ title, description }) {
   const { project } = useOutletContext();
@@ -88,8 +89,10 @@ export default function AppRoutes() {
       </Route>
 
       <Route element={<Publiclayout showFooter={false} />}>
+          <Route path="/profile" element={<Profile/>}/>
         <Route path="/logged-out" element={<LoggedOut />} />
       </Route>
+
 
       {/* Authenticated app pages */}
       <Route element={<Applayout />}>

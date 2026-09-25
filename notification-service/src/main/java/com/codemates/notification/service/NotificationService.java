@@ -58,17 +58,47 @@ public class NotificationService {
         return saved;
     }
 
-    public NotificationPageResponse getPage(UUID userId, Instant before, int limit, boolean unreadOnly) {
-        List<Notification> results = notificationRepository.findPage(
-                userId, before, unreadOnly, PageRequest.of(0, limit + 1));
+    public NotificationPageResponse getPage(
+            UUID userId,
+            Instant before,
+            int limit,
+            boolean unreadOnly
+    ) {
+        List<Notification> results;
+
+        PageRequest pageRequest = PageRequest.of(0, limit + 1);
+
+        if (before == null) {
+            results = notificationRepository.findPage(
+                    userId,
+                    unreadOnly,
+                    pageRequest
+            );
+        } else {
+            results = notificationRepository.findPageBefore(
+                    userId,
+                    before,
+                    unreadOnly,
+                    pageRequest
+            );
+        }
 
         boolean hasMore = results.size() > limit;
-        List<Notification> page = hasMore ? results.subList(0, limit) : results;
 
-        Instant nextCursor = hasMore ? page.get(page.size() - 1).getCreatedAt() : null;
+        List<Notification> page = hasMore
+                ? results.subList(0, limit)
+                : results;
+
+        Instant nextCursor = hasMore
+                ? page.get(page.size() - 1).getCreatedAt()
+                : null;
 
         return NotificationPageResponse.builder()
-                .notifications(page.stream().map(NotificationResponse::from).collect(Collectors.toList()))
+                .notifications(
+                        page.stream()
+                                .map(NotificationResponse::from)
+                                .collect(Collectors.toList())
+                )
                 .nextCursor(nextCursor)
                 .hasMore(hasMore)
                 .build();

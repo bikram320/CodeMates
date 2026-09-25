@@ -34,7 +34,7 @@
 
 import { useMemo, useState }              from 'react';
 import { useParams }                      from 'react-router-dom';
-import { Plus, SquareKanban, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, AlertCircle, RefreshCw ,LayoutDashboard} from 'lucide-react';
 
 import { useTasks }                       from '../hooks/useTasks';
 import { useProjectMembers }              from '../hooks/useMyProjects';
@@ -246,7 +246,7 @@ export default function ProjectTasks() {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-[#1D1A40] flex items-center justify-center">
-            <LayoutKanban size={16} style={{ color: '#6C7BFF' }} />
+            <LayoutDashboard size={16} style={{ color: '#6C7BFF' }} />
           </div>
           <div>
             <h1 className="text-lg font-bold text-[#F5F5F5] tracking-tight">
