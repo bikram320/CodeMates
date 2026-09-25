@@ -33,13 +33,7 @@
  * timestamp } envelope), as the mock does.
  */
 
-import {
-  mockGetContributionAnalytics,
-  mockGetProjectActivity,
-  mockGetProjectAnalytics,
-  mockGetTaskAnalytics,
-  mockGetTeamActivity,
-} from "../mock/projectAnalyticsMock";
+
 
 /** @returns {Promise<{ projectId: string, milestone: { name: string, dueDate: string } | null }>} */
 export const getProjectAnalytics = (projectId) => mockGetProjectAnalytics(projectId);

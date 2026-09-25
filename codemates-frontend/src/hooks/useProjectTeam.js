@@ -1,98 +1,78 @@
-/**
- * useProjectTeam(projectId)
- *
- * Data layer for the Project Team page (TanStack Query):
- *   ProjectTeam.jsx → useProjectTeam → teamApi.js → teamMock.js (for now)
- *
- * Requires a <QueryClientProvider> higher up the tree.
- *
- * Returns
- *   members         ACTIVE members
- *   pendingInvites  PENDING invitees (not shown as cards)
- *   currentUserId   signed-in user's id
- *   isLoading       first load in flight
- *   isFetching      any fetch in flight (includes background refetches)
- *   isError         load failed and there's nothing cached to show
- *   error           TeamApiError | null
- *   refetch         () => Promise
- *   inviteMember(memberId, role)      → Promise (rejects with TeamApiError)
- *   removeMember(memberId)            → Promise
- *   changeMemberRole(memberId, role)  → Promise
- *
- * After every mutation — success or failure — the team query is invalidated,
- * so the list always ends up matching the server.
- */
-
-import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-
 import {
-  getCurrentUserId,
-  getProjectTeam,
+  getProjectMembers,
   inviteMember as inviteMemberApi,
   removeMember as removeMemberApi,
-  updateMemberRole as updateMemberRoleApi,
-} from '../api/teamApi';
+  changeMemberRole as changeMemberRoleApi,
+} from '../api/projectApi';
+import useAuth from './useAuth';
 
-export const teamQueryKey = (projectId) => ['projects', projectId, 'team'];
+export const teamKeys = {
+  team: (projectId) => ['project-team', projectId],
+};
 
-export function useProjectTeam(projectId) {
+/**
+ * Hook backing the Project Team page.
+ *
+ * Replaces the old mock `teamApi.js` — this calls projectApi.js's real
+ * endpoints directly, since ProjectResourceController-style hydration
+ * (mapping userId → name/skills/availability) has no backend support
+ * yet (see the removed teamApi.js's own comments: profiles are only
+ * looked up by username, not by userId).
+ *
+ * `pendingInvites` is always empty: the only invitations endpoint is
+ * GET /api/projects/invitations/pending, which returns invites
+ * addressed to the *current* user across all their projects, not
+ * "invites this project has sent out." There's no per-project pending
+ * list to show here.
+ */
+export default function useProjectTeam(projectId) {
   const queryClient = useQueryClient();
-  const queryKey = teamQueryKey(projectId);
+  const { user } = useAuth();
 
-  const query = useQuery({
-    queryKey,
-    queryFn: () => getProjectTeam(projectId),
-    enabled: Boolean(projectId),
-    // Don't retry 4xx (not found / forbidden); retry a flaky 5xx once.
-    retry: (failureCount, error) =>
-      (!error?.status || error.status >= 500) && failureCount < 1,
+  // NOTE: exact field name on the auth user object is unverified (no
+  // authApi.js / UserInfoResponse shape was available). Adjust this if
+  // the real field differs.
+  const currentUserId = user?.id ?? user?.userId ?? null;
+
+  const membersQuery = useQuery({
+    queryKey: teamKeys.team(projectId),
+    queryFn: () => getProjectMembers(projectId),
+    enabled: !!projectId,
   });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey });
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: teamKeys.team(projectId) });
 
-  const invite = useMutation({
-    mutationFn: ({ memberId, role }) =>
-      inviteMemberApi(projectId, memberId, role),
-    onSettled: invalidate,
+  const inviteMutation = useMutation({
+    mutationFn: ({ invitedUserId, role }) =>
+      inviteMemberApi(projectId, { invitedUserId, role }),
+    onSuccess: invalidate,
   });
 
-  const remove = useMutation({
-    mutationFn: (memberId) => removeMemberApi(projectId, memberId),
-    onSettled: invalidate,
+  const removeMutation = useMutation({
+    mutationFn: (memberUserId) => removeMemberApi(projectId, memberUserId),
+    onSuccess: invalidate,
   });
 
-  const changeRole = useMutation({
-    mutationFn: ({ memberId, role }) =>
-      updateMemberRoleApi(projectId, memberId, role),
-    onSettled: invalidate,
+  const changeRoleMutation = useMutation({
+    mutationFn: ({ memberUserId, role }) =>
+      changeMemberRoleApi(projectId, memberUserId, role),
+    onSuccess: invalidate,
   });
-
-  const members = useMemo(
-    () => (query.data ?? []).filter((m) => m.status === 'ACTIVE'),
-    [query.data]
-  );
-  const pendingInvites = useMemo(
-    () => (query.data ?? []).filter((m) => m.status === 'PENDING'),
-    [query.data]
-  );
 
   return {
-    members,
-    pendingInvites,
-    currentUserId: getCurrentUserId(),
-
-    isLoading: query.isLoading,
-    isFetching: query.isFetching,
-    isError: query.isError && query.data === undefined,
-    error: query.error ?? null,
-    refetch: query.refetch,
-
-    inviteMember: (memberId, role) => invite.mutateAsync({ memberId, role }),
-    removeMember: (memberId) => remove.mutateAsync(memberId),
-    changeMemberRole: (memberId, role) =>
-      changeRole.mutateAsync({ memberId, role }),
+    members: membersQuery.data ?? [],
+    pendingInvites: [], // see note above — no backend support for this
+    currentUserId,
+    isLoading: membersQuery.isLoading,
+    isError: membersQuery.isError,
+    error: membersQuery.error,
+    refetch: membersQuery.refetch,
+    inviteMember: (invitedUserId, role) =>
+      inviteMutation.mutateAsync({ invitedUserId, role }),
+    removeMember: (memberUserId) => removeMutation.mutateAsync(memberUserId),
+    changeMemberRole: (memberUserId, role) =>
+      changeRoleMutation.mutateAsync({ memberUserId, role }),
   };
 }
-
-export default useProjectTeam;

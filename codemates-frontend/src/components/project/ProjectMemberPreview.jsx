@@ -1,69 +1,56 @@
-import { CheckCircle2, ListTodo, Users } from "lucide-react";
 import Card from "../ui/Card";
+import Avatar from "../ui/Avatar";
+import Badge from "../ui/Badge";
 
-function StatRow({ icon: Icon, label, value }) {
-  return (
-    <div className="flex items-center justify-between text-sm">
-      <span className="flex items-center gap-2 text-[var(--cm-text-dim)]">
-        <Icon size={15} className="text-[var(--cm-muted)]" />
-        {label}
-      </span>
-      <span className="font-medium text-[var(--cm-text)]">{value}</span>
-    </div>
-  );
+const ROLE_VARIANT = {
+  LEADER: "soft",
+  CONTRIBUTOR: "outline",
+  REVIEWER: "neutral",
+};
+
+function shortId(userId) {
+  return userId ? `${userId.slice(0, 8)}…` : "Unknown member";
 }
 
 /**
- * Sidebar card showing team size, task counts, and a completion bar.
+ * Sidebar preview of project members.
+ *
+ * getProjectMembers() only returns { id, projectId, userId, role,
+ * joinedAt, invitedByUserId } — no display name or avatar (that lives
+ * in a user-service that isn't wired up on this page). So each row
+ * shows the member's role and a shortened user id instead of a name,
+ * and Avatar falls back to its "?" placeholder since there's no real
+ * name yet to derive initials from. Swap `shortId(member.userId)` for
+ * a real name once a user lookup is available.
  *
  * Props:
- * - teamSize   { current, max }
- * - tasks      { total, completed }
+ * - members   ProjectMemberResponseDto[]
  */
-export default function ProjectStats({ teamSize, tasks, className = "" }) {
-  const completionPct =
-    tasks && tasks.total > 0
-      ? Math.round((tasks.completed / tasks.total) * 100)
-      : 0;
-
+export default function ProjectMemberPreview({ members = [], className = "" }) {
   return (
     <Card className={`flex flex-col gap-4 ${className}`}>
       <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--cm-muted)]">
-        Project Stats
+        Team ({members.length})
       </h2>
 
-      {teamSize && (
-        <StatRow
-          icon={Users}
-          label="Team size"
-          value={`${teamSize.current}/${teamSize.max}`}
-        />
-      )}
-
-      {tasks && (
-        <>
-          <StatRow
-            icon={ListTodo}
-            label="Tasks"
-            value={`${tasks.completed}/${tasks.total}`}
-          />
-
-          <div>
-            <div className="mb-1.5 flex items-center justify-between text-xs text-[var(--cm-muted)]">
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 size={13} />
-                Progress
-              </span>
-              <span>{completionPct}%</span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--cm-surface)]">
-              <div
-                className="h-full rounded-full bg-[var(--cm-indigo)] transition-all"
-                style={{ width: `${completionPct}%` }}
-              />
-            </div>
-          </div>
-        </>
+      {members.length === 0 ? (
+        <p className="text-sm text-[var(--cm-text-dim)]">No members yet.</p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {members.map((member) => (
+            <li key={member.id} className="flex items-center gap-3">
+              <Avatar name="" size={32} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm text-[var(--cm-text)]">
+                  {shortId(member.userId)}
+                </p>
+              </div>
+              <Badge variant={ROLE_VARIANT[member.role] ?? "neutral"}>
+                {member.role}
+              </Badge>
+            </li>
+          ))}
+        </ul>
       )}
     </Card>
   );

@@ -13,23 +13,22 @@ const inputClass =
   "w-full rounded-md border border-[var(--cm-border)] bg-[var(--cm-surface)] px-3 py-2 text-sm text-[var(--cm-text)] placeholder:text-[var(--cm-muted)] focus:border-[var(--cm-indigo)] focus:outline-none";
 
 /**
- * Modal for adding or editing a resource. Self-contained (owns its own
+ * Modal for adding a resource. Self-contained (owns its own
  * overlay/panel) rather than built on a separate generic Modal
  * primitive — same reasoning as TaskModal.jsx.
  *
- * ⚠️ Editing exists here as a mock/local-state operation only: the real
- * resource-service API has no edit endpoint at all yet (only create,
- * delete, and list — see codemates-api-docs.md). This isn't a "swap the
- * mock call for a real one later" situation; edit support needs to be
- * added to the backend before this can go live.
+ * Add-only: ProjectResourceController has no update endpoint (only
+ * POST, DELETE /{id}, and GET), so the earlier edit mode has been
+ * removed rather than left as a mock. If an edit endpoint gets added
+ * to the backend later, this modal is the right place to bring it back.
  *
  * Props:
- * - open       boolean
- * - resource   existing resource object, or null when adding
- * - onClose    () => void
- * - onSave     (resourceData) => void
+ * - open     boolean
+ * - saving   boolean — disables the form and shows a busy label while the create request is in flight
+ * - onClose  () => void
+ * - onSave   (resourceData) => void
  */
-export default function AddResourceModal({ open, resource = null, onClose, onSave }) {
+export default function AddResourceModal({ open, saving = false, onClose, onSave }) {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
@@ -37,18 +36,11 @@ export default function AddResourceModal({ open, resource = null, onClose, onSav
 
   useEffect(() => {
     if (!open) return;
-    if (resource) {
-      setName(resource.name ?? "");
-      setUrl(resource.url ?? "");
-      setDescription(resource.description ?? "");
-      setResourceType(resource.resourceType ?? "LINK");
-    } else {
-      setName("");
-      setUrl("");
-      setDescription("");
-      setResourceType("LINK");
-    }
-  }, [open, resource]);
+    setName("");
+    setUrl("");
+    setDescription("");
+    setResourceType("LINK");
+  }, [open]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -64,7 +56,6 @@ export default function AddResourceModal({ open, resource = null, onClose, onSav
   function handleSubmit(e) {
     e.preventDefault();
     onSave?.({
-      id: resource?.id,
       name: name.trim(),
       url: url.trim(),
       description: description.trim(),
@@ -77,7 +68,7 @@ export default function AddResourceModal({ open, resource = null, onClose, onSav
       <div
         className="absolute inset-0"
         style={{ backgroundColor: "rgba(0, 0, 0, 0.6)" }}
-        onClick={onClose}
+        onClick={saving ? undefined : onClose}
         aria-hidden="true"
       />
 
@@ -87,14 +78,13 @@ export default function AddResourceModal({ open, resource = null, onClose, onSav
         style={{ backgroundColor: "var(--cm-surface-2, #1e1d36)" }}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-[var(--cm-text)]">
-            {resource ? "Edit Resource" : "Add Resource"}
-          </h2>
+          <h2 className="text-sm font-semibold text-[var(--cm-text)]">Add Resource</h2>
           <button
             type="button"
             onClick={onClose}
+            disabled={saving}
             aria-label="Close"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--cm-muted)] transition-colors hover:bg-[var(--cm-surface)] hover:text-[var(--cm-text)]"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--cm-muted)] transition-colors hover:bg-[var(--cm-surface)] hover:text-[var(--cm-text)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <X size={16} />
           </button>
@@ -111,6 +101,7 @@ export default function AddResourceModal({ open, resource = null, onClose, onSav
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. API Reference Doc"
             required
+            disabled={saving}
             className={inputClass}
           />
         </div>
@@ -126,6 +117,7 @@ export default function AddResourceModal({ open, resource = null, onClose, onSav
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://..."
             required
+            disabled={saving}
             className={inputClass}
           />
         </div>
@@ -140,6 +132,7 @@ export default function AddResourceModal({ open, resource = null, onClose, onSav
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
             placeholder="What is this, and why does the team need it?"
+            disabled={saving}
             className={`${inputClass} resize-none`}
           />
         </div>
@@ -152,6 +145,7 @@ export default function AddResourceModal({ open, resource = null, onClose, onSav
             id="resource-type"
             value={resourceType}
             onChange={(e) => setResourceType(e.target.value)}
+            disabled={saving}
             className={inputClass}
           >
             {RESOURCE_TYPES.map((type) => (
@@ -163,11 +157,11 @@ export default function AddResourceModal({ open, resource = null, onClose, onSav
         </div>
 
         <div className="mt-2 flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={onClose}>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button type="submit" variant="primary">
-            {resource ? "Save Changes" : "Add Resource"}
+          <Button type="submit" variant="primary" disabled={saving}>
+            {saving ? "Adding..." : "Add Resource"}
           </Button>
         </div>
       </form>

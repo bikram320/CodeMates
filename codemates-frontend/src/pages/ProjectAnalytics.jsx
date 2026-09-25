@@ -1,7 +1,8 @@
 import { useParams } from "react-router-dom";
-import { AlertCircle, Info, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
 
 import AnalyticsHeader from "../components/analytics/AnalyticsHeader";
+import ProjectHealth from "../components/analytics/ProjectHealth";
 import ProjectOverviewStats from "../components/analytics/ProjectOverviewStats";
 import TaskAnalytics from "../components/analytics/TaskAnalytics";
 import TeamActivity from "../components/analytics/TeamActivity";
@@ -9,27 +10,23 @@ import ContributionAnalytics from "../components/analytics/ContributionAnalytics
 import ActivityTimeline from "../components/analytics/ActivityTimeline";
 import EmptyState from "../components/ui/EmptyState";
 
-import { projectDetails, defaultProjectDetails } from "../mock/projectDetailsMock";
+import useAuth from "../hooks/useAuth";
 import useProjectAnalytics from "../hooks/useProjectAnalytics";
 
 /**
  * Project Analytics page (/projects/:projectId/analytics).
  *
- * ⚠️ MOCK DATA ONLY. Nothing is read from tasks, GitHub or chat, and a
- * "sample data" note stays visible on the page.
+ * Real backend, no mock — there is no analytics-service, so this is a
+ * computed view over project-service (project, tasks, members),
+ * contribution-service (scores, activity events), and project-service's ML
+ * health prediction. See hooks/useProjectAnalytics.js for exactly how each
+ * section is derived and which fields (like a project "milestone") were
+ * dropped because they don't exist on the real ProjectResponse.
  *
- * ── Data flow ─────────────────────────────────────────────────────────────────
- *
- *   ProjectAnalytics.jsx
- *       ↓  calls
- *   useProjectAnalytics(projectId)   src/hooks/useProjectAnalytics.js
- *       ↓  calls
- *   analyticsApi.js                  src/api/analyticsApi.js
- *       ↓  currently routes to
- *   analyticsMock.js                 src/mock/analyticsMock.js
- *
- * Remove the "sample data" note when real data is connected.
- * Testing states: add ?mockAnalytics=empty or ?mockAnalytics=error to the URL.
+ * Project health is deliberately NOT gated behind the rest of the page's
+ * loading/error state — GET .../health legitimately returns `data: null` as
+ * a *success* (no prediction computed yet), which is the common case, not an
+ * error, so it gets its own always-visible section with its own states.
  */
 
 const secondaryButton =
@@ -65,12 +62,12 @@ function AnalyticsSkeleton() {
 
       <div aria-hidden="true" className={`${skeletonCard} h-[260px]`} />
 
-      <div aria-hidden="true" className="flex flex-col gap-5">
+      <div aria-hidden="true" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className={`${skeletonCard} h-[380px]`} />
         <div className={`${skeletonCard} h-[380px]`} />
       </div>
 
-      <div aria-hidden="true" className="flex flex-col gap-5">
+      <div aria-hidden="true" className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
         <div className={`${skeletonCard} h-[340px]`} />
         <div className={`${skeletonCard} h-[340px]`} />
       </div>
@@ -80,17 +77,44 @@ function AnalyticsSkeleton() {
 
 export default function ProjectAnalytics() {
   const { projectId } = useParams();
-  const project = projectDetails[projectId] ?? defaultProjectDetails;
+  const { user } = useAuth();
 
-  const { data, isLoading, isError, error, refetch } = useProjectAnalytics(projectId);
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    health,
+    isHealthLoading,
+    isHealthError,
+    healthError,
+    syncHealth,
+    isSyncingHealth,
+  } = useProjectAnalytics(projectId);
+
+  // "Recalculate now" is a manual admin-style action (and the endpoint's own
+  // quirk — it resyncs every active project, not just this one — makes it
+  // worth restricting) — only the project's LEADER sees it.
+  const canSyncHealth = !!user && !!data?.members?.some((m) => m.userId === user.userId && m.role === "LEADER");
 
   return (
     <div className="project-analytics-page">
       <div className="head-container">
-        <AnalyticsHeader projectId={projectId} projectName={project?.name} />
+        <AnalyticsHeader projectId={projectId} projectName={data?.project?.name} />
       </div>
 
       <div className="body-container mt-6 flex flex-col gap-6">
+        <ProjectHealth
+          health={health}
+          isLoading={isHealthLoading}
+          isError={isHealthError}
+          error={healthError}
+          canSync={canSyncHealth}
+          onSync={syncHealth}
+          isSyncing={isSyncingHealth}
+        />
+
         {isLoading ? (
           <AnalyticsSkeleton />
         ) : isError ? (
@@ -107,22 +131,14 @@ export default function ProjectAnalytics() {
           </div>
         ) : (
           <>
-            <div
-              role="note"
-              className="flex items-start gap-2.5 rounded-xl border border-[#C9A8FF]/25 bg-[#C9A8FF]/5 px-4 py-3"
-            >
-              <Info size={15} className="mt-0.5 shrink-0 text-[#C9A8FF]" />
-              <p className="text-xs leading-relaxed text-[#A9A6C8]">
-                <span className="font-medium text-[#F5F5F5]">Sample data.</span> These numbers are mock values for
-                previewing the layout. Nothing here is calculated from your tasks, commits or messages yet.
-              </p>
-            </div>
-
-            <ProjectOverviewStats tasks={data.tasks} milestone={data.milestone} />
+            <ProjectOverviewStats tasks={data.tasks} milestone={null} />
             <TaskAnalytics tasks={data.tasks} />
 
-            <TeamActivity members={data.team} />
-            <ContributionAnalytics contributions={data.contributions} />
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <TeamActivity members={data.team} />
+              <ContributionAnalytics contributions={data.contributions} />
+            </div>
+
             <ActivityTimeline trend={data.trend} activity={data.activity} />
           </>
         )}

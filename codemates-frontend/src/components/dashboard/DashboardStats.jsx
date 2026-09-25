@@ -1,72 +1,24 @@
-/**
- * DashboardStats
- *
- * Four key metrics shown as cards below the welcome section.
- *
- * Props:
- *   stats {object}
- *     .activeProjects        {number}
- *     .tasksDueSoon          {number}
- *     .connections           {number}
- *     .contributionsThisWeek {number}
- */
+// src/components/dashboard/DashboardStats.jsx
+import { Users, UserPlus, Bell, Sparkles } from 'lucide-react';
 
-import { FolderKanban, CheckSquare, Users, Activity } from 'lucide-react';
-
-function StatCard({ icon: Icon, value, label, accentColor }) {
-  return (
-    <div className="card flex items-center gap-3 p-3">
-      {/* Icon with tinted background */}
-      <div
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md"
-        style={{ backgroundColor: `${accentColor}18` }}
-      >
-        <Icon size={18} style={{ color: accentColor }} />
-      </div>
-
-      {/* Number */}
-      <div className="min-w-0">
-        <p className="font-mono text-xl font-semibold tracking-tight text-[#F5F5F5]">
-          {value ?? 0}
-        </p>
-        <p className="truncate text-xs text-[#8B86B8]">{label}</p>
-      </div>
-    </div>
-  );
-}
+const CARDS = [
+  { key: 'connections', label: 'Connections', icon: Users },
+  { key: 'pendingRequests', label: 'Pending requests', icon: UserPlus },
+  { key: 'unreadNotifications', label: 'Unread notifications', icon: Bell },
+  { key: 'skills', label: 'Skills listed', icon: Sparkles },
+];
 
 export default function DashboardStats({ stats }) {
-  const cards = [
-    {
-      icon: FolderKanban,
-      value: stats?.activeProjects,
-      label: 'Active Projects',
-      accentColor: '#6C7BFF',
-    },
-    {
-      icon: CheckSquare,
-      value: stats?.tasksDueSoon,
-      label: 'Tasks Due Soon',
-      accentColor: '#F59E0B',
-    },
-    {
-      icon: Users,
-      value: stats?.connections,
-      label: 'Connections',
-      accentColor: '#C9A8FF',
-    },
-    {
-      icon: Activity,
-      value: stats?.contributionsThisWeek,
-      label: 'Contributions This Week',
-      accentColor: '#10B981',
-    },
-  ];
-
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      {cards.map((card) => (
-        <StatCard key={card.label} {...card} />
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {CARDS.map(({ key, label, icon: Icon }) => (
+        <div key={key} className="card p-5 space-y-2">
+          <div className="w-10 h-10 rounded-lg bg-[#1D1A40] flex items-center justify-center">
+            <Icon size={18} style={{ color: '#8B86B8' }} />
+          </div>
+          <div className="text-2xl font-semibold text-[#F5F5F5]">{stats[key] ?? 0}</div>
+          <div className="text-sm text-[#8B86B8]">{label}</div>
+        </div>
       ))}
     </div>
   );

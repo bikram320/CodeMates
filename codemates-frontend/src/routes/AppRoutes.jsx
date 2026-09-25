@@ -10,6 +10,9 @@ import Login from "src/pages/Login";
 import Register from "src/pages/Register";
 import ForgotPassword from "src/pages/ForgotPassword";
 import ResetPassword from "src/pages/ResetPassword";
+
+import LoggedOut from "src/pages/LoggedOut";
+
 import Dashboard from "src/pages/Dashboard";
 import DiscoverDevelopers from "src/pages/DiscoverDevelopers";
 import DeveloperProfile from "src/pages/DeveloperProfile";
@@ -87,7 +90,14 @@ export default function AppRoutes() {
       {/* Authenticated app pages */}
       <Route element={<Applayout />}>
         <Route path="/dashboard" element={<Dashboard />} />
-
+        {/*
+          NOTE: no route for the sign-out confirmation — it's not a page.
+          LogoutConfirmModal is an overlay (open/onClose props) mounted
+          from wherever the "Sign out" action lives (the navbar's account
+          menu), so it pops up over whatever page the user is already on
+          instead of navigating them to a blank /logout route first.
+        */}
+        <Route path="/logged-out" element={<LoggedOut />} />
         <Route path="/discover/developers" element={<DiscoverDevelopers />} />
         <Route path="/discover/developers/:username" element={<DeveloperProfile />} />
         <Route path="/discover/projects" element={<DiscoverProjects />} />

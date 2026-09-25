@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
   Check,
@@ -15,25 +16,25 @@ import EmptyState from "../components/ui/EmptyState";
 import BackButton from "../components/ui/BackButton";
 
 import useProjectTeam from "../hooks/useProjectTeam";
-import {
-  projectDetails,
-  defaultProjectDetails,
-} from "../mock/projectDetailsMock";
+import { getProject } from "../api/projectApi";
 
 /**
  * Project Team page (/projects/:projectId/team).
  *
- * Data comes from useProjectTeam(projectId) → teamApi → mock data for now.
- * Search + role filtering stay client-side; invite / change role / remove go
- * through the hook's mutations and report success or failure in the toast.
+ * Wired directly to the real project-service endpoints via
+ * useProjectTeam (members, invite, remove, change role) and
+ * getProject (for the back-button label). No mock data.
+ *
+ * Dropped vs. the earlier mock version, because ProjectMemberResponseDto
+ * and the invite endpoint don't carry the data for them:
+ * - "X available" / "X pending" counts in the header (no availability
+ *   field; no per-project pending-invite list on the backend)
+ * - search by name/username/skill (no such fields — search now matches
+ *   the member's userId instead, see TeamFilters.jsx)
+ * - inviting by username/email + suggested developers + optional note
+ *   (the real invite endpoint takes a userId UUID directly and has no
+ *   message field — see InviteMemberModal.jsx)
  */
-
-// Quick-pick chips in the invite modal (static for now).
-const SUGGESTED_DEVELOPERS = [
-  { username: "nina_codes", name: "Nina Rossi" },
-  { username: "kaito_ml", name: "Kaito Mori" },
-  { username: "ethan_rs", name: "Ethan Ross" },
-];
 
 const secondaryButton =
   "inline-flex items-center gap-2 rounded-lg border border-[#2E2A66] px-4 py-2 text-sm font-medium " +
@@ -71,11 +72,6 @@ function TeamSkeleton() {
               </div>
             </div>
             <div className="mt-4 h-5 w-28 rounded bg-[#1D1A40]" />
-            <div className="mt-4 flex gap-1.5">
-              <div className="h-5 w-14 rounded bg-[#1D1A40]" />
-              <div className="h-5 w-16 rounded bg-[#1D1A40]" />
-              <div className="h-5 w-12 rounded bg-[#1D1A40]" />
-            </div>
             <div className="mt-4 border-t border-[#1C1A38] pt-3">
               <div className="h-3 w-1/2 rounded bg-[#1D1A40]" />
             </div>
@@ -106,11 +102,15 @@ function TeamError({ error, onRetry }) {
 
 export default function ProjectTeam() {
   const { projectId } = useParams();
-  const project = projectDetails[projectId] ?? defaultProjectDetails;
+
+  const { data: project } = useQuery({
+    queryKey: ["project", projectId],
+    queryFn: () => getProject(projectId),
+    enabled: !!projectId,
+  });
 
   const {
     members,
-    pendingInvites,
     currentUserId,
     isLoading,
     isError,
@@ -136,7 +136,7 @@ export default function ProjectTeam() {
     return () => clearTimeout(timer);
   }, [notice]);
 
-  const viewer = members.find((m) => m.id === currentUserId);
+  const viewer = members.find((m) => m.userId === currentUserId);
   const canManage = viewer?.role === "LEADER";
 
   const counts = useMemo(() => {
@@ -152,34 +152,24 @@ export default function ProjectTeam() {
 
     return members
       .filter((m) => roleFilter === "ALL" || m.role === roleFilter)
-      .filter(
-        (m) =>
-          !query ||
-          m.name.toLowerCase().includes(query) ||
-          m.username.toLowerCase().includes(query) ||
-          m.skills.some((skill) => skill.toLowerCase().includes(query))
-      )
+      .filter((m) => !query || m.userId.toLowerCase().includes(query))
       .sort(
         (a, b) =>
           ROLES.indexOf(a.role) - ROLES.indexOf(b.role) ||
-          a.name.localeCompare(b.name)
+          a.userId.localeCompare(b.userId)
       );
   }, [members, search, roleFilter]);
-
-  const availableCount = members.filter(
-    (m) => m.availability === "AVAILABLE"
-  ).length;
 
   /* ── Actions ───────────────────────────────────────────────────────────── */
 
   const notify = (text, tone = "success") => setNotice({ text, tone });
 
-  const handleChangeRole = async (memberId, role) => {
-    const target = members.find((m) => m.id === memberId);
-    if (!target) return;
+  const shortId = (userId) => (userId ? `${userId.slice(0, 8)}…` : "member");
+
+  const handleChangeRole = async (memberUserId, role) => {
     try {
-      await changeMemberRole(memberId, role);
-      notify(`${target.name} is now a ${role.toLowerCase()}.`);
+      await changeMemberRole(memberUserId, role);
+      notify(`${shortId(memberUserId)} is now a ${role.toLowerCase()}.`);
     } catch (err) {
       notify(getErrorMessage(err), "error");
     }
@@ -187,18 +177,17 @@ export default function ProjectTeam() {
 
   const handleRemove = async (member) => {
     try {
-      await removeMember(member.id);
-      notify(`${member.name} was removed from the project.`);
+      await removeMember(member.userId);
+      notify(`${shortId(member.userId)} was removed from the project.`);
     } catch (err) {
       notify(getErrorMessage(err), "error");
     }
   };
 
-  const handleInvite = async ({ identifier, role }) => {
-    const label = identifier.includes("@") ? identifier : `@${identifier}`;
+  const handleInvite = async ({ invitedUserId, role }) => {
     try {
-      await inviteMember(identifier, role);
-      notify(`Invitation sent to ${label} as ${role.toLowerCase()}.`);
+      await inviteMember(invitedUserId, role);
+      notify(`Invitation sent to ${shortId(invitedUserId)} as ${role.toLowerCase()}.`);
     } catch (err) {
       notify(getErrorMessage(err), "error");
     }
@@ -208,6 +197,8 @@ export default function ProjectTeam() {
     setSearch("");
     setRoleFilter("ALL");
   };
+
+  const hasActiveFilters = search.trim() !== "" || roleFilter !== "ALL";
 
   return (
     <div className="project-team-page">
@@ -228,10 +219,6 @@ export default function ProjectTeam() {
             ) : (
               <>
                 {members.length} {members.length === 1 ? "member" : "members"}
-                {" · "}
-                {availableCount} available
-                {pendingInvites.length > 0 &&
-                  ` · ${pendingInvites.length} pending`}
               </>
             )}
           </p>
@@ -270,7 +257,7 @@ export default function ProjectTeam() {
             <TeamMemberList
               members={filteredMembers}
               totalCount={members.length}
-              hasActiveFilters={search.trim() !== "" || roleFilter !== "ALL"}
+              hasActiveFilters={hasActiveFilters}
               currentUserId={currentUserId}
               canManage={canManage}
               leaderCount={counts.LEADER}
@@ -288,11 +275,7 @@ export default function ProjectTeam() {
         open={inviteOpen}
         onClose={() => setInviteOpen(false)}
         onInvite={handleInvite}
-        takenIdentifiers={[
-          ...members.map((m) => m.username),
-          ...pendingInvites.map((m) => m.username),
-        ]}
-        suggestions={SUGGESTED_DEVELOPERS}
+        takenUserIds={members.map((m) => m.userId)}
       />
 
       {/* ── Confirmation / error toast ──────────────────────────────────── */}

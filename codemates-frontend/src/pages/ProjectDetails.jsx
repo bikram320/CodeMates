@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { FolderX } from "lucide-react";
 
@@ -8,26 +8,61 @@ import ProjectStats from "../components/project/ProjectStats";
 import ProjectMemberPreview from "../components/project/ProjectMemberPreview";
 import EmptyState from "../components/ui/EmptyState";
 
-import {
-  projectDetails,
-  defaultProjectDetails,
-} from "../mock/projectDetailsMock";
+import { getProject, getProjectMembers } from "../api/projectApi";
 
 /**
  * Project Details page (/projects/:projectId).
  *
- * Reads directly from local mock data for now — no API call yet. The
- * shape returned here is what useProject(projectId) should resolve to
- * once it's wired to a real endpoint; swapping the mock import below
- * for that hook later shouldn't require touching this JSX.
+ * Wired directly to ProjectController via projectApi.js — no mock data.
+ *
+ * Dropped vs. the earlier mock version, because ProjectResponse and the
+ * real member endpoint don't carry the data for them:
+ * - "Request to Join" CTA (no self-serve join endpoint on the backend)
+ * - projectType badge (no matching field; replaced with visibility)
+ * - goals / requiredSkills / rolesNeeded sections (no matching fields)
+ * - task count / progress stat (lives behind a task-service endpoint
+ *   not covered here)
+ * - member names/avatars (getProjectMembers returns userId only, no
+ *   display name — see ProjectMemberPreview)
  */
 export default function ProjectDetails() {
   const { projectId } = useParams();
-  const [joined, setJoined] = useState(false);
 
-  const project = projectDetails[projectId] ?? defaultProjectDetails;
+  const [project, setProject] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
-  if (!project) {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setNotFound(false);
+    try {
+      const [projectData, memberData] = await Promise.all([
+        getProject(projectId),
+        getProjectMembers(projectId),
+      ]);
+      setProject(projectData);
+      setMembers(memberData ?? []);
+    } catch (err) {
+      setNotFound(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-16 text-sm text-[var(--cm-muted)]">
+        Loading project...
+      </div>
+    );
+  }
+
+  if (notFound || !project) {
     return (
       <EmptyState
         icon={FolderX}
@@ -37,34 +72,32 @@ export default function ProjectDetails() {
     );
   }
 
+  const techStack = project.techStack
+    ? project.techStack.split(",").map((t) => t.trim()).filter(Boolean)
+    : [];
+
   return (
     <div className="project-details-page">
       <div className="head-container">
         <ProjectHeader
           name={project.name}
-          description={project.shortDescription}
           status={project.status}
-          projectType={project.projectType}
-          techStack={project.techStack}
-          githubUrl={project.githubUrl}
-          joined={joined}
-          onJoin={() => setJoined((j) => !j)}
+          visibility={project.visibility}
+          techStack={techStack}
+          githubUrl={project.githubRepoUrl}
         />
       </div>
 
       <div className="body-container mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
         <div className="main-container">
-          <ProjectOverview
-            description={project.description}
-            goals={project.goals}
-            requiredSkills={project.requiredSkills}
-            rolesNeeded={project.rolesNeeded}
-          />
+          <ProjectOverview description={project.description} />
         </div>
 
         <div className="sidebar-container flex flex-col gap-6">
-          <ProjectStats teamSize={project.teamSize} tasks={project.tasks} />
-          <ProjectMemberPreview members={project.members} />
+          <ProjectStats
+            teamSize={{ current: project.memberCount, max: project.maxMembers }}
+          />
+          <ProjectMemberPreview members={members} />
         </div>
       </div>
     </div>

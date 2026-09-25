@@ -1,20 +1,26 @@
 /**
  * TeamMemberCard
  *
- * A single member on the Project Team page: avatar, name, username, project
- * role, availability, skills, and (for leaders) a menu to change the role or
- * remove the member.
+ * A single member on the Project Team page: avatar (initials placeholder),
+ * role, joined date, and (for leaders) a menu to change the role or remove
+ * the member.
  *
- * Also exports the shared role / availability config so TeamFilters and
- * InviteMemberModal render roles the same way.
+ * ProjectMemberResponseDto only carries { id, projectId, userId, role,
+ * joinedAt, invitedByUserId } — no name, username, skills, availability,
+ * avatar, or task count. Those all rendered from mock fields before; since
+ * there's no profile-by-userId lookup on the backend yet, this card now
+ * shows a shortened userId in place of a name and drops skills/availability/
+ * tasks-done entirely rather than fake them.
+ *
+ * Also exports the shared role config so TeamFilters and InviteMemberModal
+ * render roles the same way.
  *
  * Props:
- *   member          {object}  { id, name, username, avatarUrl?, role, availability,
- *                               skills[], joinedAt, tasksCompleted }
+ *   member          {object}  { id, projectId, userId, role, joinedAt, invitedByUserId }
  *   isCurrentUser   {boolean} Shows a "you" tag
  *   canManage       {boolean} Show the ⋯ menu (viewer is a project leader)
  *   isLastLeader    {boolean} Member is the only leader — role/removal locked
- *   onChangeRole    {fn}      (memberId, newRole)
+ *   onChangeRole    {fn}      (memberUserId, newRole)
  *   onRemove        {fn}      (member)
  */
 
@@ -27,6 +33,7 @@ import {
   ShieldCheck,
   UserMinus,
 } from 'lucide-react';
+import Avatar from '../ui/Avatar';
 
 /* ── Shared config ───────────────────────────────────────────────────────── */
 
@@ -56,70 +63,14 @@ export const ROLE_META = {
   },
 };
 
-export const AVAILABILITY_META = {
-  AVAILABLE: { label: 'Available', dot: 'bg-emerald-400' },
-  BUSY: { label: 'Busy', dot: 'bg-amber-400' },
-  AWAY: { label: 'Away', dot: 'bg-[#6B6890]' },
-};
-
-/* ── Avatar ──────────────────────────────────────────────────────────────── */
-
-const AVATAR_GRADIENTS = [
-  'from-[#6C7BFF] to-[#C9A8FF]',
-  'from-[#C9A8FF] to-[#6C7BFF]',
-  'from-[#5A67E0] to-[#B79CFF]',
-  'from-[#8E9BFF] to-[#C9A8FF]',
-];
-
-function hashString(str) {
-  let h = 0;
-  for (const ch of str) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return h;
+function shortId(userId) {
+  return userId ? `${userId.slice(0, 8)}…` : 'Unknown member';
 }
 
-function getInitials(name) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
-}
-
-function Avatar({ member }) {
-  const [imgFailed, setImgFailed] = useState(false);
-  const availability = AVAILABILITY_META[member.availability];
-  const gradient =
-    AVATAR_GRADIENTS[hashString(member.username) % AVATAR_GRADIENTS.length];
-
-  return (
-    <div className="relative shrink-0">
-      {member.avatarUrl && !imgFailed ? (
-        <img
-          src={member.avatarUrl}
-          alt=""
-          onError={() => setImgFailed(true)}
-          className="h-11 w-11 rounded-full object-cover"
-        />
-      ) : (
-        <div
-          aria-hidden="true"
-          className={`flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br ${gradient} text-sm font-bold text-[#0A0918]`}
-        >
-          {getInitials(member.name)}
-        </div>
-      )}
-
-      {/* Presence dot */}
-      {availability && (
-        <span
-          className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#0A0918] ${availability.dot}`}
-          title={availability.label}
-        />
-      )}
-    </div>
-  );
+function formatJoined(dateStr) {
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
 /* ── Manage menu ─────────────────────────────────────────────────────────── */
@@ -161,9 +112,11 @@ function MemberMenu({ member, isLastLeader, onChangeRole, onRemove }) {
   };
 
   const pickRole = (role) => {
-    if (role !== member.role) onChangeRole(member.id, role);
+    if (role !== member.role) onChangeRole(member.userId, role);
     closeMenu();
   };
+
+  const label = shortId(member.userId);
 
   return (
     <div ref={containerRef} className="relative shrink-0">
@@ -173,7 +126,7 @@ function MemberMenu({ member, isLastLeader, onChangeRole, onRemove }) {
         onClick={() => (open ? closeMenu() : setOpen(true))}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Manage ${member.name}`}
+        aria-label={`Manage ${label}`}
         className="flex h-8 w-8 items-center justify-center rounded-lg text-[#6B6890]
                    transition-colors duration-150 hover:bg-[#1D1A40] hover:text-[#F5F5F5]
                    focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
@@ -184,7 +137,7 @@ function MemberMenu({ member, isLastLeader, onChangeRole, onRemove }) {
       {open && (
         <div
           role="menu"
-          aria-label={`Actions for ${member.name}`}
+          aria-label={`Actions for ${label}`}
           className="absolute right-0 top-full z-20 mt-1.5 w-60 rounded-xl border border-[#2E2A66]
                      bg-[#0F0E24] p-1.5 shadow-xl shadow-black/50"
         >
@@ -192,7 +145,7 @@ function MemberMenu({ member, isLastLeader, onChangeRole, onRemove }) {
             /* ── Inline remove confirmation ─────────────────────────────── */
             <div className="p-2.5">
               <p className="text-sm font-medium text-[#F5F5F5]">
-                Remove {member.name}?
+                Remove {label}?
               </p>
               <p className="mt-1 text-xs leading-relaxed text-[#8B88AE]">
                 They lose access to this project. Their completed work stays.
@@ -284,14 +237,6 @@ function MemberMenu({ member, isLastLeader, onChangeRole, onRemove }) {
 
 /* ── Card ────────────────────────────────────────────────────────────────── */
 
-const MAX_VISIBLE_SKILLS = 4;
-
-function formatJoined(dateStr) {
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-}
-
 export default function TeamMemberCard({
   member,
   isCurrentUser = false,
@@ -302,10 +247,6 @@ export default function TeamMemberCard({
 }) {
   const role = ROLE_META[member.role] ?? ROLE_META.CONTRIBUTOR;
   const RoleIcon = role.icon;
-  const availability = AVAILABILITY_META[member.availability];
-
-  const visibleSkills = member.skills.slice(0, MAX_VISIBLE_SKILLS);
-  const hiddenSkills = member.skills.slice(MAX_VISIBLE_SKILLS);
   const joined = formatJoined(member.joinedAt);
 
   return (
@@ -313,12 +254,12 @@ export default function TeamMemberCard({
                         transition-colors duration-150 hover:border-[#2E2A66]">
       {/* ── Identity ──────────────────────────────────────────────────────── */}
       <div className="flex items-start gap-3">
-        <Avatar member={member} />
+        <Avatar name="" size={44} />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="truncate text-sm font-semibold text-[#F5F5F5]">
-              {member.name}
+            <h3 className="truncate font-mono text-sm font-semibold text-[#F5F5F5]">
+              {shortId(member.userId)}
             </h3>
             {isCurrentUser && (
               <span className="shrink-0 rounded bg-[#1D1A40] px-1.5 py-0.5 font-mono text-[10px] text-[#8B88AE]">
@@ -326,9 +267,6 @@ export default function TeamMemberCard({
               </span>
             )}
           </div>
-          <p className="truncate font-mono text-xs text-[#8B88AE]">
-            @{member.username}
-          </p>
         </div>
 
         {canManage && (
@@ -341,7 +279,7 @@ export default function TeamMemberCard({
         )}
       </div>
 
-      {/* ── Role + availability ───────────────────────────────────────────── */}
+      {/* ── Role ──────────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-2">
         <span
           className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5
@@ -350,46 +288,11 @@ export default function TeamMemberCard({
           <RoleIcon size={11} />
           {member.role}
         </span>
-
-        {availability && (
-          <span className="inline-flex items-center gap-1.5 text-xs text-[#8B88AE]">
-            <span className={`h-1.5 w-1.5 rounded-full ${availability.dot}`} />
-            {availability.label}
-          </span>
-        )}
-      </div>
-
-      {/* ── Skills ────────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-1.5">
-        {visibleSkills.length === 0 ? (
-          <span className="text-xs text-[#6B6890]">No skills listed</span>
-        ) : (
-          visibleSkills.map((skill) => (
-            <span
-              key={skill}
-              className="rounded-md bg-[#1D1A40] px-2 py-0.5 font-mono text-[11px] text-[#C9A8FF]"
-            >
-              {skill}
-            </span>
-          ))
-        )}
-        {hiddenSkills.length > 0 && (
-          <span
-            title={hiddenSkills.join(', ')}
-            className="rounded-md bg-[#1D1A40] px-2 py-0.5 font-mono text-[11px] text-[#8B88AE]"
-          >
-            +{hiddenSkills.length}
-          </span>
-        )}
       </div>
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
-      <div className="mt-auto flex items-center justify-between gap-3 border-t border-[#1C1A38] pt-3 text-xs text-[#6B6890]">
+      <div className="mt-auto flex items-center border-t border-[#1C1A38] pt-3 text-xs text-[#6B6890]">
         <span>{joined ? `Joined ${joined}` : ''}</span>
-        <span>
-          <span className="font-mono text-[#8B88AE]">{member.tasksCompleted ?? 0}</span>{' '}
-          tasks done
-        </span>
       </div>
     </article>
   );

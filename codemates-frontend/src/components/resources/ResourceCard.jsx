@@ -1,4 +1,4 @@
-import { ExternalLink, FileText, MoreVertical } from "lucide-react";
+import { ExternalLink, FileText, Trash2 } from "lucide-react";
 import Button from "../ui/Button";
 
 const TYPE_LABELS = {
@@ -8,15 +8,37 @@ const TYPE_LABELS = {
   OTHER: "Other",
 };
 
+function formatDate(iso) {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The backend has no update/edit endpoint for resources (only add,
+ * list, and delete — see ProjectResourceController), so this card only
+ * exposes delete. `addedBy` isn't available either: ResourceResponse
+ * only carries uploadedByUserId, and the real member endpoint doesn't
+ * return a display name, so the card shows the created date instead.
+ */
 export default function ResourceCard({
   name,
   url,
   description,
   resourceType,
-  addedBy,
-  onEdit,
+  createdAt,
+  isDeleting = false,
   onDelete,
 }) {
+  const dateLabel = formatDate(createdAt);
+
   return (
     <article className="flex min-h-52 flex-col gap-4 rounded-lg border border-[var(--cm-border)] bg-[var(--cm-surface-2)] p-5">
       <div className="flex items-start justify-between gap-3">
@@ -29,25 +51,21 @@ export default function ResourceCard({
             <p className="text-xs text-[var(--cm-muted)]">{TYPE_LABELS[resourceType] ?? resourceType}</p>
           </div>
         </div>
-        <details className="relative shrink-0">
-          <summary className="flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-md text-[var(--cm-muted)] hover:bg-[var(--cm-surface)] hover:text-[var(--cm-text)]">
-            <MoreVertical size={16} />
-          </summary>
-          <div className="absolute right-0 z-10 mt-1 flex min-w-28 flex-col rounded-md border border-[var(--cm-border)] bg-[var(--cm-surface)] p-1 shadow-lg">
-            <button type="button" className="rounded px-2 py-1.5 text-left text-xs text-[var(--cm-text)] hover:bg-[var(--cm-surface-2)]" onClick={onEdit}>
-              Edit
-            </button>
-            <button type="button" className="rounded px-2 py-1.5 text-left text-xs text-red-300 hover:bg-[var(--cm-surface-2)]" onClick={onDelete}>
-              Delete
-            </button>
-          </div>
-        </details>
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={isDeleting}
+          aria-label="Delete resource"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--cm-muted)] transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Trash2 size={16} />
+        </button>
       </div>
 
       <p className="line-clamp-3 flex-1 text-sm text-[var(--cm-text-dim)]">{description || "No description provided."}</p>
 
       <div className="flex items-center justify-between gap-3 border-t border-[var(--cm-border)] pt-3">
-        <span className="truncate text-xs text-[var(--cm-muted)]">{addedBy?.name ?? "Added by team"}</span>
+        <span className="truncate text-xs text-[var(--cm-muted)]">{dateLabel ? `Added ${dateLabel}` : ""}</span>
         <Button href={url} variant="ghost" size="sm" rightIcon={ExternalLink}>
           Open
         </Button>

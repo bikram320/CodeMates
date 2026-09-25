@@ -12,8 +12,7 @@ import {
   X,
 } from "lucide-react";
 import Logo from "src/components/ui/Logo";
-
-
+import LogoutConfirmModal from "src/components/auth/LogoutConfirmModal";
 
 const DEFAULT_LINKS = [
   { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
@@ -22,9 +21,15 @@ const DEFAULT_LINKS = [
   { label: "Messages", to: "/messages", icon: MessageSquare },
 ];
 
+// "Sign out" uses `action: "signout"` instead of `to` — there's no
+// standalone /logout route (LogoutConfirmModal is an overlay, not a
+// page), so Navbar itself recognizes this marker and opens the modal
+// rather than navigating. Any custom menuItems passed in can use the
+// same marker to get the built-in modal for free, or their own
+// `onClick` for something else entirely.
 const DEFAULT_MENU_ITEMS = [
   { label: "Profile", to: "/profile", icon: User },
-  { label: "Sign out", to: "/logout", icon: LogOut, danger: true },
+  { label: "Sign out", action: "signout", icon: LogOut, danger: true },
 ];
 
 /** Small avatar with initials fallback. Kept local until a ui/Avatar exists. */
@@ -71,6 +76,7 @@ export default function Navbar({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const menuRef = useRef(null);
 
   // Close the profile dropdown on outside click or Escape.
@@ -102,7 +108,7 @@ export default function Navbar({
     }`;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--cm-border)] bg-[var(--cm-bg)]">
+    <header className="navbar sticky top-0 z-40 border-b border-[var(--cm-border)] bg-[var(--cm-bg)]">
       <div className="flex h-[var(--cm-navbar-h)] items-center gap-3 px-4 sm:px-5">
         {/* Drawer toggle — only useful when a sidebar is present */}
         {onMenuToggle && (
@@ -183,6 +189,24 @@ export default function Navbar({
                       : "text-[var(--cm-text-dim)]"
                   }`;
 
+                  if (item.action === "signout") {
+                    return (
+                      <button
+                        key={item.label}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setLogoutOpen(true);
+                        }}
+                        className={classes}
+                      >
+                        {Icon && <Icon size={16} />}
+                        {item.label}
+                      </button>
+                    );
+                  }
+
                   if (item.onClick) {
                     return (
                       <button
@@ -255,6 +279,8 @@ export default function Navbar({
           })}
         </nav>
       )}
+
+      <LogoutConfirmModal open={logoutOpen} onClose={() => setLogoutOpen(false)} />
     </header>
   );
 }

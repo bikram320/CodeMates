@@ -1,23 +1,3 @@
-/**
- * TeamMemberList
- *
- * Responsive grid of TeamMemberCards, plus the two empty states:
- *   - the project has no members at all
- *   - search / role filter matched nobody
- *
- * Props:
- *   members            {Array}    Already filtered + sorted members to render
- *   totalCount         {number}   Members on the project before filtering
- *   hasActiveFilters   {boolean}  Search text or a role filter is applied
- *   currentUserId      {string}   Id of the viewer (gets a "you" tag)
- *   canManage          {boolean}  Viewer can change roles / remove members
- *   leaderCount        {number}   Used to lock the last remaining leader
- *   onChangeRole       {fn}       (memberId, newRole)
- *   onRemove           {fn}       (member)
- *   onInvite           {fn}       Opens the invite modal
- *   onClearFilters     {fn}       Resets search + role filter
- */
-
 import { SearchX, UserPlus, Users } from 'lucide-react';
 
 import EmptyState from '../ui/EmptyState';
@@ -28,6 +8,11 @@ const secondaryButton =
   'text-[#F5F5F5] transition-colors duration-150 hover:border-[#6C7BFF] hover:bg-[#1D1A40] ' +
   'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60';
 
+/**
+ * `member.id` is the ProjectMember record's own id (used only as the React
+ * key); `member.userId` identifies the actual person and is what's compared
+ * against `currentUserId` and passed to the manage actions.
+ */
 export default function TeamMemberList({
   members,
   totalCount,
@@ -66,7 +51,7 @@ export default function TeamMemberList({
         <EmptyState
           icon={SearchX}
           title="No members match"
-          description="Try a different name, username or skill, or pick another role."
+          description="Try a different search term, or pick another role."
         />
         {hasActiveFilters && (
           <button type="button" onClick={onClearFilters} className={secondaryButton}>
@@ -89,7 +74,7 @@ export default function TeamMemberList({
           <TeamMemberCard
             key={member.id}
             member={member}
-            isCurrentUser={member.id === currentUserId}
+            isCurrentUser={member.userId === currentUserId}
             canManage={canManage}
             isLastLeader={member.role === 'LEADER' && leaderCount <= 1}
             onChangeRole={onChangeRole}

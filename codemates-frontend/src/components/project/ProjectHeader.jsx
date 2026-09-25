@@ -3,33 +3,49 @@ import Badge from "../ui/Badge";
 import Button from "../ui/Button";
 import SkillBadge from "../developer/SkillBadge";
 
-/**
- * Hero section for a project's details page: name, quick-glance status/
- * type badges, tech stack, and the primary join action + GitHub link.
- *
- * Props:
- * - name, description   identity (required)
- * - status, projectType   shown as badges next to the name
- * - techStack   string[]
- * - githubUrl   optional external link
- * - joined      boolean — swaps the CTA to a "Request Sent" state
- * - onJoin      click handler for the join button
- */
-const STATUS_VARIANT = {
-  Recruiting: "soft",
-  "In Progress": "outline",
-  Completed: "neutral",
+const STATUS_LABELS = {
+  ACTIVE: "Active",
+  COMPLETED: "Completed",
+  ARCHIVED: "Archived",
 };
 
+const STATUS_VARIANT = {
+  ACTIVE: "soft",
+  COMPLETED: "neutral",
+  ARCHIVED: "outline",
+};
+
+const VISIBILITY_LABELS = {
+  PUBLIC: "Public",
+  PRIVATE: "Private",
+};
+
+/**
+ * Hero section for a project's details page: name, status/visibility
+ * badges, tech stack, and a GitHub link.
+ *
+ * There's no self-serve "join project" endpoint on the backend — only
+ * a leader-initiated invite plus invitee accept/reject flow — so the
+ * earlier "Request to Join" CTA and `joined`/`onJoin` props have been
+ * removed rather than left pointing at nothing. `projectType` is gone
+ * too (no matching backend field); `visibility` takes its place since
+ * that field actually exists on ProjectResponse.
+ *
+ * Props:
+ * - name          required
+ * - description   optional
+ * - status        ACTIVE | COMPLETED | ARCHIVED
+ * - visibility    PUBLIC | PRIVATE
+ * - techStack     string[]
+ * - githubUrl     optional external link
+ */
 export default function ProjectHeader({
   name,
   description,
   status,
-  projectType,
+  visibility,
   techStack = [],
   githubUrl,
-  joined = false,
-  onJoin,
   className = "",
 }) {
   return (
@@ -43,10 +59,12 @@ export default function ProjectHeader({
           </h1>
           {status && (
             <Badge variant={STATUS_VARIANT[status] ?? "neutral"}>
-              {status}
+              {STATUS_LABELS[status] ?? status}
             </Badge>
           )}
-          {projectType && <Badge variant="outline">{projectType}</Badge>}
+          {visibility && (
+            <Badge variant="outline">{VISIBILITY_LABELS[visibility] ?? visibility}</Badge>
+          )}
         </div>
 
         {description && (
@@ -64,16 +82,13 @@ export default function ProjectHeader({
         )}
       </div>
 
-      <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
-        <Button variant={joined ? "secondary" : "primary"} onClick={onJoin}>
-          {joined ? "Request Sent" : "Request to Join"}
-        </Button>
-        {githubUrl && (
+      {githubUrl && (
+        <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
           <Button href={githubUrl} variant="outline" size="sm" leftIcon={FaGithub}>
             GitHub
           </Button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

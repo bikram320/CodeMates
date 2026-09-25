@@ -9,17 +9,18 @@ import Button from "../ui/Button";
  * current search/filter).
  *
  * Props:
- * - resources         already-enriched resource objects (see ResourceCard)
+ * - resources         ResourceResponse[] straight from the API
  * - hasActiveFilters  boolean — changes the empty state's copy/action
- * - onEdit, onDelete  (resource) => void
+ * - onDelete          (resource) => void
+ * - deletingId        id of the resource currently being deleted, or null
  * - onAddClick        () => void — used by the empty state's action
  * - onClearFilters    () => void
  */
 export default function ResourceList({
   resources = [],
   hasActiveFilters = false,
-  onEdit,
   onDelete,
+  deletingId = null,
   onAddClick,
   onClearFilters,
 }) {
@@ -55,7 +56,7 @@ export default function ResourceList({
         <ResourceCard
           key={resource.id}
           {...resource}
-          onEdit={() => onEdit(resource)}
+          isDeleting={deletingId === resource.id}
           onDelete={() => onDelete(resource)}
         />
       ))}

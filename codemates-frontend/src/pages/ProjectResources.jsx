@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import PageHeader from "../components/layout/PageHeader";
@@ -6,41 +6,56 @@ import ResourceHeader from "../components/resources/ResourceHeader";
 import ResourceList from "../components/resources/ResourceList";
 import AddResourceModal from "../components/resources/AddResourceModal";
 
-import { projectResources, defaultProjectResources } from "../mock/resourcesMock";
-import { projectDetails, defaultProjectDetails } from "../mock/projectDetailsMock";
+import { getProjectResources, addResource, deleteResource } from "../api/resourceApi";
 
 /**
  * Project Resources page (/projects/:projectId/resources).
  *
- * Local mock state only, no API layer yet — matches how Discover
- * Projects and the Kanban/Chat pages started before their data layers
- * were added in a follow-up pass.
+ * Directly wired to ProjectResourceController via resourceApi.js — no
+ * mock data, no mock delay.
  *
- * uploadedByUserId on each resource is resolved against this project's
- * `members` list (from projectDetailsMock) since ResourceResponse itself
- * only carries the id, not a name/avatar.
+ * There is no edit endpoint on the backend (only add / list / delete),
+ * so the earlier mock-based "Edit" action, AddResourceModal's edit
+ * mode, and the member-lookup "addedBy" enrichment (which relied on
+ * mock project members) have all been removed. ResourceResponse only
+ * carries `uploadedByUserId`, and the real member endpoint doesn't
+ * expose a display name, so there's nothing to enrich that with yet —
+ * ResourceCard shows the created date instead.
  */
 export default function ProjectResources() {
   const { projectId } = useParams();
 
-  const project = projectDetails[projectId] ?? defaultProjectDetails;
-  const initialResources = projectResources[projectId] ?? defaultProjectResources;
+  const [resources, setResources] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const [resources, setResources] = useState(initialResources);
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState(null);
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingResource, setEditingResource] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
-  const enrichedResources = resources.map((resource) => ({
-    ...resource,
-    addedBy: project.members.find((m) => m.id === resource.uploadedByUserId) ?? null,
-  }));
+  const loadResources = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getProjectResources(projectId);
+      setResources(data ?? []);
+    } catch (err) {
+      setError(err?.message || "Failed to load resources.");
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    loadResources();
+  }, [loadResources]);
 
   const filteredResources = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return enrichedResources.filter((resource) => {
+    return resources.filter((resource) => {
       const matchesSearch =
         !term ||
         resource.name.toLowerCase().includes(term) ||
@@ -49,7 +64,6 @@ export default function ProjectResources() {
       const matchesType = !selectedType || resource.resourceType === selectedType;
       return matchesSearch && matchesType;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resources, search, selectedType]);
 
   const hasActiveFilters = search.trim() !== "" || !!selectedType;
@@ -59,39 +73,36 @@ export default function ProjectResources() {
     setSelectedType(null);
   }
 
-  function openAddModal() {
-    setEditingResource(null);
-    setModalOpen(true);
-  }
-
-  function openEditModal(resource) {
-    setEditingResource(resource);
-    setModalOpen(true);
-  }
-
-  function handleSave(resourceData) {
-    if (resourceData.id) {
-      setResources((prev) =>
-        prev.map((r) => (r.id === resourceData.id ? { ...r, ...resourceData } : r))
-      );
-    } else {
-      setResources((prev) => [
-        {
-          ...resourceData,
-          id: `r${Date.now()}`,
-          projectId,
-          uploadedByUserId: project.members[0]?.id ?? null, // mock "current user" stand-in
-          createdAt: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
+  async function handleSave(resourceData) {
+    setSaving(true);
+    setError(null);
+    try {
+      const created = await addResource(projectId, {
+        name: resourceData.name,
+        url: resourceData.url,
+        description: resourceData.description || undefined,
+        resourceType: resourceData.resourceType,
+      });
+      setResources((prev) => [created, ...prev]);
+      setModalOpen(false);
+    } catch (err) {
+      setError(err?.message || "Failed to add resource.");
+    } finally {
+      setSaving(false);
     }
-    setModalOpen(false);
   }
 
-  // Soft delete in the real API — this mock just removes it locally.
-  function handleDelete(resource) {
-    setResources((prev) => prev.filter((r) => r.id !== resource.id));
+  async function handleDelete(resource) {
+    setDeletingId(resource.id);
+    setError(null);
+    try {
+      await deleteResource(projectId, resource.id);
+      setResources((prev) => prev.filter((r) => r.id !== resource.id));
+    } catch (err) {
+      setError(err?.message || "Failed to delete resource.");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -109,24 +120,36 @@ export default function ProjectResources() {
           onSearchChange={setSearch}
           selectedType={selectedType}
           onTypeChange={setSelectedType}
-          onAddClick={openAddModal}
+          onAddClick={() => setModalOpen(true)}
         />
       </div>
 
+      {error && (
+        <div className="mt-4 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-300">
+          {error}
+        </div>
+      )}
+
       <div className="results-container mt-6">
-        <ResourceList
-          resources={filteredResources}
-          hasActiveFilters={hasActiveFilters}
-          onEdit={openEditModal}
-          onDelete={handleDelete}
-          onAddClick={openAddModal}
-          onClearFilters={clearFilters}
-        />
+        {loading ? (
+          <div className="flex justify-center py-16 text-sm text-[var(--cm-muted)]">
+            Loading resources...
+          </div>
+        ) : (
+          <ResourceList
+            resources={filteredResources}
+            hasActiveFilters={hasActiveFilters}
+            onDelete={handleDelete}
+            deletingId={deletingId}
+            onAddClick={() => setModalOpen(true)}
+            onClearFilters={clearFilters}
+          />
+        )}
       </div>
 
       <AddResourceModal
         open={modalOpen}
-        resource={editingResource}
+        saving={saving}
         onClose={() => setModalOpen(false)}
         onSave={handleSave}
       />

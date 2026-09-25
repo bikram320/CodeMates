@@ -19,12 +19,16 @@
       <module name="auth-service" options="-parameters" />
       <module name="auth-service.main" options="-parameters" />
       <module name="auth-service.test" options="-parameters" />
+<<<<<<< Updated upstream
       <module name="com.codemates.auth-service.main" options="-parameters" />
       <module name="com.codemates.contribution-service.main" options="-parameters" />
       <module name="com.codemates.github-sync-service.main" options="-parameters" />
       <module name="com.codemates.messaging-service.main" options="-parameters" />
       <module name="com.codemates.notification-service.main" options="-parameters" />
       <module name="com.codemates.social-service.main" options="-parameters" />
+=======
+      <module name="com.codemates.notification-service.main" options="-parameters" />
+>>>>>>> Stashed changes
       <module name="contribution-service" options="-parameters" />
       <module name="contribution-service.main" options="-parameters" />
       <module name="contribution-service.test" options="-parameters" />

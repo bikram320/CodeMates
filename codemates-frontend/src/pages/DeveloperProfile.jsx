@@ -10,10 +10,7 @@ import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import EmptyState from "../components/ui/EmptyState";
 
-import {
-  developerProfiles,
-  defaultDeveloperProfile,
-} from "../mock/developerProfileMock";
+
 
 const SECTION_TITLE = "page-section-heading mb-3";
 

@@ -74,7 +74,7 @@ export default function PublicNavbar({
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[var(--cm-border)] bg-[var(--cm-bg)]/95 backdrop-blur">
+    <header className="navbar sticky top-0 z-50 border-b border-[var(--cm-border)] bg-[var(--cm-bg)]/95 backdrop-blur">
       <div className="flex h-[var(--cm-navbar-h)] w-full items-center justify-between px-4 sm:px-6 lg:px-10">
         <Logo to="/" size="md" src={logoSrc} />
 

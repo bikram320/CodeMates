@@ -20,14 +20,14 @@
  */
 
 import { Calendar, User } from 'lucide-react';
-import { getMemberById } from '../../mock/taskMock';
+
 
 // Priority → left-strip colour
 const PRIORITY_COLOR = {
-  URGENT: '#EF4444',
-  HIGH:   '#F97316',
-  MEDIUM: '#F59E0B',
-  LOW:    '#10B981',
+  URGENT: '#870606',
+  HIGH:   '#f96800',
+  MEDIUM: '#f1f100',
+  LOW:    '#036e3a',
 };
 
 // Priority → badge text + style classes

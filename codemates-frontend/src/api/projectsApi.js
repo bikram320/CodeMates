@@ -23,7 +23,7 @@
  */
 
 import client from './client';
-import { getMockProjects, getMockProjectById, createProjectMock } from '../mock/projectsMock';
+
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
