@@ -3,6 +3,7 @@ package com.codemates.userprofile.repository;
 import com.codemates.userprofile.model.Profile;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,4 +27,7 @@ public interface ProfileRepository extends JpaRepository<Profile, UUID> {
 
     List<Profile> findByExperienceLevelAndIsOpenToCollaborateAndIsDeletedFalse(
             String experienceLevel, Boolean isOpenToCollaborate);
+
+    List<Profile> findByUserIdInAndIsDeletedFalse(Collection<UUID> userIds);
 }
+

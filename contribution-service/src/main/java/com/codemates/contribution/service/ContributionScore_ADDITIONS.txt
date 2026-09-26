@@ -1,0 +1,25 @@
+ASSUMPTION FLAGGED -- I don't have ContributionScore.java. Add these two
+fields to it (adjust column names/annotations to match your actual entity's
+style, e.g. if you use @Column(name=...) elsewhere, mirror that here):
+
+    private Double significanceProbability;   // Model 3's predicted probability (0-1), separate from totalScore
+    private Instant significancePredictedAt;   // when it was last computed
+
+SQL (adjust schema name if different from what we've used elsewhere):
+
+    ALTER TABLE contribution_schema.contribution_scores
+        ADD COLUMN significance_probability DOUBLE PRECISION,
+        ADD COLUMN significance_predicted_at TIMESTAMP;
+
+---
+
+ASSUMPTION FLAGGED -- I don't have ContributionScoreRepository.java. Add
+this method if it's not already there (needed by ContributionMlSyncService
+to iterate every member of a project):
+
+    List<ContributionScore> findByProjectIdAndIsDeletedFalse(UUID projectId);
+
+(Note: ContributionMlSyncService as written doesn't actually call this --
+it derives its pair list from ProjectRepositoryLink instead, which already
+has userId+projectId+repositoryId. This method is likely still useful for
+other reads, but isn't a hard blocker for the sync job itself.)

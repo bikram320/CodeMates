@@ -6,14 +6,21 @@ import ProjectHeader from "../components/project/ProjectHeader";
 import ProjectOverview from "../components/project/ProjectOverview";
 import ProjectStats from "../components/project/ProjectStats";
 import ProjectMemberPreview from "../components/project/ProjectMemberPreview";
+import EditProjectModal from "../components/project/EditProjectModal";
 import EmptyState from "../components/ui/EmptyState";
 
-import { getProject, getProjectMembers } from "../api/projectApi";
+import { getProject, getProjectMembers, updateProject } from "../api/projectApi";
+import useAuth from "../hooks/useAuth";
 
 /**
  * Project Details page (/projects/:projectId).
  *
  * Wired directly to ProjectController via projectApi.js — no mock data.
+ *
+ * Editing: PUT /api/projects/{id} (projectApi.updateProject), LEADER only.
+ * `canManage` is derived from the fetched member list + the signed-in
+ * user's id, mirroring the server-side check, so the Edit button only
+ * shows up for someone who'd actually be allowed to use it.
  *
  * Dropped vs. the earlier mock version, because ProjectResponse and the
  * real member endpoint don't carry the data for them:
@@ -22,16 +29,21 @@ import { getProject, getProjectMembers } from "../api/projectApi";
  * - goals / requiredSkills / rolesNeeded sections (no matching fields)
  * - task count / progress stat (lives behind a task-service endpoint
  *   not covered here)
- * - member names/avatars (getProjectMembers returns userId only, no
- *   display name — see ProjectMemberPreview)
+ * - member names/avatars (getProjectMembers returns userId only —
+ *   ProjectMemberPreview now resolves these via useUserDirectory)
  */
 export default function ProjectDetails() {
   const { projectId } = useParams();
+  const { user } = useAuth();
 
   const [project, setProject] = useState(null);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,52 +66,85 @@ export default function ProjectDetails() {
     load();
   }, [load]);
 
+  async function handleSaveProject(formData) {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const updated = await updateProject(projectId, formData);
+      setProject(updated);
+      setEditOpen(false);
+    } catch (err) {
+      setSaveError(err?.message || "Failed to update project.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (loading) {
     return (
-      <div className="flex justify-center py-16 text-sm text-[var(--cm-muted)]">
-        Loading project...
-      </div>
+        <div className="flex justify-center py-16 text-sm text-[var(--cm-muted)]">
+          Loading project...
+        </div>
     );
   }
 
   if (notFound || !project) {
     return (
-      <EmptyState
-        icon={FolderX}
-        title="Project not found"
-        description="This project doesn't exist or may have been removed."
-      />
+        <EmptyState
+            icon={FolderX}
+            title="Project not found"
+            description="This project doesn't exist or may have been removed."
+        />
     );
   }
 
   const techStack = project.techStack
-    ? project.techStack.split(",").map((t) => t.trim()).filter(Boolean)
-    : [];
+      ? project.techStack.split(",").map((t) => t.trim()).filter(Boolean)
+      : [];
+
+  const canManage =
+      !!user && members.some((m) => m.userId === user.userId && m.role === "LEADER");
 
   return (
-    <div className="project-details-page">
-      <div className="head-container">
-        <ProjectHeader
-          name={project.name}
-          status={project.status}
-          visibility={project.visibility}
-          techStack={techStack}
-          githubUrl={project.githubRepoUrl}
+      <div className="project-details-page">
+        <div className="head-container">
+          <ProjectHeader
+              name={project.name}
+              status={project.status}
+              visibility={project.visibility}
+              techStack={techStack}
+              githubUrl={project.githubRepoUrl}
+              canManage={canManage}
+              onEdit={() => setEditOpen(true)}
+          />
+        </div>
+
+        <div className="body-container mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
+          <div className="main-container">
+            <ProjectOverview description={project.description} />
+          </div>
+
+          <div className="sidebar-container flex flex-col gap-6">
+            <ProjectStats
+                teamSize={{ current: project.memberCount, max: project.maxMembers }}
+            />
+            <ProjectMemberPreview members={members} />
+          </div>
+        </div>
+
+        <EditProjectModal
+            open={editOpen}
+            project={project}
+            saving={saving}
+            error={saveError}
+            onClose={() => {
+              if (!saving) {
+                setEditOpen(false);
+                setSaveError(null);
+              }
+            }}
+            onSave={handleSaveProject}
         />
       </div>
-
-      <div className="body-container mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
-        <div className="main-container">
-          <ProjectOverview description={project.description} />
-        </div>
-
-        <div className="sidebar-container flex flex-col gap-6">
-          <ProjectStats
-            teamSize={{ current: project.memberCount, max: project.maxMembers }}
-          />
-          <ProjectMemberPreview members={members} />
-        </div>
-      </div>
-    </div>
   );
 }

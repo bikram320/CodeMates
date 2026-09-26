@@ -248,4 +248,102 @@ def service_health():
         "status": "up",
         "health_model_loaded": _HEALTH_MODEL is not None,
         "match_model_loaded": _MATCH_MODEL is not None,
+        "contribution_model_loaded": _CONTRIB_MODEL is not None,
     }
+
+
+# ======================================================================
+# MODEL 3 — CONTRIBUTION SIGNIFICANCE PREDICTION
+# ======================================================================
+
+CONTRIBUTION_MODELS_DIR = MODELS_DIR / "contribution"
+_CONTRIB_MODEL = joblib.load(CONTRIBUTION_MODELS_DIR / "best_model.joblib")
+with open(CONTRIBUTION_MODELS_DIR / "feature_columns.json") as f:
+    _CONTRIB_FEATURE_COLUMNS = json.load(f)
+
+CONTRIB_LOG_DEV_COLS = ["public_repos", "public_gists", "followers", "following"]
+CONTRIB_LOG_REPO_MAP = {"stars": "stargazers_count", "forks": "forks_count", "subscribers": "subscribers_count"}
+
+
+class DeveloperProfileForContribution(BaseModel):
+    user_id: str
+    public_repos: int
+    public_gists: int
+    followers: int
+    following: int
+    account_age_days: int
+    primary_language: Optional[str] = None
+
+
+class ProjectContext(BaseModel):
+    project_id: str
+    stars: int
+    forks: int
+    subscribers: int
+    topic_count: int
+    language: Optional[str] = None
+
+
+class ContributionPairRequest(BaseModel):
+    user_id: str
+    project_id: str
+    developer: DeveloperProfileForContribution
+    project: ProjectContext
+
+
+class ContributionBatchPredictRequest(BaseModel):
+    pairs: list[ContributionPairRequest]
+
+
+class ContributionPredictionResult(BaseModel):
+    user_id: str
+    project_id: str
+    significance_probability: float = Field(..., ge=0.0, le=1.0)
+    predicted_significant: int
+
+
+class ContributionBatchPredictResponse(BaseModel):
+    results: list[ContributionPredictionResult]
+
+
+def _build_contribution_features(dev: DeveloperProfileForContribution, project: ProjectContext) -> dict:
+    row = {}
+    for col in CONTRIB_LOG_DEV_COLS:
+        row[f"{col}_log"] = np.log1p(getattr(dev, col))
+    for repo_key, out_col in CONTRIB_LOG_REPO_MAP.items():
+        row[f"{out_col}_log"] = np.log1p(getattr(project, repo_key))
+    row["account_age_days"] = dev.account_age_days
+    row["topic_count"] = project.topic_count
+    row["primary_lang_match"] = int(
+        dev.primary_language is not None and dev.primary_language == project.language
+    )
+    return row
+
+
+@app.post("/predict/contribution/batch", response_model=ContributionBatchPredictResponse)
+def predict_contribution_batch(request: ContributionBatchPredictRequest):
+    if not request.pairs:
+        return ContributionBatchPredictResponse(results=[])
+
+    rows = [_build_contribution_features(p.developer, p.project) for p in request.pairs]
+    X = pd.DataFrame(rows).reindex(columns=_CONTRIB_FEATURE_COLUMNS, fill_value=0)
+
+    probabilities = _CONTRIB_MODEL.predict_proba(X)[:, 1]
+    predictions = _CONTRIB_MODEL.predict(X)
+
+    results = [
+        ContributionPredictionResult(
+            user_id=p.user_id,
+            project_id=p.project_id,
+            significance_probability=float(prob),
+            predicted_significant=int(pred),
+        )
+        for p, prob, pred in zip(request.pairs, probabilities, predictions)
+    ]
+    return ContributionBatchPredictResponse(results=results)
+
+
+@app.post("/predict/contribution", response_model=ContributionPredictionResult)
+def predict_contribution_single(pair: ContributionPairRequest):
+    batch_result = predict_contribution_batch(ContributionBatchPredictRequest(pairs=[pair]))
+    return batch_result.results[0]

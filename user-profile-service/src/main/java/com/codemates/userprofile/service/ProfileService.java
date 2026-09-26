@@ -11,6 +11,7 @@ import com.codemates.userprofile.repository.ProfileRepository;
 import com.codemates.userprofile.repository.SkillRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,10 +28,9 @@ public class ProfileService {
     private final ProfileRepository profileRepository;
     private final SkillRepository skillRepository;
     private final InterestRepository interestRepository;
+    private final ProfileWriter profileWriter;
 
 
-    // Called by Kafka consumer when a new
-    // user registers in auth-service
     @Transactional
     public void createProfileFromEvent(UserRegisteredEvent event) {
 
@@ -39,18 +39,24 @@ public class ProfileService {
             return;
         }
 
-        Profile profile = Profile.builder()
-                .userId(event.getUserId())
-                .username(event.getUsername())
-                .fullName(event.getFullName())
-                .experienceLevel("BEGINNER")
-                .activityStatus("ACTIVE")
-                .isOpenToCollaborate(true)
-                .isDeleted(false)
-                .build();
+        String username = event.getUsername();
 
-        profileRepository.save(profile);
-        log.info("Profile created for userId: {}", event.getUserId());
+        try {
+            profileWriter.save(event, username);
+        } catch (DataIntegrityViolationException e) {
+            if (!isUsernameConstraintViolation(e)) {
+                throw e;
+            }
+            String suffixedUsername = username + "-" + event.getUserId().toString().substring(0, 6);
+            log.warn("Username '{}' already taken, retrying with '{}' for userId: {}",
+                    username, suffixedUsername, event.getUserId());
+            profileWriter.saveInNewTransaction(event, suffixedUsername);
+        }
+    }
+
+    private boolean isUsernameConstraintViolation(DataIntegrityViolationException e) {
+        String message = e.getMostSpecificCause().getMessage();
+        return message != null && message.contains("profiles_username_key");
     }
 
     // Get profile by userId
@@ -304,6 +310,21 @@ public class ProfileService {
                 .filter(p -> finalSkillIds == null || finalSkillIds.contains(p.getId()))
                 .filter(p -> finalInterestIds == null || finalInterestIds.contains(p.getId()))
                 .limit(50)
+                .map(this::buildProfileResponse)
+                .collect(Collectors.toList());
+    }
+
+    // ── added for connections page ───────────────────────
+    // Batch-resolve user IDs to public profiles. ConnectionSummaryDto /
+    // ConnectionResponseDto (social-service) only ever carry raw
+    // otherUserId/senderUserId — this is the only way the frontend can turn
+    // those into a name/avatar/skills without hitting /search per-user.
+    @Transactional(readOnly = true)
+    public List<ProfileResponse> getProfilesByUserIds(List<UUID> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+        return profileRepository.findByUserIdInAndIsDeletedFalse(userIds).stream()
                 .map(this::buildProfileResponse)
                 .collect(Collectors.toList());
     }

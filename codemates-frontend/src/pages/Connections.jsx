@@ -9,33 +9,19 @@ import Spinner from "../components/ui/Spinner";
 import EmptyState from "../components/ui/EmptyState";
 
 import { useConnections } from "../hooks/useConnections";
-
-// ⚠️ Temporary display fallback. ConnectionSummaryDto/ConnectionResponseDto
-// only ever carry raw UUIDs — never a name, avatar, or skills. Real
-// resolution needs user-profile-service, which hasn't been provided yet.
-function placeholderDeveloper(userId) {
-  return {
-    id: userId,
-    name: `User ${userId?.slice(0, 8)}`,
-    username: userId?.slice(0, 8) ?? "unknown",
-    avatarUrl: undefined,
-    skills: [],
-  };
-}
+import { useUserProfiles } from "../hooks/useUserProfiles";
+import { developerFromProfile } from "../utils/developerProfileMapping";
 
 /**
  * Connections page (/connections).
  *
- * Fully connected to the real backend — no mock data. There's no
- * "Outgoing Requests" section anymore; see ConnectionRequests.jsx and
- * connectionsApi.js for why that's permanently unavailable rather than
- * just not-yet-built.
+ * Fully connected to the real backend — no mock data. Names/avatars come
+ * from a real profile lookup (useUserProfiles -> GET /api/users/by-ids),
+ * resolving the otherUserId/senderUserId that connectionsApi.js returns.
+ * See ProfileController/ProfileService for that endpoint.
  *
- * No useAuth() needed here, unlike chat — ConnectionSummaryDto already
- * resolves "who's the other person" server-side (otherUserId), and
- * ConnectionResponseDto for a pending request is always one where the
- * current user is the receiver, so senderUserId is always "the other
- * person" too. Nothing here depends on knowing your own id.
+ * There's no "Outgoing Requests" section — see ConnectionRequests.jsx and
+ * connectionsApi.js for why that's permanently unavailable.
  */
 export default function Connections() {
   const [search, setSearch] = useState("");
@@ -52,70 +38,77 @@ export default function Connections() {
     removeConnection,
   } = useConnections();
 
-  if (isLoading) {
+  const idsToResolve = [
+    ...connections.map((c) => c.otherUserId),
+    ...incomingRequests.map((r) => r.senderUserId),
+  ];
+
+  const { profileMap, isLoading: profilesLoading } = useUserProfiles(idsToResolve);
+
+  if (isLoading || profilesLoading) {
     return (
-      <div className="flex justify-center py-20">
-        <Spinner size="lg" />
-      </div>
+        <div className="flex justify-center py-20">
+          <Spinner size="lg" />
+        </div>
     );
   }
 
   if (isError) {
     return (
-      <EmptyState
-        icon={AlertTriangle}
-        title="Couldn't load connections"
-        description={error?.message || "Please try again."}
-      />
+        <EmptyState
+            icon={AlertTriangle}
+            title="Couldn't load connections"
+            description={error?.message || "Please try again."}
+        />
     );
   }
 
   const enrichedConnections = connections.map((c) => ({
     ...c,
-    developer: placeholderDeveloper(c.otherUserId),
+    developer: developerFromProfile(c.otherUserId, profileMap.get(c.otherUserId)),
   }));
 
   const enrichedIncoming = incomingRequests.map((r) => ({
     ...r,
-    developer: placeholderDeveloper(r.senderUserId),
+    developer: developerFromProfile(r.senderUserId, profileMap.get(r.senderUserId)),
   }));
 
   const filteredConnections = enrichedConnections.filter((c) => {
     const term = search.trim().toLowerCase();
     if (!term) return true;
     return (
-      c.developer.name.toLowerCase().includes(term) ||
-      c.developer.username.toLowerCase().includes(term)
+        c.developer.name.toLowerCase().includes(term) ||
+        c.developer.username.toLowerCase().includes(term)
     );
   });
 
   return (
-    <div className="connections-page flex flex-col gap-8">
-      <ConnectionsHeader
-        totalConnections={connections.length}
-        pendingCount={incomingRequests.length}
-      />
-
-      <ConnectionRequests
-        incoming={enrichedIncoming}
-        onAccept={(request) => acceptConnectionRequest(request.id)}
-        onReject={(request) => rejectConnectionRequest(request.id)}
-        onBlock={(request) => blockConnection(request.id)}
-      />
-
-      <div>
-        <h2 className="mb-4 text-sm font-semibold text-[var(--cm-text)]">
-          Your Connections
-        </h2>
-        <div className="mb-4">
-          <ConnectionFilters search={search} onSearchChange={setSearch} />
-        </div>
-        <ConnectionList
-          connections={filteredConnections}
-          onRemove={(connection) => removeConnection(connection.connectionId)}
-          onBlock={(connection) => blockConnection(connection.connectionId)}
+      <div className="connections-page flex flex-col gap-8">
+        <ConnectionsHeader
+            totalConnections={connections.length}
+            pendingCount={incomingRequests.length}
         />
+
+        <ConnectionRequests
+            incoming={enrichedIncoming}
+            onAccept={(request) => acceptConnectionRequest(request.id)}
+            onReject={(request) => rejectConnectionRequest(request.id)}
+            onBlock={(request) => blockConnection(request.id)}
+        />
+
+        <div>
+          <h2 className="mb-4 text-sm font-semibold text-[var(--cm-text)]">
+            Your Connections
+          </h2>
+          <div className="mb-4">
+            <ConnectionFilters search={search} onSearchChange={setSearch} />
+          </div>
+          <ConnectionList
+              connections={filteredConnections}
+              onRemove={(connection) => removeConnection(connection.connectionId)}
+              onBlock={(connection) => blockConnection(connection.connectionId)}
+          />
+        </div>
       </div>
-    </div>
   );
 }

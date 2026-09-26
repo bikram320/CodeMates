@@ -3,7 +3,7 @@ import { Navigate, Outlet, useLocation, useParams } from "react-router-dom";
 import { X } from "lucide-react";
 import Navbar from "src/components/layout/Navbar";
 import ProjectSidebar from "src/components/layout/ProjectSidebar";
-import { useAuth } from "src/context/AuthContext";
+import useAuth from "src/hooks/useAuth";
 
 export default function ProjectLayout({
   project,

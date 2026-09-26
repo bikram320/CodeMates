@@ -19,4 +19,10 @@ public class ContributionScoreResponse {
     private Integer filesShared;
     private BigDecimal totalScore;
     private Instant lastCalculatedAt;
+
+    // Model 3 -- predicted likelihood of becoming a significant contributor,
+    // separate from totalScore (see ContributionMlSyncService for why).
+    // Null until a prediction sync has run for this user/project.
+    private Double significanceProbability;
+    private Instant significancePredictedAt;
 }

@@ -200,6 +200,8 @@ public class ContributionScoreService {
                 .filesShared(s.getFilesShared())
                 .totalScore(s.getTotalScore())
                 .lastCalculatedAt(s.getLastCalculatedAt())
+                .significanceProbability(s.getSignificanceProbability())
+                .significancePredictedAt(s.getSignificancePredictedAt())
                 .build();
     }
 
@@ -214,6 +216,8 @@ public class ContributionScoreService {
                 .filesShared(0)
                 .totalScore(BigDecimal.ZERO)
                 .lastCalculatedAt(null)
+                .significanceProbability(null)
+                .significancePredictedAt(null)
                 .build();
     }
 

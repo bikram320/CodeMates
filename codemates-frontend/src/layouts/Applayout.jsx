@@ -3,7 +3,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { X } from "lucide-react";
 import Navbar from "src/components/layout/Navbar";
 import AppSidebar from "src/components/layout/AppSidebar";
-import { useAuth } from "src/context/AuthContext";
+import useAuth from "src/hooks/useAuth";
 
 export default function AppLayout({
   children,

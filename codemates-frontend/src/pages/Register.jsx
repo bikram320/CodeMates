@@ -1,8 +1,9 @@
 /**
  * src/pages/Register.jsx
  *
- * Register page (/register). Renders inside PublicLayout, using the same
- * AuthLayout / AuthInput as Login.
+ * Register page (/register). Renders inside PublicLayout, using
+ * SplitAuthLayout (visual panel on the left — Login mirrors it on the right)
+ * and the same AuthInput as Login.
  *
  * ── Data flow ─────────────────────────────────────────────────────────────────
  *   Register.jsx → useAuth() → authApi.js → POST /api/auth/register (real backend)
@@ -13,7 +14,7 @@
  * asks for it, but it currently isn't sent anywhere: there's no profile
  * endpoint in the files provided. The section says so, so the form doesn't
  * silently discard what someone filled in without telling them. Once a
- * profile endpoint exists, send `profile` (built below) to it right after
+ * profile endpoint exists, send profile (built below) to it right after
  * register() resolves.
  *
  * Validation mirrors the backend's actual rules, not stricter ones:
@@ -22,20 +23,40 @@
  *   - password: @Size(min=8) only — no uppercase/lowercase/number requirement.
  * (Keep ResetPassword.jsx's PASSWORD_RULES in sync if this changes.)
  *
- * There is no "Sign up with GitHub" button here: the provided AuthController
- * has no OAuth endpoint, so nothing was left to call. Re-add it once one exists.
+ * "Sign up with GitHub" is a real, separate flow, not a fetch call: the
+ * button is a plain <a href={GITHUB_AUTH_URL}> that navigates the browser
+ * away entirely (see authApi.js's comment on GITHUB_AUTH_URL). GithubAuthController
+ * both logs in AND registers through the same redirect (AuthService
+ * .loginOrRegisterWithGithub), so there's no separate "sign up" vs "log in"
+ * distinction on GitHub's side — the same link is used on both pages. A
+ * failure redirects back with ?error=state_mismatch|no_verified_email|oauth_failed;
+ * where that lands isn't visible from the frontend, so this page checks for
+ * it on mount defensively, same as Login.jsx.
+ *
+ * NOTE: lucide-react no longer ships brand/logo icons (Github, Linkedin,
+ * etc.) as of recent versions — they were removed from the core icon set.
+ * Those two icons below come from react-icons instead (npm install react-icons).
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   AlertCircle, AtSign, Check, ChevronDown, Loader2, Lock, Mail, User, X,
 } from "lucide-react";
-import {FaGithub as Github, FaLinkedin as Linkedin} from "react-icons/fa";
+import { FaGithub, FaLinkedin } from "react-icons/fa";
 
-import AuthLayout from "../components/auth/AuthLayout";
+import SplitAuthLayout from "../components/auth/SplitAuthLayout.jsx";
+import { CAPYBARA_SUIT_DATA_URI } from "../components/auth/capybaraIndegoAsset.js";
 import AuthInput from "../components/auth/AuthInput";
+import AuthDivider from "../components/auth/AuthDivider";
 import useAuth from "../hooks/useAuth";
+import { GITHUB_AUTH_URL } from "../api/authApi";
+
+const OAUTH_ERROR_MESSAGES = {
+  state_mismatch: "Something went wrong verifying that GitHub sign-in. Please try again.",
+  no_verified_email: "Your GitHub account needs a verified email address to sign in with GitHub. Verify one on GitHub, then try again.",
+  oauth_failed: "We couldn't complete GitHub sign-in. Please try again.",
+};
 
 /* ── Options ─────────────────────────────────────────────────────────────── */
 
@@ -104,13 +125,18 @@ const PROFILE_FIELDS = ["bio", "githubUsername", "linkedinUrl"];
 /* ── Styles ──────────────────────────────────────────────────────────────── */
 
 const primaryButton =
-  "inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#6C7BFF] px-4 py-2.5 text-sm font-semibold " +
-  "text-[#16171D] transition-colors hover:bg-[#8190FF] " +
-  "disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-[#6C7BFF] " +
-  "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A8FF]";
+    "inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#6C7BFF] px-4 py-2.5 text-sm font-semibold " +
+    "text-[#16171D] transition-colors hover:bg-[#8190FF] " +
+    "disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-[#6C7BFF] " +
+    "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A8FF]";
+
+const outlineButton =
+    "inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#9CA3AF] px-4 py-2.5 text-sm font-medium " +
+    "text-[#F3F4F6] transition-colors hover:border-[#C9A8FF] hover:bg-white/[0.03] " +
+    "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60";
 
 const textLink =
-  "rounded text-[#C9A8FF] transition-colors hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A8FF]/60";
+    "rounded text-[#C9A8FF] transition-colors hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A8FF]/60";
 
 const INITIAL = {
   fullName: "", username: "", email: "", password: "", confirmPassword: "",
@@ -122,6 +148,7 @@ const INITIAL = {
 export default function Register() {
   const navigate = useNavigate();
   const { register } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [values, setValues] = useState(INITIAL);
   const [touched, setTouched] = useState({});
@@ -137,6 +164,18 @@ export default function Register() {
   useEffect(() => {
     if (error) bannerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [error]);
+
+  // A GitHub OAuth failure may land back here with ?error=... — show it once,
+  // then drop it from the URL so a refresh doesn't keep re-showing it.
+  useEffect(() => {
+    const code = searchParams.get("error");
+    if (!code) return;
+    setError(OAUTH_ERROR_MESSAGES[code] || "GitHub sign-in didn't complete. Please try again.");
+    const next = new URLSearchParams(searchParams);
+    next.delete("error");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const errors = validate(values);
   const errorFor = (f) => serverErrors[f] || ((touched[f] || submitted) && errors[f]) || undefined;
@@ -213,242 +252,256 @@ export default function Register() {
   };
 
   return (
-    <AuthLayout
-      title="Create your account"
-      subtitle="Find collaborators, form a team, and ship the project."
-      footer={
-        <>
-          Already have an account?{" "}
-          <Link to="/login" className={`font-medium ${textLink}`}>
-            Log in
-          </Link>
-        </>
-      }
-    >
-      {error && (
-        <div
-          ref={bannerRef}
-          role="alert"
-          className="mb-5 flex items-start gap-2.5 rounded-lg border border-red-400/30 bg-red-400/5 px-3.5 py-3"
-        >
-          <AlertCircle size={15} aria-hidden="true" className="mt-0.5 shrink-0 text-red-300" />
-          <p className="text-sm leading-relaxed text-red-200">{error}</p>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} noValidate aria-busy={isSubmitting}>
-        <fieldset disabled={isSubmitting} className="m-0 flex min-w-0 flex-col gap-5 border-0 p-0">
-          <AuthInput
-            id="register-fullName" label="Full name" icon={User} placeholder="Ada Lovelace"
-            autoComplete="name" error={errorFor("fullName")} {...bind("fullName")}
-          />
-
-          <AuthInput
-            id="register-username" label="Username" icon={AtSign} placeholder="ada_codes"
-            autoComplete="username" autoCapitalize="none" spellCheck={false}
-            hint="3 to 50 characters. Shown on your public profile."
-            error={errorFor("username")} {...bind("username")}
-          />
-
-          <AuthInput
-            id="register-email" label="Email" type="email" icon={Mail} placeholder="you@example.com"
-            autoComplete="email" inputMode="email" autoCapitalize="none" spellCheck={false}
-            error={errorFor("email")} {...bind("email")}
-          />
-
-          <div className="flex flex-col gap-2.5">
-            <AuthInput
-              id="register-password" label="Password" type="password" icon={Lock} placeholder="Create a password"
-              autoComplete="new-password" error={errorFor("password")}
-              {...(showRules
-                ? { "aria-describedby": `register-password-rules${errorFor("password") ? " register-password-error" : ""}` }
-                : {})}
-              hint={showRules ? undefined : "Use at least 8 characters."}
-              {...bind("password")}
-            />
-            {showRules && (
-              <ul id="register-password-rules" aria-label="Password requirements" className="flex flex-col gap-1">
-                {PASSWORD_RULES.map((r) => {
-                  const met = r.test(values.password);
-                  return (
-                    <li key={r.id} className={`flex items-center gap-2 text-xs ${met ? "text-[#C9A8FF]" : "text-[#9CA3AF]"}`}>
-                      {met ? (
-                        <Check size={13} aria-hidden="true" />
-                      ) : (
-                        <span aria-hidden="true" className="ml-1 mr-1 h-1.5 w-1.5 rounded-full bg-[#9CA3AF]/60" />
-                      )}
-                      {r.label}
-                      <span className="sr-only">{met ? " (met)" : " (not met yet)"}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-
-          <AuthInput
-            id="register-confirmPassword" label="Confirm password" type="password" icon={Lock}
-            placeholder="Re-enter your password" autoComplete="new-password"
-            error={errorFor("confirmPassword")} {...bind("confirmPassword")}
-          />
-
-          {/* ── Optional developer profile ─────────────────────────────── */}
-          <div>
-            <button
-              type="button"
-              onClick={() => setShowProfile((s) => !s)}
-              aria-expanded={showProfile}
-              aria-controls="register-profile"
-              className="flex w-full items-center justify-between gap-3 rounded-lg border border-[#9CA3AF]/50 px-4 py-3 text-left transition-colors
-                         hover:border-[#9CA3AF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
+      <SplitAuthLayout
+          visualSide="left"
+          visualHeading="Find your team. Build the project."
+          visualTagline="CodeMates helps developers find collaborators, form teams, communicate in real time, and track progress — all in one place, instead of five disconnected tools."
+          illustrationSrc={CAPYBARA_SUIT_DATA_URI}
+          title="Create your account"
+          subtitle="Find collaborators, form a team, and ship the project."
+          footer={
+            <>
+              Already have an account?{" "}
+              <Link to="/login" className={`font-medium ${textLink}`}>
+                Log in
+              </Link>
+            </>
+          }
+      >
+        {error && (
+            <div
+                ref={bannerRef}
+                role="alert"
+                className="mb-5 flex items-start gap-2.5 rounded-lg border border-red-400/30 bg-red-400/5 px-3.5 py-3"
             >
+              <AlertCircle size={15} aria-hidden="true" className="mt-0.5 shrink-0 text-red-300" />
+              <p className="text-sm leading-relaxed text-red-200">{error}</p>
+            </div>
+        )}
+
+        <form onSubmit={handleSubmit} noValidate aria-busy={isSubmitting}>
+          <fieldset disabled={isSubmitting} className="m-0 flex min-w-0 flex-col gap-5 border-0 p-0">
+            <AuthInput
+                id="register-fullName" label="Full name" icon={User} placeholder="Ada Lovelace"
+                autoComplete="name" error={errorFor("fullName")} {...bind("fullName")}
+            />
+
+            <AuthInput
+                id="register-username" label="Username" icon={AtSign} placeholder="ada_codes"
+                autoComplete="username" autoCapitalize="none" spellCheck={false}
+                hint="3 to 50 characters. Shown on your public profile."
+                error={errorFor("username")} {...bind("username")}
+            />
+
+            <AuthInput
+                id="register-email" label="Email" type="email" icon={Mail} placeholder="you@example.com"
+                autoComplete="email" inputMode="email" autoCapitalize="none" spellCheck={false}
+                error={errorFor("email")} {...bind("email")}
+            />
+
+            <div className="flex flex-col gap-2.5">
+              <AuthInput
+                  id="register-password" label="Password" type="password" icon={Lock} placeholder="Create a password"
+                  autoComplete="new-password" error={errorFor("password")}
+                  {...(showRules
+                      ? { "aria-describedby": `register-password-rules${errorFor("password") ? " register-password-error" : ""}` }
+                      : {})}
+                  hint={showRules ? undefined : "Use at least 8 characters."}
+                  {...bind("password")}
+              />
+              {showRules && (
+                  <ul id="register-password-rules" aria-label="Password requirements" className="flex flex-col gap-1">
+                    {PASSWORD_RULES.map((r) => {
+                      const met = r.test(values.password);
+                      return (
+                          <li key={r.id} className={`flex items-center gap-2 text-xs ${met ? "text-[#C9A8FF]" : "text-[#9CA3AF]"}`}>
+                            {met ? (
+                                <Check size={13} aria-hidden="true" />
+                            ) : (
+                                <span aria-hidden="true" className="ml-1 mr-1 h-1.5 w-1.5 rounded-full bg-[#9CA3AF]/60" />
+                            )}
+                            {r.label}
+                            <span className="sr-only">{met ? " (met)" : " (not met yet)"}</span>
+                          </li>
+                      );
+                    })}
+                  </ul>
+              )}
+            </div>
+
+            <AuthInput
+                id="register-confirmPassword" label="Confirm password" type="password" icon={Lock}
+                placeholder="Re-enter your password" autoComplete="new-password"
+                error={errorFor("confirmPassword")} {...bind("confirmPassword")}
+            />
+
+            {/* ── Optional developer profile ─────────────────────────────── */}
+            <div>
+              <button
+                  type="button"
+                  onClick={() => setShowProfile((s) => !s)}
+                  aria-expanded={showProfile}
+                  aria-controls="register-profile"
+                  className="flex w-full items-center justify-between gap-3 rounded-lg border border-[#9CA3AF]/50 px-4 py-3 text-left transition-colors
+                         hover:border-[#9CA3AF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
+              >
               <span>
                 <span className="block text-sm font-medium text-[#F3F4F6]">
                   Developer profile <span className="text-xs font-normal text-[#9CA3AF]">(optional)</span>
                 </span>
                 <span className="block text-xs text-[#9CA3AF]">Skills, bio, availability and links.</span>
               </span>
-              <ChevronDown size={16} aria-hidden="true" className={`shrink-0 text-[#9CA3AF] transition-transform ${showProfile ? "rotate-180" : ""}`} />
-            </button>
+                <ChevronDown size={16} aria-hidden="true" className={`shrink-0 text-[#9CA3AF] transition-transform ${showProfile ? "rotate-180" : ""}`} />
+              </button>
 
-            {showProfile && (
-              <div id="register-profile" className="mt-4 flex flex-col gap-5">
-                <p className="rounded-lg border border-[#C9A8FF]/25 bg-[#C9A8FF]/5 px-3.5 py-2.5 text-xs leading-relaxed text-[#9CA3AF]">
-                  <span className="font-medium text-[#F3F4F6]">Not saved yet.</span> Account creation isn't connected
-                  to a profile service yet, so anything entered here won't be stored. It's included so the form is
-                  ready once that's wired up.
-                </p>
+              {showProfile && (
+                  <div id="register-profile" className="mt-4 flex flex-col gap-5">
+                    <p className="rounded-lg border border-[#C9A8FF]/25 bg-[#C9A8FF]/5 px-3.5 py-2.5 text-xs leading-relaxed text-[#9CA3AF]">
+                      <span className="font-medium text-[#F3F4F6]">Not saved yet.</span> Account creation isn't connected
+                      to a profile service yet, so anything entered here won't be stored. It's included so the form is
+                      ready once that's wired up.
+                    </p>
 
-                <div className="flex flex-col gap-2.5">
-                  <AuthInput
-                    id="register-skills"
-                    label={<>Skills <span className="text-xs font-normal text-[#9CA3AF]">(optional)</span></>}
-                    placeholder="e.g. React, Spring Boot"
-                    autoComplete="off"
-                    value={skillInput}
-                    error={skillNote || undefined}
-                    hint={`Press Enter or comma to add. Up to ${SKILLS_MAX}.`}
-                    onChange={(e) => {
-                      if (e.target.value.includes(",")) addSkills(e.target.value);
-                      else {
-                        setSkillInput(e.target.value);
-                        setSkillNote("");
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addSkills(skillInput);
-                      }
-                    }}
-                    onBlur={() => skillInput.trim() && addSkills(skillInput)}
-                  />
-                  {values.skills.length > 0 && (
-                    <ul aria-label="Added skills" className="flex flex-wrap gap-2">
-                      {values.skills.map((s) => (
-                        <li
-                          key={s}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-[#6C7BFF]/40 bg-[#6C7BFF]/10 px-3 py-1 text-xs font-medium text-[#F3F4F6]"
-                        >
-                          {s}
-                          <button
-                            type="button"
-                            aria-label={`Remove ${s}`}
-                            onClick={() => removeSkill(s)}
-                            className="rounded text-[#9CA3AF] hover:text-[#F3F4F6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
-                          >
-                            <X size={12} />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+                    <div className="flex flex-col gap-2.5">
+                      <AuthInput
+                          id="register-skills"
+                          label={<>Skills <span className="text-xs font-normal text-[#9CA3AF]">(optional)</span></>}
+                          placeholder="e.g. React, Spring Boot"
+                          autoComplete="off"
+                          value={skillInput}
+                          error={skillNote || undefined}
+                          hint={`Press Enter or comma to add. Up to ${SKILLS_MAX}.`}
+                          onChange={(e) => {
+                            if (e.target.value.includes(",")) addSkills(e.target.value);
+                            else {
+                              setSkillInput(e.target.value);
+                              setSkillNote("");
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addSkills(skillInput);
+                            }
+                          }}
+                          onBlur={() => skillInput.trim() && addSkills(skillInput)}
+                      />
+                      {values.skills.length > 0 && (
+                          <ul aria-label="Added skills" className="flex flex-wrap gap-2">
+                            {values.skills.map((s) => (
+                                <li
+                                    key={s}
+                                    className="inline-flex items-center gap-1.5 rounded-full border border-[#6C7BFF]/40 bg-[#6C7BFF]/10 px-3 py-1 text-xs font-medium text-[#F3F4F6]"
+                                >
+                                  {s}
+                                  <button
+                                      type="button"
+                                      aria-label={`Remove ${s}`}
+                                      onClick={() => removeSkill(s)}
+                                      className="rounded text-[#9CA3AF] hover:text-[#F3F4F6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </li>
+                            ))}
+                          </ul>
+                      )}
+                    </div>
 
-                <AuthInput
-                  id="register-bio" multiline rows={3}
-                  label={<>Short bio <span className="text-xs font-normal text-[#9CA3AF]">(optional)</span></>}
-                  placeholder="Backend developer who likes building developer tools."
-                  hint={`${values.bio.trim().length}/${BIO_MAX} characters`}
-                  error={errorFor("bio")} {...bind("bio")}
-                />
+                    <AuthInput
+                        id="register-bio" multiline rows={3}
+                        label={<>Short bio <span className="text-xs font-normal text-[#9CA3AF]">(optional)</span></>}
+                        placeholder="Backend developer who likes building developer tools."
+                        hint={`${values.bio.trim().length}/${BIO_MAX} characters`}
+                        error={errorFor("bio")} {...bind("bio")}
+                    />
 
-                <div role="group" aria-labelledby="register-availability-label" className="flex flex-col gap-1.5">
-                  <span id="register-availability-label" className="text-sm font-medium text-[#F3F4F6]">Availability</span>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {AVAILABILITY.map((o) => (
-                      <label key={o.id} className="relative cursor-pointer">
-                        <input
-                          type="radio" name="availability" value={o.id} className="peer sr-only"
-                          checked={values.availability === o.id}
-                          onChange={() => setField("availability", o.id)}
-                        />
-                        <div
-                          className="h-full rounded-lg border border-[#9CA3AF]/50 px-3 py-2.5 transition-colors hover:border-[#9CA3AF]
+                    <div role="group" aria-labelledby="register-availability-label" className="flex flex-col gap-1.5">
+                      <span id="register-availability-label" className="text-sm font-medium text-[#F3F4F6]">Availability</span>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {AVAILABILITY.map((o) => (
+                            <label key={o.id} className="relative cursor-pointer">
+                              <input
+                                  type="radio" name="availability" value={o.id} className="peer sr-only"
+                                  checked={values.availability === o.id}
+                                  onChange={() => setField("availability", o.id)}
+                              />
+                              <div
+                                  className="h-full rounded-lg border border-[#9CA3AF]/50 px-3 py-2.5 transition-colors hover:border-[#9CA3AF]
                                      peer-checked:border-[#6C7BFF] peer-checked:bg-[#6C7BFF]/[0.08]
                                      peer-focus-visible:ring-2 peer-focus-visible:ring-[#6C7BFF]/60 peer-disabled:opacity-60"
-                        >
-                          <span className="block text-sm font-medium text-[#F3F4F6]">{o.label}</span>
-                          <span className="mt-0.5 block text-xs leading-relaxed text-[#9CA3AF]">{o.desc}</span>
-                        </div>
-                      </label>
-                    ))}
+                              >
+                                <span className="block text-sm font-medium text-[#F3F4F6]">{o.label}</span>
+                                <span className="mt-0.5 block text-xs leading-relaxed text-[#9CA3AF]">{o.desc}</span>
+                              </div>
+                            </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <AuthInput
+                        id="register-githubUsername"
+                        label={<>GitHub <span className="text-xs font-normal text-[#9CA3AF]">(optional)</span></>}
+                        icon={FaGithub} placeholder="username or github.com/username"
+                        autoComplete="off" autoCapitalize="none" spellCheck={false}
+                        error={errorFor("githubUsername")} {...bind("githubUsername")}
+                    />
+
+                    <AuthInput
+                        id="register-linkedinUrl"
+                        label={<>LinkedIn <span className="text-xs font-normal text-[#9CA3AF]">(optional)</span></>}
+                        type="url" icon={FaLinkedin} placeholder="https://www.linkedin.com/in/your-name"
+                        autoComplete="off" autoCapitalize="none" spellCheck={false}
+                        error={errorFor("linkedinUrl")} {...bind("linkedinUrl")}
+                    />
                   </div>
-                </div>
+              )}
+            </div>
 
-                <AuthInput
-                  id="register-githubUsername"
-                  label={<>GitHub <span className="text-xs font-normal text-[#9CA3AF]">(optional)</span></>}
-                  icon={Github} placeholder="username or github.com/username"
-                  autoComplete="off" autoCapitalize="none" spellCheck={false}
-                  error={errorFor("githubUsername")} {...bind("githubUsername")}
-                />
-
-                <AuthInput
-                  id="register-linkedinUrl"
-                  label={<>LinkedIn <span className="text-xs font-normal text-[#9CA3AF]">(optional)</span></>}
-                  type="url" icon={Linkedin} placeholder="https://www.linkedin.com/in/your-name"
-                  autoComplete="off" autoCapitalize="none" spellCheck={false}
-                  error={errorFor("linkedinUrl")} {...bind("linkedinUrl")}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* ── Terms ──────────────────────────────────────────────────── */}
-          <div className="flex flex-col gap-1.5">
-            <label className="inline-flex cursor-pointer items-start gap-2.5 text-sm leading-relaxed text-[#9CA3AF]">
-              <input
-                id="register-terms" type="checkbox" checked={values.terms}
-                aria-invalid={errorFor("terms") ? true : undefined}
-                aria-describedby={errorFor("terms") ? "register-terms-error" : undefined}
-                onChange={(e) => {
-                  setField("terms", e.target.checked);
-                  setTouched((t) => ({ ...t, terms: true }));
-                }}
-                className="mt-1 h-4 w-4 shrink-0 cursor-pointer rounded border-[#9CA3AF] bg-transparent accent-[#6C7BFF]
+            {/* ── Terms ──────────────────────────────────────────────────── */}
+            <div className="flex flex-col gap-1.5">
+              <label className="inline-flex cursor-pointer items-start gap-2.5 text-sm leading-relaxed text-[#9CA3AF]">
+                <input
+                    id="register-terms" type="checkbox" checked={values.terms}
+                    aria-invalid={errorFor("terms") ? true : undefined}
+                    aria-describedby={errorFor("terms") ? "register-terms-error" : undefined}
+                    onChange={(e) => {
+                      setField("terms", e.target.checked);
+                      setTouched((t) => ({ ...t, terms: true }));
+                    }}
+                    className="mt-1 h-4 w-4 shrink-0 cursor-pointer rounded border-[#9CA3AF] bg-transparent accent-[#6C7BFF]
                            focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
-              />
-              <span>
+                />
+                <span>
                 I agree to the{" "}
-                <Link to="/terms" className={textLink}>Terms of Service</Link> and{" "}
-                <Link to="/privacy" className={textLink}>Privacy Policy</Link>.
+                  <Link to="/terms" className={textLink}>Terms of Service</Link> and{" "}
+                  <Link to="/privacy" className={textLink}>Privacy Policy</Link>.
               </span>
-            </label>
-            {errorFor("terms") && (
-              <p id="register-terms-error" className="flex items-start gap-1.5 text-xs leading-relaxed text-red-300">
-                <AlertCircle size={13} aria-hidden="true" className="mt-px shrink-0" />
-                {errorFor("terms")}
-              </p>
-            )}
-          </div>
+              </label>
+              {errorFor("terms") && (
+                  <p id="register-terms-error" className="flex items-start gap-1.5 text-xs leading-relaxed text-red-300">
+                    <AlertCircle size={13} aria-hidden="true" className="mt-px shrink-0" />
+                    {errorFor("terms")}
+                  </p>
+              )}
+            </div>
 
-          <button type="submit" className={primaryButton}>
-            {isSubmitting && <Loader2 size={15} className="animate-spin" aria-hidden="true" />}
-            {isSubmitting ? "Creating account…" : "Create Account"}
-          </button>
-        </fieldset>
-      </form>
-    </AuthLayout>
+            <button type="submit" className={primaryButton}>
+              {isSubmitting && <Loader2 size={15} className="animate-spin" aria-hidden="true" />}
+              {isSubmitting ? "Creating account…" : "Create Account"}
+            </button>
+          </fieldset>
+        </form>
+
+        <AuthDivider className="my-6" />
+
+        {/* Plain <a>, not a button/onClick — this has to be a real page
+          navigation, per GithubAuthController's own comment. Same URL as
+          Login: GitHub sign-in and sign-up are the same redirect. */}
+        <a href={GITHUB_AUTH_URL} className={outlineButton}>
+          <FaGithub size={16} aria-hidden="true" />
+          Sign up with GitHub
+        </a>
+      </SplitAuthLayout>
   );
 }

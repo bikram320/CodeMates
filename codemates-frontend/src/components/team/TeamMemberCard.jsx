@@ -1,22 +1,23 @@
 /**
  * TeamMemberCard
  *
- * A single member on the Project Team page: avatar (initials placeholder),
- * role, joined date, and (for leaders) a menu to change the role or remove
- * the member.
+ * A single member on the Project Team page: avatar, name, role, joined
+ * date, and (for leaders) a menu to change the role or remove the member.
  *
  * ProjectMemberResponseDto only carries { id, projectId, userId, role,
- * joinedAt, invitedByUserId } — no name, username, skills, availability,
- * avatar, or task count. Those all rendered from mock fields before; since
- * there's no profile-by-userId lookup on the backend yet, this card now
- * shows a shortened userId in place of a name and drops skills/availability/
- * tasks-done entirely rather than fake them.
+ * joinedAt, invitedByUserId } — no name/username/avatar. `profile` is
+ * resolved by the parent (TeamMemberList, batched via useUserDirectory
+ * for the whole visible list — GET /api/users/by-ids) and passed in here,
+ * so this card just renders it. Falls back to a shortened userId only if
+ * that particular profile couldn't be found (e.g. lookup failed, or the
+ * profile hasn't been created yet).
  *
  * Also exports the shared role config so TeamFilters and InviteMemberModal
  * render roles the same way.
  *
  * Props:
  *   member          {object}  { id, projectId, userId, role, joinedAt, invitedByUserId }
+ *   profile         {object|undefined}  resolved ProfileResponse for member.userId, if found
  *   isCurrentUser   {boolean} Shows a "you" tag
  *   canManage       {boolean} Show the ⋯ menu (viewer is a project leader)
  *   isLastLeader    {boolean} Member is the only leader — role/removal locked
@@ -67,6 +68,11 @@ function shortId(userId) {
   return userId ? `${userId.slice(0, 8)}…` : 'Unknown member';
 }
 
+/** Best available display name for a member, given their resolved profile (if any). */
+export function memberDisplayName(member, profile) {
+  return profile?.fullName || profile?.username || shortId(member.userId);
+}
+
 function formatJoined(dateStr) {
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return '';
@@ -75,7 +81,7 @@ function formatJoined(dateStr) {
 
 /* ── Manage menu ─────────────────────────────────────────────────────────── */
 
-function MemberMenu({ member, isLastLeader, onChangeRole, onRemove }) {
+function MemberMenu({ member, label, isLastLeader, onChangeRole, onRemove }) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const containerRef = useRef(null);
@@ -116,184 +122,185 @@ function MemberMenu({ member, isLastLeader, onChangeRole, onRemove }) {
     closeMenu();
   };
 
-  const label = shortId(member.userId);
-
   return (
-    <div ref={containerRef} className="relative shrink-0">
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => (open ? closeMenu() : setOpen(true))}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={`Manage ${label}`}
-        className="flex h-8 w-8 items-center justify-center rounded-lg text-[#6B6890]
+      <div ref={containerRef} className="relative shrink-0">
+        <button
+            ref={triggerRef}
+            type="button"
+            onClick={() => (open ? closeMenu() : setOpen(true))}
+            aria-haspopup="menu"
+            aria-expanded={open}
+            aria-label={`Manage ${label}`}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#6B6890]
                    transition-colors duration-150 hover:bg-[#1D1A40] hover:text-[#F5F5F5]
                    focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
-      >
-        <MoreHorizontal size={16} />
-      </button>
-
-      {open && (
-        <div
-          role="menu"
-          aria-label={`Actions for ${label}`}
-          className="absolute right-0 top-full z-20 mt-1.5 w-60 rounded-xl border border-[#2E2A66]
-                     bg-[#0F0E24] p-1.5 shadow-xl shadow-black/50"
         >
-          {confirming ? (
-            /* ── Inline remove confirmation ─────────────────────────────── */
-            <div className="p-2.5">
-              <p className="text-sm font-medium text-[#F5F5F5]">
-                Remove {label}?
-              </p>
-              <p className="mt-1 text-xs leading-relaxed text-[#8B88AE]">
-                They lose access to this project. Their completed work stays.
-              </p>
-              <div className="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setConfirming(false)}
-                  className="flex-1 rounded-lg border border-[#2E2A66] px-3 py-1.5 text-xs font-medium
+          <MoreHorizontal size={16} />
+        </button>
+
+        {open && (
+            <div
+                role="menu"
+                aria-label={`Actions for ${label}`}
+                className="absolute right-0 top-full z-20 mt-1.5 w-60 rounded-xl border border-[#2E2A66]
+                     bg-[#0F0E24] p-1.5 shadow-xl shadow-black/50"
+            >
+              {confirming ? (
+                  /* ── Inline remove confirmation ─────────────────────────────── */
+                  <div className="p-2.5">
+                    <p className="text-sm font-medium text-[#F5F5F5]">
+                      Remove {label}?
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-[#8B88AE]">
+                      They lose access to this project. Their completed work stays.
+                    </p>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                          type="button"
+                          onClick={() => setConfirming(false)}
+                          className="flex-1 rounded-lg border border-[#2E2A66] px-3 py-1.5 text-xs font-medium
                              text-[#F5F5F5] transition-colors hover:bg-[#1D1A40]
                              focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
-                >
-                  Keep
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onRemove(member);
-                    closeMenu();
-                  }}
-                  className="flex-1 rounded-lg bg-red-500/90 px-3 py-1.5 text-xs font-semibold
+                      >
+                        Keep
+                      </button>
+                      <button
+                          type="button"
+                          onClick={() => {
+                            onRemove(member);
+                            closeMenu();
+                          }}
+                          className="flex-1 rounded-lg bg-red-500/90 px-3 py-1.5 text-xs font-semibold
                              text-white transition-colors hover:bg-red-500
                              focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300/70"
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <p className="px-2.5 pb-1 pt-1.5 text-xs font-medium text-[#6B6890]">
-                Change role
-              </p>
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+              ) : (
+                  <>
+                    <p className="px-2.5 pb-1 pt-1.5 text-xs font-medium text-[#6B6890]">
+                      Change role
+                    </p>
 
-              {ROLES.map((role) => {
-                const meta = ROLE_META[role];
-                const Icon = meta.icon;
-                const selected = member.role === role;
-                const locked = isLastLeader && !selected;
+                    {ROLES.map((role) => {
+                      const meta = ROLE_META[role];
+                      const Icon = meta.icon;
+                      const selected = member.role === role;
+                      const locked = isLastLeader && !selected;
 
-                return (
-                  <button
-                    key={role}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={selected}
-                    disabled={locked}
-                    onClick={() => pickRole(role)}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm
+                      return (
+                          <button
+                              key={role}
+                              type="button"
+                              role="menuitemradio"
+                              aria-checked={selected}
+                              disabled={locked}
+                              onClick={() => pickRole(role)}
+                              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm
                                text-[#F5F5F5] transition-colors hover:bg-[#1D1A40]
                                focus:outline-none focus-visible:bg-[#1D1A40]
                                disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-                  >
-                    <Icon size={14} className="shrink-0 text-[#8B88AE]" />
-                    <span className="flex-1">{meta.label}</span>
-                    {selected && <Check size={14} className="text-[#6C7BFF]" />}
-                  </button>
-                );
-              })}
+                          >
+                            <Icon size={14} className="shrink-0 text-[#8B88AE]" />
+                            <span className="flex-1">{meta.label}</span>
+                            {selected && <Check size={14} className="text-[#6C7BFF]" />}
+                          </button>
+                      );
+                    })}
 
-              {isLastLeader && (
-                <p className="px-2.5 pb-1 pt-1 text-xs leading-relaxed text-[#8B88AE]">
-                  Promote another member to leader before changing this role.
-                </p>
-              )}
+                    {isLastLeader && (
+                        <p className="px-2.5 pb-1 pt-1 text-xs leading-relaxed text-[#8B88AE]">
+                          Promote another member to leader before changing this role.
+                        </p>
+                    )}
 
-              <div className="my-1.5 border-t border-[#1C1A38]" />
+                    <div className="my-1.5 border-t border-[#1C1A38]" />
 
-              <button
-                type="button"
-                role="menuitem"
-                disabled={isLastLeader}
-                onClick={() => setConfirming(true)}
-                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm
+                    <button
+                        type="button"
+                        role="menuitem"
+                        disabled={isLastLeader}
+                        onClick={() => setConfirming(true)}
+                        className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm
                            text-red-300 transition-colors hover:bg-red-500/10
                            focus:outline-none focus-visible:bg-red-500/10
                            disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-              >
-                <UserMinus size={14} className="shrink-0" />
-                Remove from project
-              </button>
-            </>
-          )}
-        </div>
-      )}
-    </div>
+                    >
+                      <UserMinus size={14} className="shrink-0" />
+                      Remove from project
+                    </button>
+                  </>
+              )}
+            </div>
+        )}
+      </div>
   );
 }
 
 /* ── Card ────────────────────────────────────────────────────────────────── */
 
 export default function TeamMemberCard({
-  member,
-  isCurrentUser = false,
-  canManage = false,
-  isLastLeader = false,
-  onChangeRole,
-  onRemove,
-}) {
+                                         member,
+                                         profile,
+                                         isCurrentUser = false,
+                                         canManage = false,
+                                         isLastLeader = false,
+                                         onChangeRole,
+                                         onRemove,
+                                       }) {
   const role = ROLE_META[member.role] ?? ROLE_META.CONTRIBUTOR;
   const RoleIcon = role.icon;
   const joined = formatJoined(member.joinedAt);
+  const displayName = memberDisplayName(member, profile);
 
   return (
-    <article className="relative flex flex-col gap-4 rounded-xl border border-[#1C1A38] bg-[#0A0918] p-4
+      <article className="relative flex flex-col gap-4 rounded-xl border border-[#1C1A38] bg-[#0A0918] p-4
                         transition-colors duration-150 hover:border-[#2E2A66]">
-      {/* ── Identity ──────────────────────────────────────────────────────── */}
-      <div className="flex items-start gap-3">
-        <Avatar name="" size={44} />
+        {/* ── Identity ──────────────────────────────────────────────────────── */}
+        <div className="flex items-start gap-3">
+          <Avatar name={displayName} size={44} />
 
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="truncate font-mono text-sm font-semibold text-[#F5F5F5]">
-              {shortId(member.userId)}
-            </h3>
-            {isCurrentUser && (
-              <span className="shrink-0 rounded bg-[#1D1A40] px-1.5 py-0.5 font-mono text-[10px] text-[#8B88AE]">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="truncate text-sm font-semibold text-[#F5F5F5]">
+                {displayName}
+              </h3>
+              {isCurrentUser && (
+                  <span className="shrink-0 rounded bg-[#1D1A40] px-1.5 py-0.5 font-mono text-[10px] text-[#8B88AE]">
                 you
               </span>
-            )}
+              )}
+            </div>
           </div>
+
+          {canManage && (
+              <MemberMenu
+                  member={member}
+                  label={displayName}
+                  isLastLeader={isLastLeader}
+                  onChangeRole={onChangeRole}
+                  onRemove={onRemove}
+              />
+          )}
         </div>
 
-        {canManage && (
-          <MemberMenu
-            member={member}
-            isLastLeader={isLastLeader}
-            onChangeRole={onChangeRole}
-            onRemove={onRemove}
-          />
-        )}
-      </div>
-
-      {/* ── Role ──────────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2">
+        {/* ── Role ──────────────────────────────────────────────────────────── */}
+        <div className="flex flex-wrap items-center gap-2">
         <span
-          className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5
+            className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5
                       font-mono text-[10px] font-semibold uppercase tracking-wider ${role.badge}`}
         >
           <RoleIcon size={11} />
           {member.role}
         </span>
-      </div>
+        </div>
 
-      {/* ── Footer ────────────────────────────────────────────────────────── */}
-      <div className="mt-auto flex items-center border-t border-[#1C1A38] pt-3 text-xs text-[#6B6890]">
-        <span>{joined ? `Joined ${joined}` : ''}</span>
-      </div>
-    </article>
+        {/* ── Footer ────────────────────────────────────────────────────────── */}
+        <div className="mt-auto flex items-center border-t border-[#1C1A38] pt-3 text-xs text-[#6B6890]">
+          <span>{joined ? `Joined ${joined}` : ''}</span>
+        </div>
+      </article>
   );
 }

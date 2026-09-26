@@ -138,6 +138,21 @@ public class ProfileController {
                 ApiResponse.success("Interest removed successfully", null));
     }
 
+    // GET /api/users/by-ids?ids=uuid1&ids=uuid2
+    // Batch-resolve user IDs to public profiles — used by the connections
+    // page, since ConnectionSummaryDto/ConnectionResponseDto only carry raw
+    // user IDs. Public endpoint, no auth required (same visibility as
+    // /search and /{username}).
+    @GetMapping("/by-ids")
+    public ResponseEntity<ApiResponse<List<ProfileResponse>>> getProfilesByIds(
+            @RequestParam(required = false) List<UUID> ids) {
+
+        List<ProfileResponse> results = profileService.getProfilesByUserIds(ids);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Profiles fetched successfully", results));
+    }
+
     // GET /api/users/health
     @GetMapping("/health")
     public ResponseEntity<ApiResponse<String>> health() {
