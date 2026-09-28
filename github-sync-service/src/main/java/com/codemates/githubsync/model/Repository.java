@@ -1,9 +1,6 @@
 package com.codemates.githubsync.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -19,10 +16,9 @@ import java.util.UUID;
 @Table(name = "repositories")
 public class Repository {
     @Id
-    @ColumnDefault("gen_random_uuid()")
-    @Column(name = "id", nullable = false)
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(nullable = false, updatable = false)
     private UUID id;
-
     @NotNull
     @Column(name = "github_profile_id", nullable = false)
     private UUID githubProfileId;
@@ -94,6 +90,18 @@ public class Repository {
     @ColumnDefault("now()")
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        createdAt = now;
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 
     @ColumnDefault("0")
     @Column(name = "open_issues_count")

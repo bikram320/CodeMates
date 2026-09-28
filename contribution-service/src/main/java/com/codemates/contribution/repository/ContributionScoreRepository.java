@@ -14,4 +14,5 @@ public interface ContributionScoreRepository extends JpaRepository<ContributionS
     List<ContributionScore> findByProjectIdAndIsDeletedFalseOrderByTotalScoreDesc(UUID projectId);
 
     List<ContributionScore> findByUserIdAndIsDeletedFalse(UUID userId);
+    List<ContributionScore> findByProjectIdAndIsDeletedFalse(UUID projectId);
 }

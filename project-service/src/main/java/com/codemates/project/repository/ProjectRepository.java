@@ -11,4 +11,5 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     List<Project> findByOwnerUserIdAndIsDeletedFalse(UUID ownerUserId);
 
     List<Project> findByStatusAndIsDeletedFalse(String status);
+    List<Project> findByVisibilityAndIsDeletedFalse(String visibility);
 }

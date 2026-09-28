@@ -10,6 +10,7 @@
  *         .username {string}
  */
 
+import { Link } from 'react-router-dom';
 import { Plus, UserPlus } from 'lucide-react';
 
 function getGreeting() {
@@ -23,28 +24,28 @@ export default function WelcomeSection({ user }) {
   const name = user?.fullName || user?.username || 'Developer';
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-      {/* Greeting */}
-      <div>
-        <h1 className="text-2xl font-bold text-[#F5F5F5] tracking-tight">
-          {getGreeting()}, {name} 👋
-        </h1>
-        <p className="text-[#A7A3D6] text-sm mt-1">
-          Here's what's happening with your projects today.
-        </p>
-      </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Greeting */}
+        <div>
+          <h1 className="text-2xl font-bold text-[#F5F5F5] tracking-tight">
+            {getGreeting()}, {name} 👋
+          </h1>
+          <p className="text-[#A7A3D6] text-sm mt-1">
+            Here's what's happening with your projects today.
+          </p>
+        </div>
 
-      {/* Quick actions */}
-      <div className="flex items-center gap-3 shrink-0">
-        <button className="btn-outline text-sm">
-          <UserPlus size={14} />
-          Find Developers
-        </button>
-        <button className="btn-primary text-sm">
-          <Plus size={14} />
-          New Project
-        </button>
+        {/* Quick actions */}
+        <div className="flex items-center gap-3 shrink-0">
+          <Link to="/discover/developers" className="btn-outline text-sm">
+            <UserPlus size={14} />
+            Find Developers
+          </Link>
+          <Link to="/projects" className="btn-primary text-sm">
+            <Plus size={14} />
+            New Project
+          </Link>
+        </div>
       </div>
-    </div>
   );
 }

@@ -116,3 +116,48 @@ export function getTopMatches(limit = 10) {
 export function getMatchScore(matchedUserId) {
   return request(`/api/discovery/match-scores/${matchedUserId}`);
 }
+
+/**
+ * Triggers the REAL match computation: POSTs to
+ * /api/discovery/match-scores/sync, which runs MatchSyncService ->
+ * GithubProfileClient -> the ml-service's /predict/match/batch -> writes
+ * rows into match_scores. Until this has been called at least once for a
+ * user, getTopMatches() above will always return [] — the FastAPI model is
+ * never invoked just by reading /top, only by hitting /sync.
+ *
+ * NOTE: MatchScoreController's /sync endpoint takes userId as an explicit
+ * @RequestParam rather than reading it from the JWT cookie (see the
+ * controller's own comment on that endpoint) — this function is only ever
+ * called with the signed-in user's own id (see dashboardApi.js), but nothing
+ * on the backend currently stops a client from passing a different one.
+ * Worth tightening server-side; not something the frontend can fix.
+ *
+ * @param {string} userId the user matches are being computed for
+ * @param {string[]} candidateIds other users to score against
+ * @returns {Promise<null>}
+ */
+export async function syncMatches(userId, candidateIds) {
+  let res;
+  try {
+    res = await fetch(buildUrl('/api/discovery/match-scores/sync', { userId }), {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(candidateIds ?? []),
+    });
+  } catch {
+    throw apiError("Couldn't reach CodeMates. Check your connection and try again.", 0);
+  }
+
+  let json = null;
+  try {
+    json = await res.json();
+  } catch {
+    /* no/invalid body */
+  }
+
+  if (!res.ok || json?.success === false) {
+    throw apiError(json?.message || `Request failed (${res.status}).`, res.status);
+  }
+  return json?.data ?? null;
+}

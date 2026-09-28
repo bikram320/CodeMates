@@ -1,15 +1,15 @@
 package com.codemates.githubsync.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -19,6 +19,7 @@ import java.util.UUID;
 @Table(name = "github_profiles")
 public class GithubProfile {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @ColumnDefault("gen_random_uuid()")
     @Column(name = "id", nullable = false)
     private UUID id;
@@ -72,11 +73,13 @@ public class GithubProfile {
     private LocalDateTime deletedAt;
 
     @NotNull
+    @CreationTimestamp
     @ColumnDefault("now()")
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @NotNull
+    @UpdateTimestamp
     @ColumnDefault("now()")
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
@@ -87,4 +90,16 @@ public class GithubProfile {
 
     @Column(name = "account_created_at")
     private LocalDateTime accountCreatedAt; // GitHub account creation date -- NOT this row's own created_at above
+
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        createdAt = now;
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

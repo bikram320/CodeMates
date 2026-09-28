@@ -35,7 +35,7 @@ import MyProjectsHeader             from '../components/project/MyProjectsHeader
 import ProjectFilters               from '../components/project/ProjectFilters';
 import MyProjectsList               from '../components/project/MyProjectsList';
 import PendingInvitationsWidget     from '../components/project/PendingInvitationsWidget';
-
+import MyJoinRequestsWidget         from '../components/project/MyJoinRequestsWidget';
 // ── Auth placeholder ──────────────────────────────────────────────────────────
 // Replace with: import { useAuthStore } from '../store/authStore';
 //               const currentUserId = useAuthStore(s => s.user?.id ?? null);
@@ -166,7 +166,10 @@ export default function MyProjects() {
                     ownedCount={ownedCount}
                     onCreate={() => navigate('/projects/create')}
                 />
-                <PendingInvitationsWidget />
+                <div className="flex gap-2">
+                    <MyJoinRequestsWidget />
+                    <PendingInvitationsWidget />
+                </div>
             </div>
 
             {/* Filters — hidden while loading */}

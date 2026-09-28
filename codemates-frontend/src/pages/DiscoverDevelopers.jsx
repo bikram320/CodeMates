@@ -13,6 +13,7 @@ import DeveloperCard from "../components/developer/DeveloperCard";
 
 import { useDevelopers } from "../hooks/useDevelopers";
 import { useSuggestedDevelopers } from "../hooks/useSuggestedDevelopers";
+import useAuth from "../hooks/useAuth";
 
 /**
  * Main Discover Developers page.
@@ -63,6 +64,17 @@ import { useSuggestedDevelopers } from "../hooks/useSuggestedDevelopers";
  * `availability` label rather than an `isOpenToCollaborate` boolean) — so
  * toCardProps() below adapts one to the other; see its comments for the
  * "Open to offers" gap (the backend has no third state to map back to it).
+ *
+ * ── Excluding the signed-in user's own profile ───────────────────────────────
+ * Neither /api/discovery/search nor the suggested-developers endpoint filters
+ * out the caller's own profile server-side, so both the search results and
+ * the pre-search "Suggested for you" grid could otherwise show your own card.
+ * excludeSelf() below drops any ProfileSearchResult whose userId matches the
+ * signed-in user's id, sourced from useAuth() (the cached UserInfoResponse —
+ * see useAuth.js — carries a real userId once a session exists). If the
+ * session is still resolving to the `profileUnknown` placeholder (e.g. right
+ * after an OAuth redirect, before any UserInfoResponse is cached), there's no
+ * id to compare against yet, so nothing is excluded until it resolves.
  */
 
 /** Not sent to the backend — see the file header. Matches on whatever's already loaded. */
@@ -70,10 +82,10 @@ function matchesSearchText(developer, search) {
   const term = search.trim().toLowerCase();
   if (!term) return true;
   return (
-    developer.fullName?.toLowerCase().includes(term) ||
-    developer.username?.toLowerCase().includes(term) ||
-    developer.bio?.toLowerCase().includes(term) ||
-    developer.skills?.some((s) => s.skillName?.toLowerCase().includes(term))
+      developer.fullName?.toLowerCase().includes(term) ||
+      developer.username?.toLowerCase().includes(term) ||
+      developer.bio?.toLowerCase().includes(term) ||
+      developer.skills?.some((s) => s.skillName?.toLowerCase().includes(term))
   );
 }
 
@@ -118,6 +130,7 @@ function toCardProps(developer) {
 
 export default function DiscoverDevelopers() {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
 
   const [search, setSearch] = useState("");
   const [selectedSkills, setSelectedSkills] = useState([]);
@@ -130,7 +143,7 @@ export default function DiscoverDevelopers() {
   const [submittedSearch, setSubmittedSearch] = useState(false);
 
   const hasActiveFilters =
-    selectedSkills.length > 0 || Boolean(selectedExperience) || Boolean(selectedAvailability);
+      selectedSkills.length > 0 || Boolean(selectedExperience) || Boolean(selectedAvailability);
 
   // Gate for whether we're allowed to hit the backend / show results at all.
   // `submittedSearch` alone is NOT enough: it's sticky (only reset by "Clear
@@ -156,17 +169,27 @@ export default function DiscoverDevelopers() {
     enabled: hasSearched,
   });
 
+  // Drop the signed-in user's own profile out of any developer list. See the
+  // file header — neither backend endpoint does this for us.
+  const excludeSelf = (list) =>
+      currentUser?.userId ? list.filter((d) => d.userId !== currentUser.userId) : list;
+
   const visibleDevelopers = useMemo(
-    () => developers.filter((d) => matchesSearchText(d, search)),
-    [developers, search]
+      () => excludeSelf(developers).filter((d) => matchesSearchText(d, search)),
+      [developers, search, currentUser?.userId]
   );
 
   // Only relevant/fetched in the pre-search state — see useSuggestedDevelopers.js
   // for how these are resolved (ML top matches, joined against profile data).
   const {
-    suggestions,
+    suggestions: rawSuggestions,
     isLoading: isLoadingSuggestions,
   } = useSuggestedDevelopers(6);
+
+  const suggestions = useMemo(
+      () => excludeSelf(rawSuggestions),
+      [rawSuggestions, currentUser?.userId]
+  );
 
   function handleSearchSubmit(value) {
     if (value.trim()) {
@@ -183,123 +206,123 @@ export default function DiscoverDevelopers() {
   }
 
   return (
-    <div className="discover-developers-page">
-      <div className="head-container">
-        <PageHeader
-          title="Discover Developers"
-          description="Find developers to collaborate with."
-        />
-      </div>
-
-      <div className="body-container mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
-        <div className="filters-container">
-          <DeveloperFilters
-            selectedSkills={selectedSkills}
-            selectedExperience={selectedExperience}
-            selectedAvailability={selectedAvailability}
-            onSkillsChange={setSelectedSkills}
-            onExperienceChange={setSelectedExperience}
-            onAvailabilityChange={setSelectedAvailability}
-            onClearAll={clearAllFilters}
+      <div className="discover-developers-page">
+        <div className="head-container">
+          <PageHeader
+              title="Discover Developers"
+              description="Find developers to collaborate with."
           />
         </div>
 
-        <div className="results-container flex flex-col gap-5">
-          <SearchBar
-            value={search}
-            onChange={setSearch}
-            onSubmit={handleSearchSubmit}
-            placeholder="Search by name, username, skill, or bio..."
-          />
+        <div className="body-container mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+          <div className="filters-container">
+            <DeveloperFilters
+                selectedSkills={selectedSkills}
+                selectedExperience={selectedExperience}
+                selectedAvailability={selectedAvailability}
+                onSkillsChange={setSelectedSkills}
+                onExperienceChange={setSelectedExperience}
+                onAvailabilityChange={setSelectedAvailability}
+                onClearAll={clearAllFilters}
+            />
+          </div>
 
-          {/* Result count + a quiet "updating" indicator while a filter
+          <div className="results-container flex flex-col gap-5">
+            <SearchBar
+                value={search}
+                onChange={setSearch}
+                onSubmit={handleSearchSubmit}
+                placeholder="Search by name, username, skill, or bio..."
+            />
+
+            {/* Result count + a quiet "updating" indicator while a filter
               change is in flight (isFetching) but old data is still showing.
               Only shown once a search has actually happened. */}
-          {hasSearched && !isLoading && !isError && (
-            <div className="flex items-center gap-2 text-sm text-[var(--cm-muted)]">
+            {hasSearched && !isLoading && !isError && (
+                <div className="flex items-center gap-2 text-sm text-[var(--cm-muted)]">
               <span>
                 {visibleDevelopers.length} developer{visibleDevelopers.length !== 1 ? "s" : ""} found
               </span>
-              {isFetching && <Spinner size="sm" />}
-            </div>
-          )}
+                  {isFetching && <Spinner size="sm" />}
+                </div>
+            )}
 
-          {!hasSearched ? (
-            suggestions.length > 0 ? (
-              <div className="flex flex-col gap-4">
-                <h2 className="text-sm font-medium text-[var(--cm-muted)]">
-                  Suggested for you
-                </h2>
-                <DeveloperGrid
-                  developers={suggestions}
-                  renderCard={(developer) => (
-                    <DeveloperCard
-                      key={developer.userId}
-                      {...toCardProps(developer)}
-                      to={`/discover/developers/${developer.username}`}
-                      onViewProfile={() =>
-                        navigate(`/discover/developers/${developer.username}`)
-                      }
+            {!hasSearched ? (
+                suggestions.length > 0 ? (
+                    <div className="flex flex-col gap-4">
+                      <h2 className="text-sm font-medium text-[var(--cm-muted)]">
+                        Suggested for you
+                      </h2>
+                      <DeveloperGrid
+                          developers={suggestions}
+                          renderCard={(developer) => (
+                              <DeveloperCard
+                                  key={developer.userId}
+                                  {...toCardProps(developer)}
+                                  to={`/discover/developers/${developer.username}`}
+                                  onViewProfile={() =>
+                                      navigate(`/discover/developers/${developer.username}`)
+                                  }
+                              />
+                          )}
+                      />
+                    </div>
+                ) : isLoadingSuggestions ? (
+                    <div className="flex justify-center py-20">
+                      <Spinner size="lg" />
+                    </div>
+                ) : (
+                    <EmptyState
+                        icon={Search}
+                        title="Search for developers"
+                        description="Type a name, username, skill, or bio and press Enter, or pick a filter on the left to get started."
                     />
-                  )}
+                )
+            ) : isLoading ? (
+                <div className="flex justify-center py-20">
+                  <Spinner size="lg" />
+                </div>
+            ) : isError ? (
+                <EmptyState
+                    icon={AlertTriangle}
+                    title="Something went wrong"
+                    description={
+                        error?.message || "Couldn't load developers. Please try again."
+                    }
+                    action={
+                      <Button variant="outline" onClick={refetch}>
+                        Try again
+                      </Button>
+                    }
                 />
-              </div>
-            ) : isLoadingSuggestions ? (
-              <div className="flex justify-center py-20">
-                <Spinner size="lg" />
-              </div>
+            ) : visibleDevelopers.length === 0 ? (
+                <EmptyState
+                    icon={Users}
+                    title="No developers found"
+                    description="Try adjusting your filters or search terms."
+                    action={
+                      <Button variant="outline" onClick={clearAllFilters}>
+                        Clear filters
+                      </Button>
+                    }
+                />
             ) : (
-              <EmptyState
-                icon={Search}
-                title="Search for developers"
-                description="Type a name, username, skill, or bio and press Enter, or pick a filter on the left to get started."
-              />
-            )
-          ) : isLoading ? (
-            <div className="flex justify-center py-20">
-              <Spinner size="lg" />
-            </div>
-          ) : isError ? (
-            <EmptyState
-              icon={AlertTriangle}
-              title="Something went wrong"
-              description={
-                error?.message || "Couldn't load developers. Please try again."
-              }
-              action={
-                <Button variant="outline" onClick={refetch}>
-                  Try again
-                </Button>
-              }
-            />
-          ) : visibleDevelopers.length === 0 ? (
-            <EmptyState
-              icon={Users}
-              title="No developers found"
-              description="Try adjusting your filters or search terms."
-              action={
-                <Button variant="outline" onClick={clearAllFilters}>
-                  Clear filters
-                </Button>
-              }
-            />
-          ) : (
-            <DeveloperGrid
-              developers={visibleDevelopers}
-              renderCard={(developer) => (
-                <DeveloperCard
-                  key={developer.userId}
-                  {...toCardProps(developer)}
-                  to={`/discover/developers/${developer.username}`}
-                  onViewProfile={() =>
-                    navigate(`/discover/developers/${developer.username}`)
-                  }
+                <DeveloperGrid
+                    developers={visibleDevelopers}
+                    renderCard={(developer) => (
+                        <DeveloperCard
+                            key={developer.userId}
+                            {...toCardProps(developer)}
+                            to={`/discover/developers/${developer.username}`}
+                            onViewProfile={() =>
+                                navigate(`/discover/developers/${developer.username}`)
+                            }
+                        />
+                    )}
                 />
-              )}
-            />
-          )}
+            )}
+          </div>
         </div>
       </div>
-    </div>
   );
 }

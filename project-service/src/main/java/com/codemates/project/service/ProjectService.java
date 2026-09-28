@@ -5,18 +5,20 @@ import com.codemates.project.event.ProjectEventProducer;
 import com.codemates.project.exception.*;
 import com.codemates.project.model.Project;
 import com.codemates.project.model.ProjectInvitation;
+import com.codemates.project.model.ProjectJoinRequest;
 import com.codemates.project.model.ProjectMember;
 import com.codemates.project.repository.ProjectInvitationRepository;
+import com.codemates.project.repository.ProjectJoinRequestRepository;
 import com.codemates.project.repository.ProjectMemberRepository;
 import com.codemates.project.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -28,6 +30,12 @@ public class ProjectService {
     private static final List<String> VALID_STATUSES = List.of("ACTIVE", "COMPLETED", "ARCHIVED");
     private static final List<String> VALID_VISIBILITY = List.of("PUBLIC", "PRIVATE");
 
+    // Discover Projects has no pagination yet — same style cap discovery-service
+    // already uses for developer search, so one slow/huge query can't take the
+    // page down while this is still a simple in-memory filter.
+    private static final int DISCOVER_RESULT_CAP = 50;
+
+    private final ProjectJoinRequestRepository projectJoinRequestRepository;
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
     private final ProjectInvitationRepository projectInvitationRepository;
@@ -118,8 +126,10 @@ public class ProjectService {
 
     // ── GET single ──────────────────────────
     @Transactional(readOnly = true)
-    public ProjectResponse getProject(UUID projectId) {
-        return toProjectResponse(getActiveOrThrow(projectId));
+    public ProjectResponse getProject(UUID projectId, UUID callerUserId) {
+        Project project = getActiveOrThrow(projectId);
+        requireViewAccess(project, callerUserId);
+        return toProjectResponse(project);
     }
 
     // ── GET my projects ─────────────────────
@@ -132,6 +142,70 @@ public class ProjectService {
                 .filter(p -> !p.getIsDeleted())
                 .map(this::toProjectResponse)
                 .collect(Collectors.toList());
+    }
+
+    // ── DISCOVER (browse other users' PUBLIC projects) ─────
+    /**
+     * NOTE — requires two things that don't exist yet in the files I was
+     * given, flagged here rather than silently assumed:
+     *
+     *   1. ProjectRepository needs a new method:
+     *        List<Project> findByVisibilityAndIsDeletedFalse(String visibility);
+     *      There's currently no query for "all PUBLIC projects" — only
+     *      findByIdAndIsDeletedFalse / findAllById, both id-scoped.
+     *
+     *   2. The Project entity has no projectType / requiredExperience /
+     *      requiredRoles columns (confirmed against toProjectResponse()
+     *      below, which only ever reads id, ownerUserId, name, description,
+     *      githubRepoUrl, status, visibility, techStack, maxMembers,
+     *      createdAt). Filtering by projectType/requiredExperience is a
+     *      no-op until those columns (and a migration) exist. techStack
+     *      filtering DOES work today — it's a real column, just a single
+     *      comma-separated string (e.g. "React, TypeScript"), so it's
+     *      matched with contains-any-of rather than an exact/array match.
+     *
+     * Self-projects (owner OR member) are excluded server-side — "discover"
+     * showing your own projects back to you isn't discovery.
+     */
+    @Transactional(readOnly = true)
+    public List<ProjectResponse> discoverProjects(
+            UUID callerUserId,
+            List<String> techStack,
+            String projectType,
+            String requiredExperience,
+            String status) {
+
+        Set<UUID> ownProjectIds = projectMemberRepository.findByUserIdAndIsDeletedFalse(callerUserId)
+                .stream().map(ProjectMember::getProjectId).collect(Collectors.toSet());
+
+        String normalizedStatus = status != null ? status.toUpperCase() : null;
+        if (normalizedStatus != null && !VALID_STATUSES.contains(normalizedStatus)) {
+            throw new InvalidProjectStateException("Invalid status: " + normalizedStatus);
+        }
+
+        return projectRepository.findByVisibilityAndIsDeletedFalse("PUBLIC").stream()
+                .filter(p -> !ownProjectIds.contains(p.getId()) && !p.getOwnerUserId().equals(callerUserId))
+                .filter(p -> normalizedStatus == null || normalizedStatus.equals(p.getStatus()))
+                .filter(p -> matchesAnyTech(p, techStack))
+                // projectType / requiredExperience have no backing column yet — see
+                // the method comment above. Left as a pass-through no-op filter
+                // (never excludes anything) rather than silently dropped, so it's
+                // obvious in code review that these params aren't wired end-to-end.
+                .filter(p -> projectType == null || true)
+                .filter(p -> requiredExperience == null || true)
+                .limit(DISCOVER_RESULT_CAP)
+                .map(this::toProjectResponse)
+                .collect(Collectors.toList());
+    }
+
+    private boolean matchesAnyTech(Project p, List<String> techStack) {
+        if (techStack == null || techStack.isEmpty()) return true;
+        if (!StringUtils.hasText(p.getTechStack())) return false;
+        Set<String> projectTech = Arrays.stream(p.getTechStack().split(","))
+                .map(String::trim)
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
+        return techStack.stream().map(String::toLowerCase).anyMatch(projectTech::contains);
     }
 
     // ── INVITE ───────────────────────────────
@@ -258,7 +332,11 @@ public class ProjectService {
 
     // ── LIST MEMBERS ──────────────────────────
     @Transactional(readOnly = true)
-    public List<ProjectMemberResponseDto> getProjectMembers(UUID projectId) {
+    public List<ProjectMemberResponseDto> getProjectMembers(UUID projectId, UUID callerUserId) {
+        getActiveOrThrow(projectId);
+        // Stricter than getProject: members list requires membership even on
+        // a PUBLIC project — visibility controls the project card, not the roster.
+        requireMembership(projectId, callerUserId);
         return projectMemberRepository.findByProjectIdAndIsDeletedFalse(projectId).stream()
                 .map(this::toMemberDto)
                 .collect(Collectors.toList());
@@ -272,7 +350,207 @@ public class ProjectService {
                 .collect(Collectors.toList());
     }
 
+    // ── JOIN REQUESTS (member-initiated; distinct from LEADER-initiated invitations) ──
+
+    /**
+     * Non-member requests to join a PUBLIC project. One active (PENDING)
+     * request per user per project — mirrors the same uniqueness rule
+     * inviteMember() already enforces for invitations.
+     */
+    @Transactional
+    public ProjectJoinRequestResponseDto requestToJoin(UUID userId, UUID projectId) {
+        Project project = getActiveOrThrow(projectId);
+
+        if (!"PUBLIC".equals(project.getVisibility())) {
+            throw new UnauthorizedProjectActionException("Cannot request to join a private project");
+        }
+        if (projectMemberRepository.existsByProjectIdAndUserIdAndIsDeletedFalse(projectId, userId)) {
+            throw new InvalidProjectStateException("You are already a member of this project");
+        }
+        if (projectJoinRequestRepository.existsByProjectIdAndRequestingUserIdAndStatusAndIsDeletedFalse(
+                projectId, userId, "PENDING")) {
+            throw new InvalidProjectStateException("You already have a pending request for this project");
+        }
+
+        long currentMembers = projectMemberRepository.countByProjectIdAndIsDeletedFalse(projectId);
+        if (project.getMaxMembers() != null && currentMembers >= project.getMaxMembers()) {
+            throw new ProjectFullException("Project has reached its member limit");
+        }
+
+        ProjectJoinRequest joinRequest = new ProjectJoinRequest();
+        joinRequest.setProjectId(projectId);
+        joinRequest.setRequestingUserId(userId);
+        joinRequest.setStatus("PENDING");
+        joinRequest.setIsDeleted(false);
+
+        ProjectJoinRequest saved = projectJoinRequestRepository.save(joinRequest);
+        log.info("Join request created: project {} by user {}", projectId, userId);
+        // NOTE: no eventProducer.publishJoinRequested(...) call — that method
+        // doesn't exist on ProjectEventProducer in the files I have. Add one
+        // there (mirroring publishInvitationSent) if the leader should get a
+        // notification-service event when someone requests to join.
+
+        return toJoinRequestDto(saved);
+    }
+
+    // ── LIST: pending join requests for a project (LEADER only) ─────
+    @Transactional(readOnly = true)
+    public List<ProjectJoinRequestResponseDto> getPendingJoinRequests(UUID leaderUserId, UUID projectId) {
+        getActiveOrThrow(projectId);
+        requireRole(projectId, leaderUserId, "LEADER");
+        return projectJoinRequestRepository.findByProjectIdAndStatusAndIsDeletedFalse(projectId, "PENDING").stream()
+                .map(this::toJoinRequestDto)
+                .collect(Collectors.toList());
+    }
+
+    // ── LIST: current user's own join requests, any status, all projects ──
+    @Transactional(readOnly = true)
+    public List<ProjectJoinRequestResponseDto> getMyJoinRequests(UUID userId) {
+        return projectJoinRequestRepository.findByRequestingUserIdAndIsDeletedFalse(userId).stream()
+                .map(this::toJoinRequestDto)
+                .collect(Collectors.toList());
+    }
+
+    // ── ACCEPT join request (LEADER only) ────────────────────────────
+    @Transactional
+    public ProjectMemberResponseDto acceptJoinRequest(UUID leaderUserId, UUID joinRequestId) {
+        ProjectJoinRequest joinRequest = getJoinRequestOrThrow(joinRequestId);
+        Project project = getActiveOrThrow(joinRequest.getProjectId());
+
+        requireRole(project.getId(), leaderUserId, "LEADER");
+
+        if (!"PENDING".equals(joinRequest.getStatus())) {
+            throw new InvalidProjectStateException(
+                    "Only pending join requests can be accepted"
+            );
+        }
+
+        UUID requestingUserId = joinRequest.getRequestingUserId();
+
+        // Prevent duplicate membership
+        Optional<ProjectMember> existingMember =
+                projectMemberRepository
+                        .findByProjectIdAndUserIdAndIsDeletedFalse(
+                                project.getId(),
+                                requestingUserId
+                        );
+
+        if (existingMember.isPresent()) {
+            throw new InvalidProjectStateException(
+                    "User is already a member of this project"
+            );
+        }
+
+        long currentMembers =
+                projectMemberRepository.countByProjectIdAndIsDeletedFalse(
+                        project.getId()
+                );
+
+        if (project.getMaxMembers() != null
+                && currentMembers >= project.getMaxMembers()) {
+            throw new ProjectFullException(
+                    "Project has reached its member limit"
+            );
+        }
+
+        ProjectMember member = new ProjectMember();
+        member.setProjectId(project.getId());
+        member.setUserId(requestingUserId);
+        member.setRole("CONTRIBUTOR");
+        member.setJoinedAt(Instant.now());
+        member.setInvitedByUserId(leaderUserId);
+        member.setIsDeleted(false);
+
+        ProjectMember saved = projectMemberRepository.save(member);
+
+        joinRequest.setStatus("ACCEPTED");
+        joinRequest.setRespondedAt(Instant.now());
+        projectJoinRequestRepository.save(joinRequest);
+
+        eventProducer.publishMemberJoined(
+                project.getId(),
+                requestingUserId
+        );
+
+        return toMemberDto(saved);
+    }
+
+    // ── REJECT join request (LEADER only) ────────────────────────────
+    @Transactional
+    public ProjectJoinRequestResponseDto rejectJoinRequest(UUID leaderUserId, UUID joinRequestId) {
+        ProjectJoinRequest joinRequest = getJoinRequestOrThrow(joinRequestId);
+        requireRole(joinRequest.getProjectId(), leaderUserId, "LEADER");
+
+        if (!"PENDING".equals(joinRequest.getStatus())) {
+            throw new InvalidProjectStateException("Only pending join requests can be rejected");
+        }
+
+        joinRequest.setStatus("REJECTED");
+        joinRequest.setRespondedAt(Instant.now());
+        return toJoinRequestDto(projectJoinRequestRepository.save(joinRequest));
+    }
+
+    // ── CANCEL join request (the requester withdrawing their own request) ──
+    @Transactional
+    public ProjectJoinRequestResponseDto cancelJoinRequest(UUID userId, UUID joinRequestId) {
+        ProjectJoinRequest joinRequest = getJoinRequestOrThrow(joinRequestId);
+
+        if (!joinRequest.getRequestingUserId().equals(userId)) {
+            throw new UnauthorizedProjectActionException("This join request does not belong to you");
+        }
+        if (!"PENDING".equals(joinRequest.getStatus())) {
+            throw new InvalidProjectStateException("Only pending join requests can be cancelled");
+        }
+
+        joinRequest.setStatus("CANCELLED");
+        joinRequest.setRespondedAt(Instant.now());
+        return toJoinRequestDto(projectJoinRequestRepository.save(joinRequest));
+    }
+
+    private ProjectJoinRequest getJoinRequestOrThrow(UUID joinRequestId) {
+        return projectJoinRequestRepository.findByIdAndIsDeletedFalse(joinRequestId)
+                .orElseThrow(() -> new JoinRequestNotFoundException("Join request not found: " + joinRequestId));
+    }
+
+    private ProjectJoinRequestResponseDto toJoinRequestDto(ProjectJoinRequest jr) {
+        return ProjectJoinRequestResponseDto.builder()
+                .id(jr.getId())
+                .projectId(jr.getProjectId())
+                .requestingUserId(jr.getRequestingUserId())
+                .status(jr.getStatus())
+                .respondedAt(jr.getRespondedAt())
+                .createdAt(jr.getCreatedAt())
+                .build();
+    }
+
     // ── MEMBERSHIP CHECK (for messaging-service) ──
+    /**
+     * View-access rule for GET /api/projects/{id} (single-project reads):
+     *   PUBLIC projects  — any authenticated caller can view.
+     *   PRIVATE projects — caller must be an active member (any role).
+     * Sub-resources (members, and — once those controllers exist — tasks,
+     * comments, resources) are stricter than this; see requireMembership.
+     */
+    private void requireViewAccess(Project project, UUID callerUserId) {
+        if ("PRIVATE".equals(project.getVisibility())
+                && !projectMemberRepository.existsByProjectIdAndUserIdAndIsDeletedFalse(project.getId(), callerUserId)) {
+            throw new UnauthorizedProjectActionException("This project is private");
+        }
+    }
+
+    /**
+     * Member-only regardless of visibility — a PUBLIC project's roster,
+     * task board, comments and resources aren't public just because the
+     * project card is. Apply this same check in task-service /
+     * comment-service / resource-service's equivalent read endpoints;
+     * those controllers weren't in the files I was given so I couldn't
+     * patch them directly.
+     */
+    private void requireMembership(UUID projectId, UUID callerUserId) {
+        if (!projectMemberRepository.existsByProjectIdAndUserIdAndIsDeletedFalse(projectId, callerUserId)) {
+            throw new UnauthorizedProjectActionException("You must be a member of this project to view this");
+        }
+    }
     @Transactional(readOnly = true)
     public MembershipCheckResponse checkMembership(UUID projectId, UUID userId) {
         return projectMemberRepository.findByProjectIdAndUserIdAndIsDeletedFalse(projectId, userId)

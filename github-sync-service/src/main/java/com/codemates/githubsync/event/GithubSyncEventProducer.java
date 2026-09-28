@@ -14,7 +14,7 @@ import java.util.UUID;
 @Slf4j
 public class GithubSyncEventProducer {
 
-    private final KafkaTemplate<String, byte[]> kafkaTemplate;
+    private final KafkaTemplate<String, String> kafkaTemplate;
     private final JsonMapper objectMapper;
 
     public void publishCommitSynced(UUID userId, int repositoriesSynced) {
@@ -25,7 +25,7 @@ public class GithubSyncEventProducer {
                     .timestamp(LocalDateTime.now())
                     .build();
 
-            byte[] payload = objectMapper.writeValueAsBytes(event);
+            String payload = objectMapper.writeValueAsString(event);
 
             kafkaTemplate.send(
                     "github.commit.synced",

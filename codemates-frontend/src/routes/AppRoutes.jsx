@@ -85,13 +85,16 @@ export default function AppRoutes() {
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/oauth/callback" element={<OAuthCallback />} />
-                <Route path="/profile" element={<Profile/>}/>
                 <Route path="/logged-out" element={<LoggedOut />} />
             </Route>
 
             {/* Authenticated app pages */}
             <Route element={<Applayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
+                {/* Moved out of Publiclayout — Profile is a signed-in page and
+            should use the app's Navbar (Dashboard/Discover/Projects/Messages
+            + real user avatar), not the marketing layout's nav. */}
+                <Route path="/profile" element={<Profile />} />
                 {/*
           NOTE: no route for the sign-out confirmation — it's not a page.
           LogoutConfirmModal is an overlay (open/onClose props) mounted

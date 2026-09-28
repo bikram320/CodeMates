@@ -51,7 +51,6 @@ const secondaryButton =
 
 const getErrorMessage = (err) =>
     err?.message || "Something went wrong. Try again.";
-
 /* ── Loading + error states ──────────────────────────────────────────────── */
 
 function TeamSkeleton() {
@@ -127,9 +126,36 @@ export default function ProjectTeam() {
     inviteMember,
     removeMember,
     changeMemberRole,
+    joinRequests,
+    acceptJoinRequest,
+    rejectJoinRequest,
   } = useProjectTeam(projectId);
 
-  const { directory } = useUserDirectory(members.map((m) => m.userId));
+  const { directory } = useUserDirectory([
+    ...members.map((m) => m.userId),
+    ...joinRequests.map((r) => r.requestingUserId),
+  ]);
+  const handleAcceptJoinRequest = async (joinRequest) => {
+    const name =
+        directory[joinRequest.requestingUserId]?.fullName ||
+        directory[joinRequest.requestingUserId]?.username ||
+        "They";
+    try {
+      await acceptJoinRequest(joinRequest.id);
+      notify(`${name} joined the project.`);
+    } catch (err) {
+      notify(getErrorMessage(err), "error");
+    }
+  };
+
+  const handleRejectJoinRequest = async (joinRequest) => {
+    try {
+      await rejectJoinRequest(joinRequest.id);
+      notify("Join request declined.");
+    } catch (err) {
+      notify(getErrorMessage(err), "error");
+    }
+  };
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
@@ -263,6 +289,52 @@ export default function ProjectTeam() {
               <TeamError error={error} onRetry={() => refetch()} />
           ) : (
               <>
+                {canManage && joinRequests.length > 0 && (
+                    <div className="join-requests-container rounded-xl border border-[#1C1A38] bg-[#0A0918] p-4">
+                      <h2 className="flex items-center gap-2 text-sm font-semibold text-[#F5F5F5]">
+                        Join requests
+                        <span className="rounded-full bg-[#6C7BFF]/20 px-2 py-0.5 text-xs text-[#8E9BFF]">
+                          {joinRequests.length}
+                        </span>
+                      </h2>
+                      <div className="mt-3 space-y-2.5">
+                        {joinRequests.map((jr) => {
+                          const requester = directory[jr.requestingUserId];
+                          const name =
+                              requester?.fullName ||
+                              requester?.username ||
+                              `${jr.requestingUserId.slice(0, 8)}…`;
+                          return (
+                              <div
+                                  key={jr.id}
+                                  className="flex items-center justify-between gap-3 rounded-lg border border-[#1C1A38] bg-[#1D1A40]/40 p-3"
+                              >
+                                <p className="text-sm text-[#F5F5F5]">
+                                  <span className="font-medium">{name}</span> wants to join this project
+                                </p>
+                                <div className="flex shrink-0 gap-2">
+                                  <button
+                                      type="button"
+                                      onClick={() => handleRejectJoinRequest(jr)}
+                                      className={secondaryButton}
+                                  >
+                                    Decline
+                                  </button>
+                                  <button
+                                      type="button"
+                                      onClick={() => handleAcceptJoinRequest(jr)}
+                                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#6C7BFF] px-3 py-1.5
+                                             text-sm font-semibold text-[#0A0918] transition-colors hover:bg-[#8190FF]"
+                                  >
+                                    Accept
+                                  </button>
+                                </div>
+                              </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                )}
                 <TeamFilters
                     search={search}
                     onSearchChange={setSearch}

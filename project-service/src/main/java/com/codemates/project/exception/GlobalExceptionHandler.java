@@ -18,6 +18,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(JoinRequestNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleJoinRequestNotFound(JoinRequestNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(TaskNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleTaskNotFound(TaskNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(ex.getMessage()));

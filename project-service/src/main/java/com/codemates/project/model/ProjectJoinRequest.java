@@ -13,11 +13,19 @@ import org.hibernate.annotations.ColumnDefault;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Member-initiated request to join a PUBLIC project. Deliberately a
+ * separate entity from ProjectInvitation (leader-initiated) rather than
+ * a shared table with a "direction" column — the two have different
+ * actors, different validity rules (invitations expire, requests don't;
+ * requests are only ever for PUBLIC projects), and keeping them separate
+ * means each can evolve without a discriminator column creeping in.
+ */
 @lombok.Getter
 @lombok.Setter
 @Entity
-@Table(name = "projects")
-public class Project {
+@Table(name = "project_join_requests")
+public class ProjectJoinRequest {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @ColumnDefault("gen_random_uuid()")
@@ -25,50 +33,21 @@ public class Project {
     private UUID id;
 
     @jakarta.validation.constraints.NotNull
-    @Column(name = "owner_user_id", nullable = false)
-    private UUID ownerUserId;
+    @Column(name = "project_id", nullable = false)
+    private UUID projectId;
 
-    @jakarta.validation.constraints.Size(max = 150)
     @jakarta.validation.constraints.NotNull
-    @Column(name = "name", nullable = false, length = 150)
-    private String name;
-
-    @Column(name = "description", length = Integer.MAX_VALUE)
-    private String description;
-
-    @jakarta.validation.constraints.Size(max = 500)
-    @Column(name = "github_repo_url", length = 500)
-    private String githubRepoUrl;
+    @Column(name = "requesting_user_id", nullable = false)
+    private UUID requestingUserId;
 
     @jakarta.validation.constraints.Size(max = 20)
     @jakarta.validation.constraints.NotNull
-    @ColumnDefault("'ACTIVE'")
+    @ColumnDefault("'PENDING'")
     @Column(name = "status", nullable = false, length = 20)
     private String status;
 
-    @jakarta.validation.constraints.Size(max = 20)
-    @jakarta.validation.constraints.NotNull
-    @ColumnDefault("'PRIVATE'")
-    @Column(name = "visibility", nullable = false, length = 20)
-    private String visibility;
-
-    @jakarta.validation.constraints.Size(max = 500)
-    @Column(name = "tech_stack", length = 500)
-    private String techStack;
-
-    @ColumnDefault("10")
-    @Column(name = "max_members")
-    private Integer maxMembers;
-
-
-    @Column(name = "project_type")
-    private String projectType;          // e.g. "Open Source", "Hackathon" — matches DiscoverProjectFilters' options
-
-    @Column(name = "required_experience")
-    private String requiredExperience;   // e.g. "Beginner", "Intermediate" — matches DiscoverProjectFilters' options
-
-    @Column(name = "required_roles")
-    private String requiredRoles;
+    @Column(name = "responded_at")
+    private Instant respondedAt;
 
     @jakarta.validation.constraints.NotNull
     @ColumnDefault("false")
@@ -100,5 +79,4 @@ public class Project {
     void onUpdate() {
         updatedAt = Instant.now();
     }
-
 }

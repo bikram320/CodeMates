@@ -63,6 +63,9 @@ public class ContributionScore {
     @Column(name = "last_calculated_at", nullable = false)
     private Instant lastCalculatedAt;
 
+    private Double significanceProbability;   // Model 3's predicted probability (0-1), separate from totalScore
+    private Instant significancePredictedAt;
+
     @jakarta.validation.constraints.NotNull
     @ColumnDefault("false")
     @Column(name = "is_deleted", nullable = false)

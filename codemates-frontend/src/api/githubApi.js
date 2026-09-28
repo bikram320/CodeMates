@@ -1,51 +1,39 @@
 /**
- * githubApi — real calls to github-sync-service.
+ * src/api/githubApi.js
  *
- * This talks directly to the Spring Boot backend, matching what's actually
- * implemented in GithubSyncController / GithubConnectRequestDto /
- * GithubProfileResponseDto / RepositoryResponseDto / CommitStatResponseDto /
- * SyncResultDto / ApiResponse. There is no mock layer for this module.
+ * Talks to github-sync-service (GithubSyncController) to let a user connect
+ * their GitHub account and pull in the developer-skill data that
+ * discovery-service's ML matching depends on (see MatchSyncService ->
+ * GithubProfileClient -> GET /api/github/profiles/{userId}/skill-profile).
  *
- * Endpoints (all under /api/github; auth is an httpOnly JWT cookie read
- * server-side by JwtCookieExtractor, so no Authorization header is sent here):
- *   POST /api/github/connect                                  { accessToken } -> GithubProfileResponseDto
- *   POST /api/github/sync                                                    -> SyncResultDto
- *   GET  /api/github/profile                                                 -> GithubProfileResponseDto
- *   GET  /api/github/repositories                                            -> RepositoryResponseDto[]
- *   GET  /api/github/repositories/{repositoryId}/commit-stats                -> CommitStatResponseDto
+ * Consumed by src/hooks/useGitHub.js (TanStack Query) — export names here
+ * must match exactly what that hook imports: connectGithub, getGithubProfile,
+ * getGithubRepositories, getRepositoryCommitStats, isNotConnectedError,
+ * syncGithub.
  *
- * That's the full surface the backend exposes, so that's the full surface
- * here too — no disconnect, no branches/PRs/issues/activity-feed calls, no
- * per-project repository linking (none of that exists in this controller).
+ * Endpoints used (all under /api/github; auth is the same httpOnly cookie
+ * pattern as profileApi.js / authApi.js, read server-side, so no
+ * Authorization header is sent here):
+ *   POST /api/github/connect                                   GithubConnectRequestDto{accessToken} -> GithubProfileResponseDto
+ *   POST /api/github/sync                                      (no body)                             -> SyncResultDto
+ *   GET  /api/github/profile                                                                          -> GithubProfileResponseDto
+ *   GET  /api/github/repositories                                                                     -> RepositoryResponseDto[]
+ *   GET  /api/github/repositories/{repositoryId}/commit-stats                                         -> CommitStatResponseDto
  *
- * ⚠️ Assumptions — please confirm/adjust once more of the backend is shared:
- *  - Base URL: requests go to a relative `/api/github/...` path, which only
- *    resolves correctly if the frontend is served through the same
- *    gateway/origin as the API (or a dev-server proxy rewrites it). Set
- *    VITE_API_BASE_URL (see API_BASE below) if the gateway is on a different
- *    origin, and let me know if there's a routing/gateway config file to
- *    match instead of guessing.
- *  - Auth: every request sends `credentials: 'include'` so the browser
- *    attaches the httpOnly JWT cookie. If the cookie's name/domain or the
- *    gateway's CORS config doesn't allow credentialed cross-origin requests,
- *    every call here will fail with 401 — happy to adjust once I can see the
- *    auth/cookie and CORS setup.
- *  - Error shape: no global exception handler was included, so this assumes
- *    a failed call still comes back as the `ApiResponse` envelope
- *    (`success:false`, `message`) — possibly alongside a non-2xx status. A
- *    404 from GET /profile is treated as "no GitHub account connected yet"
- *    rather than a hard error (see `isNotConnectedError`); tell me if the
- *    backend signals "not connected" a different way (e.g. `success:false`
- *    with a specific message on a 200, or a different status code).
- *  - Connecting sends a pasted GitHub Personal Access Token (`accessToken`),
- *    matching GithubConnectRequestDto — there's no OAuth callback controller
- *    in what was shared. If GitHub sign-in also goes through an OAuth
- *    redirect elsewhere, point me at that controller and I'll wire it in
- *    instead of (or alongside) the token form.
- *  - LocalDateTime fields (lastSyncedAt, lastPushedAt, lastCommitAt) have no
- *    timezone in the DTOs. They're rendered with the browser's local time as
- *    if the string were already local — if the backend actually serializes
- *    them as UTC, times will be off by the viewer's UTC offset.
+ * Why a pasted Personal Access Token, not another OAuth flow:
+ *   GitHub *login* (see authApi.js's GITHUB_AUTH_URL) is a separate system --
+ *   it authenticates the user in auth-service and never hands this frontend
+ *   (or github-sync-service) a token to reuse. The clean long-term fix would
+ *   be auth-service's own OAuth callback forwarding that token to
+ *   github-sync-service server-to-server right after login, but that touches
+ *   a backend file (the GitHub OAuth callback controller) not available
+ *   here. A user-supplied PAT (github.com/settings/tokens, "repo" read
+ *   scope) is the self-contained option that works today against the
+ *   existing /connect endpoint.
+ *
+ * Error shape: same ApiResponse envelope as profileApi.js/authApi.js.
+ * GithubProfileNotFoundException (for /profile and /repositories before a
+ * user has connected) maps to a 404 -- see isNotConnectedError.
  */
 
 const API_BASE = import.meta.env?.VITE_API_BASE_URL ?? '';
@@ -71,7 +59,6 @@ async function request(path, options = {}) {
     throw new GithubApiError('Could not reach the server. Check your connection and try again.', 0);
   }
 
-  // A 204 (or any body-less response) has nothing to unwrap.
   const raw = await response.text();
   let body = null;
   if (raw) {
@@ -85,8 +72,8 @@ async function request(path, options = {}) {
 
   if (!response.ok || body?.success === false) {
     throw new GithubApiError(
-      body?.message || `Request failed with status ${response.status}.`,
-      response.status
+        body?.message || `Request failed with status ${response.status}.`,
+        response.status
     );
   }
 
@@ -94,8 +81,10 @@ async function request(path, options = {}) {
 }
 
 /**
- * Connect (or reconnect) the signed-in user's GitHub account.
- * @param accessToken  a GitHub Personal Access Token
+ * Connects (or reconnects) the signed-in user's GitHub account. This does
+ * NOT pull repos by itself — call syncGithub() right after (useGithub()'s
+ * connect + sync are separate mutations for exactly this reason).
+ * @param {string} accessToken a GitHub Personal Access Token
  * @returns {Promise<object>} GithubProfileResponseDto
  */
 export function connectGithub(accessToken) {
@@ -106,7 +95,9 @@ export function connectGithub(accessToken) {
 }
 
 /**
- * Trigger a sync of the connected account's repositories.
+ * Pulls the connected account's repos, languages, topics and commit stats.
+ * This is what makes GET /api/github/profiles/{userId}/skill-profile (and
+ * therefore discovery-service's ML matching) return real data.
  * @returns {Promise<object>} SyncResultDto { repositoriesSynced, message }
  */
 export function syncGithub() {
@@ -115,30 +106,28 @@ export function syncGithub() {
 
 /**
  * The signed-in user's connected GitHub profile.
- * Rejects with a 404 GithubApiError (see isNotConnectedError) if nothing is connected yet.
+ * Rejects with a 404 GithubApiError (see isNotConnectedError) if nothing is
+ * connected yet — the normal state before a user has ever submitted a token.
  * @returns {Promise<object>} GithubProfileResponseDto
  */
 export function getGithubProfile() {
   return request('/api/github/profile');
 }
 
-/**
- * The connected account's synced repositories.
- * @returns {Promise<Array>} RepositoryResponseDto[]
- */
+/** @returns {Promise<Array>} RepositoryResponseDto[] */
 export function getGithubRepositories() {
   return request('/api/github/repositories');
 }
 
 /**
- * Commit stats for one repository.
- * @returns {Promise<object>} CommitStatResponseDto
+ * @param {string} repositoryId
+ * @returns {Promise<object>} CommitStatResponseDto { totalCommits, commitsLast30Days, commitsLast7Days, lastCommitAt }
  */
 export function getRepositoryCommitStats(repositoryId) {
   return request(`/api/github/repositories/${repositoryId}/commit-stats`);
 }
 
-/** True when an error from getGithubProfile just means "not connected yet", not a real failure. */
+/** True when an error just means "not connected yet" (404), not a real failure. */
 export function isNotConnectedError(error) {
   return error instanceof GithubApiError && error.status === 404;
 }
