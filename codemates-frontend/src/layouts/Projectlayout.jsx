@@ -17,6 +17,7 @@ import ProjectSidebar from "src/components/layout/ProjectSidebar";
 import Button from "src/components/ui/Button";
 import Spinner from "src/components/ui/Spinner";
 import useAuth from "src/hooks/useAuth";
+import useProfile from "src/hooks/useProfile";
 import { useMyJoinRequests, useJoinRequestMutations } from "src/hooks/useMyProjects";
 import { getProject, checkMembership, requestToJoin } from "src/api/projectApi";
 
@@ -148,14 +149,14 @@ function ProjectPreview({ project }) {
                     {project.githubRepoUrl && (
 
                         <a href={project.githubRepoUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 hover:text-[var(--cm-text)]"
+                           target="_blank"
+                           rel="noreferrer"
+                           className="inline-flex items-center gap-1.5 hover:text-[var(--cm-text)]"
                         >
-                        <ExternalLink size={14} />
-                        Repository
+                            <ExternalLink size={14} />
+                            Repository
                         </a>
-                        )}
+                    )}
                 </div>
             </div>
 
@@ -215,16 +216,29 @@ export default function ProjectLayout({
     const [drawerOpen, setDrawerOpen] = useState(false);
     const activeUser = user || authUser;
 
+    // useAuth()'s `user.userId` comes from a single, unscoped localStorage
+    // cache (see useAuth.js's CACHE_KEY) that's only populated by an actual
+    // login()/register() call in THIS browser. Switch accounts, open a
+    // second tab, or land here after any flow that doesn't call login()
+    // directly, and it silently falls back to the `profileUnknown`
+    // placeholder — userId: null — with no error, no loading state, nothing
+    // to signal it happened. That made every membership check below quietly
+    // never fire for any account except whichever one most recently logged
+    // in fresh in this browser, and non-members/members/project owners
+    // alike all fell through to the same "treat as non-member" branch.
+    //
+    // useProfile() doesn't have this problem: getMyProfile() is a real
+    // GET /api/users/me call, authenticated purely by the httpOnly cookie
+    // server-side — nothing cached client-side to go stale or leak between
+    // accounts. ProfileResponse carries a real `userId` field (confirmed
+    // from the actual network response), so it's the reliable source here.
+    const { profile } = useProfile();
+
     const currentUserId =
+        profile?.userId ??
         activeUser?.userId ??
         activeUser?.id ??
         null;
-
-    console.log("ProjectLayout auth:", {
-        activeUser,
-        currentUserId,
-        projectId: params.projectId,
-    });
 
     useEffect(() => {
         if (!drawerOpen) return undefined;

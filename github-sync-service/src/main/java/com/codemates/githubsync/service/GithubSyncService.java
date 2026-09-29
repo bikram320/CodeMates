@@ -242,6 +242,31 @@ public class GithubSyncService {
                 .build();
     }
 
+    /**
+     * Internal lookup used by contribution-service's significance prediction
+     * (GET /api/github/repositories/{repositoryId}/context).
+     * NOTE: "subscribers" is not stored by the sync yet, so it is 0 for now.
+     */
+    public RepoContextResponseDto getRepoContext(UUID repositoryId) {
+        Repository repo = repositoryRepository.findById(repositoryId)
+                .orElseThrow(() -> new GithubProfileNotFoundException("No synced repository found: " + repositoryId));
+
+        List<String> topics = repo.getTopics() == null
+                ? new ArrayList<>()
+                : Arrays.stream(repo.getTopics().split(","))
+                .map(String::trim)
+                .filter(t -> !t.isEmpty())
+                .collect(Collectors.toList());
+
+        return RepoContextResponseDto.builder()
+                .stars(repo.getStarsCount())
+                .forks(repo.getForksCount())
+                .subscribers(0)
+                .topics(topics)
+                .language(repo.getPrimaryLanguage())
+                .build();
+    }
+
     private String isoDaysAgo(int days) {
         return LocalDateTime.now().minusDays(days).atOffset(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT);
     }

@@ -28,12 +28,15 @@ public class RepositoryLinkService {
             throw new DuplicateRepositoryLinkException("Repository " + repositoryId + " is already linked to project " + projectId);
         }
 
+        Instant now = Instant.now();
         ProjectRepositoryLink link = new ProjectRepositoryLink();
         link.setProjectId(projectId);
         link.setUserId(userId);
         link.setRepositoryId(repositoryId);
-        link.setLastKnownTotalCommits(0); // next sync will count everything from here forward
+        link.setLastKnownTotalCommits(0);
         link.setIsDeleted(false);
+        link.setCreatedAt(now);
+        link.setUpdatedAt(now);
 
         ProjectRepositoryLink saved = repoLinkRepository.save(link);
         log.info("Linked repository {} to project {} for user {}", repositoryId, projectId, userId);

@@ -16,6 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.UUID;
 
@@ -24,7 +27,12 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuthService {
 
-    private static final long RESET_TOKEN_TTL_MINUTES = 15;
+    private static final long RESET_CODE_TTL_MINUTES = 15;
+
+    // an 8-digit code has only 10^8 possibilities, so wrong guesses are capped per code
+    private static final int MAX_RESET_CODE_ATTEMPTS = 5;
+
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserRepository userRepository;
     private final RefreshTokenService refreshTokenService;
@@ -48,7 +56,7 @@ public class AuthService {
             throw new UserAlreadyExistsException("Email already registered: " + request.getEmail());
         }
 
-        // check username — this is the fix
+        // check username
         if (userRepository.existsByUsernameAndIsDeletedFalse(request.getUsername())) {
             throw new UserAlreadyExistsException("Username already taken: " + request.getUsername());
         }
@@ -176,10 +184,11 @@ public class AuthService {
     // so callers can never tell whether an email is registered.
     public void forgotPassword(ForgotPasswordRequest request) {
 
-        String email = request.getEmail();
+        String email = request.getEmail().trim();
+        String normalizedEmail = email.toLowerCase();
 
         // 1. rate limit per email: stops someone spamming a victim's inbox
-        String limitKey = "password_reset_limit:" + email.toLowerCase();
+        String limitKey = "password_reset_limit:" + normalizedEmail;
         Long attempts = redisTemplate.opsForValue().increment(limitKey);
         if (attempts != null && attempts == 1L) {
             redisTemplate.expire(limitKey, Duration.ofHours(1));
@@ -189,23 +198,24 @@ public class AuthService {
             return;
         }
 
-        // 2. only registered emails get a token + email; unknown emails silently do nothing
+        // 2. only registered emails get a code + email; unknown emails silently do nothing
         userRepository.findByEmailAndIsDeletedFalse(email)
                 .ifPresent(user -> {
-                    // 3. generate reset token
-                    String resetToken = UUID.randomUUID().toString();
+                    // 3. generate 8-digit code
+                    String code = generateResetCode();
 
-                    // 4. store in Redis with 15 minute TTL
-                    String redisKey = "password_reset:" + resetToken;
+                    // 4. store "userId:code" in Redis keyed by EMAIL (15 min TTL).
+                    //    A new request overwrites the previous code and resets the wrong-attempt counter.
                     redisTemplate.opsForValue().set(
-                            redisKey,
-                            user.getId().toString(),
-                            Duration.ofMinutes(RESET_TOKEN_TTL_MINUTES)
+                            resetCodeKey(normalizedEmail),
+                            user.getId() + ":" + code,
+                            Duration.ofMinutes(RESET_CODE_TTL_MINUTES)
                     );
+                    redisTemplate.delete(resetAttemptsKey(normalizedEmail));
 
-                    // 5. email the reset link (async). The token is NOT logged anymore.
+                    // 5. email the code + link (async). The code is NOT logged.
                     emailService.sendPasswordResetEmail(
-                            user.getEmail(), resetToken, RESET_TOKEN_TTL_MINUTES);
+                            user.getEmail(), code, RESET_CODE_TTL_MINUTES);
 
                     log.info("Password reset requested for userId: {}", user.getId());
                 });
@@ -252,12 +262,11 @@ public class AuthService {
                 .email(email)
                 .username(username)
                 .authProvider("GITHUB")
-                .githubId(githubUserId)     // uses the existing unused column — no schema change needed
+                .githubId(githubUserId)
                 .isActive(true)
                 .isDeleted(false)
                 .build();
-        // passwordHash intentionally left null — confirmed nullable in User.java, so a
-        // GitHub-only account just has no local password. No random-hash hack needed.
+        // passwordHash intentionally left null (nullable in User.java)
 
         User saved = userRepository.save(user);
         log.info("New user registered via GitHub: {}", saved.getEmail());
@@ -265,34 +274,80 @@ public class AuthService {
         return saved;
     }
 
-    // RESET PASSWORD
+    // RESET PASSWORD (email + 8-digit code + new password)
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
 
-        // 1. look up token in Redis
-        String redisKey = "password_reset:" + request.getToken();
-        String userIdStr = redisTemplate.opsForValue().get(redisKey);
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+        String codeKey = resetCodeKey(normalizedEmail);
+        String attemptsKey = resetAttemptsKey(normalizedEmail);
 
-        if (userIdStr == null) {
-            throw new InvalidTokenException("Password reset token is invalid or expired");
+        // 1. look up the stored "userId:code" for this email
+        String stored = redisTemplate.opsForValue().get(codeKey);
+        if (stored == null) {
+            throw new InvalidTokenException("Reset code is invalid or expired");
         }
 
-        // 2. load user
+        // 2. count this attempt; too many wrong guesses burns the code
+        Long attempts = redisTemplate.opsForValue().increment(attemptsKey);
+        if (attempts != null && attempts == 1L) {
+            redisTemplate.expire(attemptsKey, Duration.ofMinutes(RESET_CODE_TTL_MINUTES));
+        }
+        if (attempts != null && attempts > MAX_RESET_CODE_ATTEMPTS) {
+            redisTemplate.delete(codeKey);
+            redisTemplate.delete(attemptsKey);
+            log.warn("Password reset code burned after too many attempts for {}", normalizedEmail);
+            throw new InvalidTokenException("Too many incorrect attempts. Please request a new code.");
+        }
+
+        // 3. split stored value and compare the code in constant time
+        int sep = stored.indexOf(':');
+        if (sep < 0) {
+            redisTemplate.delete(codeKey);
+            throw new InvalidTokenException("Reset code is invalid or expired");
+        }
+        String userIdStr = stored.substring(0, sep);
+        String storedCode = stored.substring(sep + 1);
+
+        boolean matches = MessageDigest.isEqual(
+                storedCode.getBytes(StandardCharsets.UTF_8),
+                request.getCode().getBytes(StandardCharsets.UTF_8));
+        if (!matches) {
+            throw new InvalidTokenException("Reset code is invalid or expired");
+        }
+
+        // 4. load user
         UUID userId = UUID.fromString(userIdStr);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new InvalidTokenException("User not found"));
 
-        // 3. update password
+        // 5. update password
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
 
-        // 4. delete token from Redis so it can't be reused
-        redisTemplate.delete(redisKey);
+        // 6. delete code + attempts so it can't be reused
+        redisTemplate.delete(codeKey);
+        redisTemplate.delete(attemptsKey);
 
-        // 5. revoke all refresh tokens — force re-login everywhere
+        // 7. revoke all refresh tokens — force re-login everywhere
         refreshTokenService.revokeAllTokensForUser(userId);
 
         log.info("Password reset successful for userId: {}", userId);
+    }
+
+    // ─── helpers ───────────────────────────────────────────────
+
+    /** Cryptographically secure 8-digit code, zero-padded (e.g. "04829173"). */
+    private String generateResetCode() {
+        return String.format("%08d", SECURE_RANDOM.nextInt(100_000_000));
+    }
+
+    private String resetCodeKey(String normalizedEmail) {
+        return "password_reset:code:" + normalizedEmail;
+    }
+
+    private String resetAttemptsKey(String normalizedEmail) {
+        return "password_reset:attempts:" + normalizedEmail;
     }
 
     private void publishUserRegisteredEvent(User user, String username, String fullName) {

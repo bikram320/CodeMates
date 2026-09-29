@@ -10,7 +10,6 @@ import com.codemates.project.repository.ProjectHealthRepository;
 import com.codemates.project.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,15 +29,48 @@ public class ProjectHealthService {
     private final GithubSyncClient githubSyncClient;
 
     /**
-     * Runs once a day. Change the cron if you want it tied to your existing
-     * GitHub-sync Kafka event instead (e.g. a @KafkaListener on
-     * "github.sync.completed" calling syncAllProjectsHealth() directly
-     * rather than on a timer) -- either is fine, timer is simpler to start with.
+     * No scheduler: the server isn't up 24/7, so health is refreshed on demand
+     * by ProjectHealthController (when the cached row is missing/stale/old).
      */
-    @Scheduled(cron = "0 0 3 * * *") // 3 AM daily
-    public void scheduledHealthSync() {
-        log.info("Starting scheduled project health sync");
-        syncAllProjectsHealth();
+
+    /**
+     * On-demand refresh for ONE project. Called by ProjectHealthController
+     * when the cached row is missing or old, so the ML service actually gets
+     * hit without waiting for the 3 AM job.
+     */
+    @Transactional
+    public void syncProjectHealth(UUID projectId) {
+        Project project = projectRepository.findById(projectId).orElse(null);
+        if (project == null) {
+            log.warn("Health sync: project {} not found", projectId);
+            return;
+        }
+        if (project.getGithubRepoUrl() == null || project.getGithubRepoUrl().isBlank()) {
+            log.info("Health sync: project {} has no githubRepoUrl -- skipping", projectId);
+            return;
+        }
+
+        RepoFeaturesDto features = fetchRepoFeaturesOrNull(project);
+        if (features == null) {
+            log.warn("Health sync: no synced GitHub data for project {} ({}) -- skipping ML call",
+                    projectId, project.getGithubRepoUrl());
+            return;
+        }
+
+        log.info("Health sync: calling ml-service for project {}", projectId);
+        BatchPredictResponseDto response = mlHealthClient
+                .predictBatch(BatchPredictRequestDto.builder().repos(List.of(features)).build())
+                .block();
+
+        if (response == null || response.getResults() == null || response.getResults().isEmpty()) {
+            log.error("Health sync: ML service returned no results for project {}", projectId);
+            return;
+        }
+
+        for (PredictionResultDto result : response.getResults()) {
+            saveOrUpdate(UUID.fromString(result.getProjectId()), result);
+        }
+        log.info("Health sync: project {} updated", projectId);
     }
 
     @Transactional
@@ -65,7 +97,7 @@ public class ProjectHealthService {
 
         BatchPredictResponseDto response = mlHealthClient
                 .predictBatch(BatchPredictRequestDto.builder().repos(features).build())
-                .block(); // scheduled job = fine to block here, not on a request thread
+                .block();
 
         if (response == null || response.getResults() == null) {
             log.error("ML service returned no results for health sync");
@@ -91,13 +123,6 @@ public class ProjectHealthService {
         projectHealthRepository.save(health);
     }
 
-    /**
-     * Fetches real GitHub metrics for one project's linked repo via
-     * github-sync-service's internal lookup endpoint. Returns null if
-     * unavailable (no repo linked, repo never synced, or the lookup call
-     * fails) -- that project is simply skipped this run rather than
-     * crashing the whole batch.
-     */
     private RepoFeaturesDto fetchRepoFeaturesOrNull(Project project) {
         String repoFullName = extractRepoFullName(project.getGithubRepoUrl());
         if (repoFullName == null) {
@@ -124,10 +149,6 @@ public class ProjectHealthService {
                 .build();
     }
 
-    /**
-     * Handles githubRepoUrl stored as either a full URL
-     * ("https://github.com/owner/repo") or already "owner/repo".
-     */
     private String extractRepoFullName(String githubRepoUrl) {
         if (githubRepoUrl == null || githubRepoUrl.isBlank()) return null;
 
@@ -135,8 +156,8 @@ public class ProjectHealthService {
         if (cleaned.contains("github.com/")) {
             cleaned = cleaned.substring(cleaned.indexOf("github.com/") + "github.com/".length());
         }
-        cleaned = cleaned.replaceAll("/+$", "");       // trailing slash
-        cleaned = cleaned.replaceAll("\\.git$", "");   // trailing .git
+        cleaned = cleaned.replaceAll("/+$", "");
+        cleaned = cleaned.replaceAll("\\.git$", "");
 
         String[] parts = cleaned.split("/");
         if (parts.length < 2) return null;

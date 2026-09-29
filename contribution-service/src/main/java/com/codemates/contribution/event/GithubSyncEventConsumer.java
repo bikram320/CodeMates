@@ -17,7 +17,7 @@ public class GithubSyncEventConsumer {
     private final JsonMapper objectMapper;
 
     @KafkaListener(topics = "github.commit.synced", groupId = "contribution-service")
-    public void onCommitSynced(byte[] payload) {
+    public void onCommitSynced(String payload) {
         try {
             GithubCommitSyncedEvent event = objectMapper.readValue(payload, GithubCommitSyncedEvent.class);
             contributionScoreService.handleCommitsSynced(event);

@@ -10,30 +10,14 @@ import com.codemates.contribution.repository.ProjectRepositoryLinkRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Computes Model 3's significance_probability for each member of a project
- * and writes it onto ContributionScore as a SEPARATE field from totalScore.
- *
- * This is deliberately not merged into totalScore: totalScore is a real,
- * event-sourced ledger of points actually earned; significance_probability
- * is a predictive signal (from GitHub profile + repo context, NOT past
- * contribution volume) for surfacing promising contributors, including
- * ones who haven't accumulated much totalScore yet. Two different
- * questions -- kept as two different numbers.
- *
- * ASSUMPTION FLAGGED: ContributionScore.java and ContributionScoreRepository.java
- * were not available -- this assumes ContributionScore gains two new fields
- * (significanceProbability: Double, significancePredictedAt: Instant) and
- * ContributionScoreRepository gains findByProjectIdAndIsDeletedFalse(UUID).
- * Confirm these match the real files.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -43,8 +27,9 @@ public class ContributionMlSyncService {
     private final ContributionScoreRepository scoreRepository;
     private final GithubSyncServiceClient githubSyncServiceClient;
     private final MlServiceClient mlServiceClient;
+    private final TransactionTemplate tx;
 
-    @Transactional
+    // Deliberately NOT @Transactional: HTTP calls must not hold a DB connection.
     public void predictSignificanceForProject(UUID projectId) {
         List<ProjectRepositoryLink> links = repoLinkRepository.findByProjectIdAndIsDeletedFalse(projectId);
         if (links.isEmpty()) {
@@ -101,27 +86,39 @@ public class ContributionMlSyncService {
             return;
         }
 
-        for (MlContributionResultDto result : response.getResults()) {
-            UUID userId = UUID.fromString(result.getUserId());
-            ContributionScore score = scoreRepository.findByUserIdAndProjectIdAndIsDeletedFalse(userId, projectId)
-                    .orElseGet(() -> {
-                        ContributionScore s = new ContributionScore();
-                        s.setUserId(userId);
-                        s.setProjectId(projectId);
-                        s.setTasksCompleted(0);
-                        s.setTasksReviewed(0);
-                        s.setMessagesSent(0);
-                        s.setCommitsCount(0);
-                        s.setFilesShared(0);
-                        s.setTotalScore(java.math.BigDecimal.ZERO);
-                        s.setIsDeleted(false);
-                        return s;
-                    });
+        // Short write transaction, after all HTTP work is done.
+        tx.executeWithoutResult(status -> {
+            for (MlContributionResultDto result : response.getResults()) {
+                UUID userId = UUID.fromString(result.getUserId());
+                ContributionScore score = scoreRepository
+                        .findByUserIdAndProjectIdAndIsDeletedFalse(userId, projectId)
+                        .orElseGet(() -> newScore(userId, projectId));
 
-            score.setSignificanceProbability(result.getSignificanceProbability());
-            score.setSignificancePredictedAt(Instant.now());
-            scoreRepository.save(score);
-        }
-        log.info("Significance prediction complete for project {}: {} members scored", projectId, response.getResults().size());
+                score.setSignificanceProbability(result.getSignificanceProbability());
+                score.setSignificancePredictedAt(Instant.now());
+                score.setUpdatedAt(Instant.now());
+                scoreRepository.save(score);
+            }
+        });
+        log.info("Significance prediction complete for project {}: {} members scored",
+                projectId, response.getResults().size());
+    }
+
+    private ContributionScore newScore(UUID userId, UUID projectId) {
+        Instant now = Instant.now();
+        ContributionScore s = new ContributionScore();
+        s.setUserId(userId);
+        s.setProjectId(projectId);
+        s.setTasksCompleted(0);
+        s.setTasksReviewed(0);
+        s.setMessagesSent(0);
+        s.setCommitsCount(0);
+        s.setFilesShared(0);
+        s.setTotalScore(BigDecimal.ZERO);
+        s.setIsDeleted(false);
+        s.setCreatedAt(now);
+        s.setUpdatedAt(now);
+        s.setLastCalculatedAt(now);
+        return s;
     }
 }

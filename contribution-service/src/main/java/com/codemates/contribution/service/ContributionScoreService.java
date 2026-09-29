@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -44,6 +45,7 @@ public class ContributionScoreService {
     private final ScoringProperties scoringProperties;
     private final ProjectServiceClient projectServiceClient;
     private final GithubSyncServiceClient githubSyncServiceClient;
+    private final TransactionTemplate tx;
 
     // ── task.completed consumer entry point ──────────────────
     @Transactional
@@ -65,40 +67,45 @@ public class ContributionScoreService {
                 event.getTaskId(), "TASK", "Task completed (" + task.getPriority() + " priority)");
     }
 
-    // ── github.commit.synced consumer entry point ────────────
-    @Transactional
     public void handleCommitsSynced(GithubCommitSyncedEvent event) {
-        List<ProjectRepositoryLink> links = repoLinkRepository.findByUserIdAndIsDeletedFalse(event.getUserId());
-
-        for (ProjectRepositoryLink link : links) {
-            GithubCommitStatDto stats;
-            try {
-                stats = githubSyncServiceClient.getCommitStats(link.getRepositoryId());
-            } catch (Exception e) {
-                log.error("Skipping repo {} for user {} — commit stats fetch failed", link.getRepositoryId(), event.getUserId(), e);
-                continue;
-            }
-
-            int currentTotal = stats.getTotalCommits() != null ? stats.getTotalCommits() : 0;
-            int newCommits = currentTotal - link.getLastKnownTotalCommits();
-            if (newCommits <= 0) {
-                continue; // nothing new, or a stale/out-of-order sync — don't award or regress
-            }
-
-            BigDecimal points = scoringProperties.getCommit().multiply(BigDecimal.valueOf(newCommits));
-
-            ContributionScore score = getOrCreateScore(event.getUserId(), link.getProjectId());
-            score.setCommitsCount(score.getCommitsCount() + newCommits);
-            applyPoints(score, points);
-            scoreRepository.save(score);
-
-            link.setLastKnownTotalCommits(currentTotal);
-            link.setUpdatedAt(Instant.now());
-            repoLinkRepository.save(link);
-
-            logEvent(event.getUserId(), link.getProjectId(), EVENT_COMMIT, points,
-                    link.getRepositoryId(), "REPOSITORY", newCommits + " new commit(s) synced");
+        for (ProjectRepositoryLink link : repoLinkRepository.findByUserIdAndIsDeletedFalse(event.getUserId())) {
+            syncCommitsForLink(link.getId());
         }
+    }
+
+    /** Also called right after a repo is linked, so existing commits are credited immediately. */
+    public void syncCommitsForLink(UUID linkId) {
+        ProjectRepositoryLink link = repoLinkRepository.findById(linkId).orElse(null);
+        if (link == null || Boolean.TRUE.equals(link.getIsDeleted())) return;
+
+        GithubCommitStatDto stats;
+        try {
+            stats = githubSyncServiceClient.getCommitStats(link.getRepositoryId());   // HTTP, no transaction
+        } catch (Exception e) {
+            log.error("Commit stats fetch failed for repo {}", link.getRepositoryId(), e);
+            return;
+        }
+        int currentTotal = stats.getTotalCommits() != null ? stats.getTotalCommits() : 0;
+        tx.executeWithoutResult(s -> applyCommitDelta(linkId, currentTotal));
+    }
+
+    private void applyCommitDelta(UUID linkId, int currentTotal) {
+        ProjectRepositoryLink link = repoLinkRepository.findById(linkId).orElseThrow();
+        int newCommits = currentTotal - link.getLastKnownTotalCommits();
+        if (newCommits <= 0) return;
+
+        BigDecimal points = scoringProperties.getCommit().multiply(BigDecimal.valueOf(newCommits));
+        ContributionScore score = getOrCreateScore(link.getUserId(), link.getProjectId());
+        score.setCommitsCount(score.getCommitsCount() + newCommits);
+        applyPoints(score, points);
+        scoreRepository.save(score);
+
+        link.setLastKnownTotalCommits(currentTotal);
+        link.setUpdatedAt(Instant.now());
+        repoLinkRepository.save(link);
+
+        logEvent(link.getUserId(), link.getProjectId(), EVENT_COMMIT, points,
+                link.getRepositoryId(), "REPOSITORY", newCommits + " new commit(s) synced");
     }
 
     // ── message.sent consumer entry point ─────────────────────
@@ -165,6 +172,8 @@ public class ContributionScoreService {
                     score.setFilesShared(0);
                     score.setTotalScore(BigDecimal.ZERO);
                     score.setIsDeleted(false);
+                    score.setCreatedAt(Instant.now());
+                    score.setUpdatedAt(Instant.now());
                     return score;
                 });
     }
@@ -176,8 +185,9 @@ public class ContributionScoreService {
     }
 
     private void logEvent(UUID userId, UUID projectId, String eventType, BigDecimal points,
-                           UUID referenceId, String referenceType, String description) {
+                          UUID referenceId, String referenceType, String description) {
         ContributionEvent event = new ContributionEvent();
+        event.setId(UUID.randomUUID()); // entity has no @GeneratedValue on its id
         event.setUserId(userId);
         event.setProjectId(projectId);
         event.setEventType(eventType);

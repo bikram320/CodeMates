@@ -20,7 +20,7 @@
  *                                     HTML email) — runs @Async so a slow/failed SMTP send never
  *                                     delays or changes the response, which is also why the
  *                                     response can't confirm delivery either way.
- *   POST /api/auth/reset-password    ResetPasswordRequest{token,newPassword} → ApiResponse<Void>,
+ *   POST /api/auth/reset-password    ResetPasswordRequest{email,code,newPassword} → ApiResponse<Void>,
  *                                     clears cookies (forces a fresh login).
  *
  * Not called here, on purpose:
@@ -179,8 +179,8 @@ export function refreshSession() {
 /**
  * Always resolves — the backend never reveals whether the email is registered.
  * A real email is sent (see the header comment above) with a link to
- * frontend.reset-password-url?token=... — should match ResetPassword.jsx's
- * /reset-password?token=... route.
+ * frontend.reset-password-url?email=...&code=... — should match ResetPassword.jsx's
+ * /reset-password route. The email also contains the 8-digit code to type in by hand.
  * @param {string} email
  * @returns {Promise<{success: boolean, message: string, data: null}>} raw envelope,
  *   so the page can show the backend's own confirmation wording.
@@ -190,10 +190,11 @@ export function forgotPassword(email) {
 }
 
 /**
- * @param {string} token
- * @param {string} newPassword
+ * @param {{ email: string, code: string, newPassword: string }} payload
+ *   code is the 8-digit code from the reset email (ResetPassword.jsx passes it
+ *   in from the form or from ?email=...&code=... in the emailed link).
  * @returns {Promise<{success: boolean, message: string, data: null}>} raw envelope
  */
-export function resetPassword(token, newPassword) {
-  return request('/api/auth/reset-password', { body: { token, newPassword }, raw: true });
+export function resetPassword({ email, code, newPassword }) {
+  return request('/api/auth/reset-password', { body: { email, code, newPassword }, raw: true });
 }

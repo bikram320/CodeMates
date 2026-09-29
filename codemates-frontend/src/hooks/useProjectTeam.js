@@ -8,7 +8,7 @@ import {
   acceptJoinRequest as acceptJoinRequestApi,
   rejectJoinRequest as rejectJoinRequestApi,
 } from '../api/projectApi';
-import useAuth from './useAuth';
+import useProfile from './useProfile';
 
 export const teamKeys = {
   team: (projectId) => ['project-team', projectId],
@@ -26,9 +26,17 @@ export const teamKeys = {
  */
 export default function useProjectTeam(projectId) {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
 
-  const currentUserId = user?.id ?? user?.userId ?? null;
+  // Was sourced from useAuth()'s user.id/userId — a single, unscoped
+  // localStorage cache only populated by a real login() call in this
+  // browser (see useAuth.js's CACHE_KEY, and the identical fix in
+  // Projectlayout.jsx). That made isLeader below silently resolve to
+  // false for any account that didn't freshly log in in this exact
+  // browser, hiding the Join Requests tab from real leaders. useProfile()
+  // calls the real GET /api/users/me on every load — reliable regardless
+  // of login history or account-switching in the same browser.
+  const { profile } = useProfile();
+  const currentUserId = profile?.userId ?? null;
 
   const membersQuery = useQuery({
     queryKey: teamKeys.team(projectId),

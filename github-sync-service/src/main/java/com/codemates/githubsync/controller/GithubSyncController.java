@@ -50,6 +50,12 @@ public class GithubSyncController {
         return ApiResponse.success("Commit stats fetched", githubSyncService.getCommitStats(repositoryId));
     }
 
+    // Internal endpoint -- called by contribution-service's significance prediction, not the frontend
+    @GetMapping("/repositories/{repositoryId}/context")
+    public ApiResponse<RepoContextResponseDto> getRepoContext(@PathVariable UUID repositoryId) {
+        return ApiResponse.success("Repo context fetched", githubSyncService.getRepoContext(repositoryId));
+    }
+
     // Internal endpoint -- called by project-service's health-sync job, not the frontend
     @GetMapping("/repositories/lookup")
     public ApiResponse<RepoHealthStatsDto> lookupRepoStats(@RequestParam String repoFullName) {
