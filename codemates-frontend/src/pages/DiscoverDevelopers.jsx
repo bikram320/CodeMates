@@ -1,8 +1,13 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, Search, Users } from "lucide-react";
+<<<<<<< Updated upstream
+import { AlertTriangle, Users } from "lucide-react";
+=======
+import { AlertTriangle, Search, Users, UserGroup } from "lucide-react";
+>>>>>>> Stashed changes
 
-import PageHeader from "../components/layout/PageHeader";
+import PageHeader from "../components/layout/PageHeader"; 
+import SuggestedDevelopers from "../components/dashboard/SuggestedDevelopers";  
 import SearchBar from "../components/ui/SearchBar";
 import Button from "../components/ui/Button";
 import Spinner from "../components/ui/Spinner";
@@ -12,8 +17,7 @@ import DeveloperGrid from "../components/developer/DeveloperGrid";
 import DeveloperCard from "../components/developer/DeveloperCard";
 
 import { useDevelopers } from "../hooks/useDevelopers";
-import { useSuggestedDevelopers } from "../hooks/useSuggestedDevelopers";
-import useAuth from "../hooks/useAuth";
+<<<<<<< Updated upstream
 
 /**
  * Main Discover Developers page.
@@ -26,24 +30,9 @@ import useAuth from "../hooks/useAuth";
  * interests and openToCollaborate. So `search` below is NOT sent to
  * useDevelopers()/the network at all; it filters client-side over whatever
  * page of (already filter-matched, up-to-50) results is currently loaded.
- *
- * ── Why the fetch is gated behind `hasSearched()` ────────────────────────────
- * DiscoveryService has no notion of "no filters = no results" — an unfiltered
- * request to /api/discovery/search just returns up to 50 developers. Calling
- * useDevelopers() unconditionally on mount therefore listed everyone before
- * the user had done anything. That's wrong: developers should only appear
- * once the user has actually expressed intent to look for someone, via a
- * filter or a submitted search.
- *
- * So the query is only enabled once:
- *   - the user has picked at least one filter (skills/experience/availability), or
- *   - the user has pressed Enter in the search box with non-empty text
- *     ("submittedSearch" below — typing alone does NOT fetch, since the
- *     backend can't use free text anyway and firing a request per keystroke
- *     would be pointless network chatter).
- * Before either of those, the page shows a "start searching" prompt instead
- * of an empty/loading grid. Clearing all filters returns to that same
- * pre-search state rather than re-listing everyone.
+ * That also means typing in the search box no longer triggers the "updating"
+ * spinner — only a real filter change (skills/experience/availability) does,
+ * since only those actually cause a new request.
  *
  * `selectedAvailability` is one of DeveloperFilters' three option strings
  * ("Available" / "Open to offers" / "Not available"), but the backend's
@@ -64,37 +53,26 @@ import useAuth from "../hooks/useAuth";
  * `availability` label rather than an `isOpenToCollaborate` boolean) — so
  * toCardProps() below adapts one to the other; see its comments for the
  * "Open to offers" gap (the backend has no third state to map back to it).
- *
- * ── Excluding the signed-in user's own profile ───────────────────────────────
- * Neither /api/discovery/search nor the suggested-developers endpoint filters
- * out the caller's own profile server-side, so both the search results and
- * the pre-search "Suggested for you" grid could otherwise show your own card.
- * excludeSelf() below drops any ProfileSearchResult whose userId matches the
- * signed-in user's id, sourced from useAuth() (the cached UserInfoResponse —
- * see useAuth.js — carries a real userId once a session exists). If the
- * session is still resolving to the `profileUnknown` placeholder (e.g. right
- * after an OAuth redirect, before any UserInfoResponse is cached), there's no
- * id to compare against yet, so nothing is excluded until it resolves.
  */
+=======
+import { useSuggestedDevelopers } from "../hooks/useSuggestedDevelopers";
+import useAuth from "../hooks/useAuth";
+import { TbUsersGroup } from "react-icons/tb";
 
-/** Not sent to the backend — see the file header. Matches on whatever's already loaded. */
+>>>>>>> Stashed changes
+
 function matchesSearchText(developer, search) {
   const term = search.trim().toLowerCase();
   if (!term) return true;
   return (
-      developer.fullName?.toLowerCase().includes(term) ||
-      developer.username?.toLowerCase().includes(term) ||
-      developer.bio?.toLowerCase().includes(term) ||
-      developer.skills?.some((s) => s.skillName?.toLowerCase().includes(term))
+    developer.fullName?.toLowerCase().includes(term) ||
+    developer.username?.toLowerCase().includes(term) ||
+    developer.bio?.toLowerCase().includes(term) ||
+    developer.skills?.some((s) => s.skillName?.toLowerCase().includes(term))
   );
 }
 
-/**
- * DeveloperFilters' "Availability" is 3-way ("Available" / "Open to offers" /
- * "Not available"); the backend's `openToCollaborate` is a plain boolean.
- * "Open to offers" is collapsed into `true` — closer to "open" than not, and
- * there's no backend concept to map it to more precisely than that.
- */
+
 function toOpenToCollaborate(availability) {
   if (!availability) return null;
   const v = availability.toLowerCase();
@@ -103,16 +81,26 @@ function toOpenToCollaborate(availability) {
   return null; // an unrecognized custom option, if availabilityOptions is ever overridden
 }
 
-/**
- * The reverse direction: DeveloperCard shows a single "availability" label,
- * but the backend only has the boolean isOpenToCollaborate — there's no
- * server-side "Open to offers" state to reconstruct, so that middle option
- * only ever appears as a filter choice, never as a label on a card.
- */
+
 function toAvailabilityLabel(isOpenToCollaborate) {
   if (isOpenToCollaborate === true) return "Available";
   if (isOpenToCollaborate === false) return "Not available";
   return undefined; // unknown — DeveloperCard already skips a falsy availability
+}
+
+function toSuggestedShape(d) {
+  const name = d.fullName || d.username;
+  return {
+    id: d.userId,
+    userId: d.userId,
+    name,
+    username: d.username,
+    initials: name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase(),
+    avatarUrl: d.avatarUrl,
+    experienceLevel: d.experienceLevel,
+    bio: d.bio,
+    skills: (d.skills ?? []).map((s) => ({ id: s.skillName, name: s.skillName })),
+  };
 }
 
 /** Maps a real ProfileSearchResult onto the props DeveloperCard.jsx actually reads. */
@@ -130,30 +118,11 @@ function toCardProps(developer) {
 
 export default function DiscoverDevelopers() {
   const navigate = useNavigate();
-  const { user: currentUser } = useAuth();
 
   const [search, setSearch] = useState("");
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [selectedExperience, setSelectedExperience] = useState(null);
   const [selectedAvailability, setSelectedAvailability] = useState(null);
-
-  // True once the user has submitted a non-empty search (pressed Enter in
-  // the search box). Distinct from `search` itself, which updates on every
-  // keystroke and is only used for client-side filtering — see file header.
-  const [submittedSearch, setSubmittedSearch] = useState(false);
-
-  const hasActiveFilters =
-      selectedSkills.length > 0 || Boolean(selectedExperience) || Boolean(selectedAvailability);
-
-  // Gate for whether we're allowed to hit the backend / show results at all.
-  // `submittedSearch` alone is NOT enough: it's sticky (only reset by "Clear
-  // all filters"), so if it were used by itself, backspacing the search box
-  // back to empty would still count as "searched" and matchesSearchText's
-  // "empty term matches everything" rule would then show the full up-to-50
-  // unfiltered list again — the exact bug this line fixes. Requiring the
-  // CURRENT text to still be non-empty means clearing the box (with no
-  // filters active) correctly drops back to the pre-search state.
-  const hasSearched = hasActiveFilters || (submittedSearch && search.trim() !== "");
 
   const {
     developers,
@@ -163,122 +132,191 @@ export default function DiscoverDevelopers() {
     error,
     refetch,
   } = useDevelopers({
+<<<<<<< Updated upstream
     skills: selectedSkills,
     experienceLevel: selectedExperience,
     openToCollaborate: toOpenToCollaborate(selectedAvailability),
-    enabled: hasSearched,
   });
 
+  const visibleDevelopers = useMemo(
+    () => developers.filter((d) => matchesSearchText(d, search)),
+    [developers, search]
+  );
+=======
+  skills: selectedSkills,
+  experienceLevel: selectedExperience ? selectedExperience.toUpperCase() : null,
+  openToCollaborate: toOpenToCollaborate(selectedAvailability),
+  enabled: hasSearched,
+});
   // Drop the signed-in user's own profile out of any developer list. See the
   // file header — neither backend endpoint does this for us.
   const excludeSelf = (list) =>
       currentUser?.userId ? list.filter((d) => d.userId !== currentUser.userId) : list;
 
   const visibleDevelopers = useMemo(
-      () => excludeSelf(developers).filter((d) => matchesSearchText(d, search)),
-      [developers, search, currentUser?.userId]
-  );
-
-  // Only relevant/fetched in the pre-search state — see useSuggestedDevelopers.js
-  // for how these are resolved (ML top matches, joined against profile data).
-  const {
-    suggestions: rawSuggestions,
-    isLoading: isLoadingSuggestions,
-  } = useSuggestedDevelopers(6);
-
-  const suggestions = useMemo(
-      () => excludeSelf(rawSuggestions),
-      [rawSuggestions, currentUser?.userId]
-  );
-
-  function handleSearchSubmit(value) {
-    if (value.trim()) {
-      setSubmittedSearch(true);
-    }
-  }
+  () =>
+    excludeSelf(developers)
+      .filter((d) => matchesSearchText(d, search))
+      .filter(
+        (d) =>
+          !selectedExperience ||
+          d.experienceLevel?.toLowerCase() === selectedExperience.toLowerCase()
+      ),
+  [developers, search, selectedExperience, currentUser?.userId]
+);
+>>>>>>> Stashed changes
 
   function clearAllFilters() {
     setSearch("");
     setSelectedSkills([]);
     setSelectedExperience(null);
     setSelectedAvailability(null);
-    setSubmittedSearch(false);
   }
 
   return (
+<<<<<<< Updated upstream
+    <div className="discover-developers-page">
+      <div className="head-container">
+        <PageHeader
+          title="Discover Developers"
+          description="Find developers to collaborate with."
+        />
+      </div>
+
+      <div className="body-container mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+        <div className="filters-container">
+          <DeveloperFilters
+            selectedSkills={selectedSkills}
+            selectedExperience={selectedExperience}
+            selectedAvailability={selectedAvailability}
+            onSkillsChange={setSelectedSkills}
+            onExperienceChange={setSelectedExperience}
+            onAvailabilityChange={setSelectedAvailability}
+            onClearAll={clearAllFilters}
+          />
+=======
       <div className="discover-developers-page">
         <div className="head-container">
-          <PageHeader
-              title="Discover Developers"
-              description="Find developers to collaborate with."
-          />
+          <div className="border-b border-[var(--cm-border)] pb-5">
+            <div className="flex items-center gap-3">
+              <UserGroup size={28} className="shrink-0 text-indigo-500" aria-hidden="true" />
+              <h1 className="text-2xl font-semibold tracking-tight text-[var(--cm-text)]">
+                Discover Developers
+              </h1>
+            </div>
+            <p className="mt-1.5 text-sm text-[var(--cm-text-dim)]">
+              Find developers to collaborate with.
+            </p>
+          </div>
+>>>>>>> Stashed changes
         </div>
 
-        <div className="body-container mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
-          <div className="filters-container">
-            <DeveloperFilters
-                selectedSkills={selectedSkills}
-                selectedExperience={selectedExperience}
-                selectedAvailability={selectedAvailability}
-                onSkillsChange={setSelectedSkills}
-                onExperienceChange={setSelectedExperience}
-                onAvailabilityChange={setSelectedAvailability}
-                onClearAll={clearAllFilters}
-            />
-          </div>
+        <div className="results-container flex flex-col gap-5">
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder="Search by name, username, skill, or bio..."
+          />
 
+<<<<<<< Updated upstream
+          {/* Result count + a quiet "updating" indicator while a filter
+=======
           <div className="results-container flex flex-col gap-5">
-            <SearchBar
-                value={search}
-                onChange={setSearch}
-                onSubmit={handleSearchSubmit}
-                placeholder="Search by name, username, skill, or bio..."
-            />
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <SearchBar
+                  value={search}
+                  onChange={setSearch}
+                  onSubmit={handleSearchSubmit}
+                  placeholder="Search by name, username, skill, or bio..."
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => handleSearchSubmit(search)}
+                className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-lg bg-[#6366F1] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#4F46E5] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+              >
+                <Search size={15} aria-hidden="true" />
+                Search
+              </button>
+            </div>
 
             {/* Result count + a quiet "updating" indicator while a filter
+>>>>>>> Stashed changes
               change is in flight (isFetching) but old data is still showing.
-              Only shown once a search has actually happened. */}
-            {hasSearched && !isLoading && !isError && (
-                <div className="flex items-center gap-2 text-sm text-[var(--cm-muted)]">
+              Typing in the search box doesn't trigger this — see file header. */}
+          {!isLoading && !isError && (
+            <div className="flex items-center gap-2 text-sm text-[var(--cm-muted)]">
               <span>
                 {visibleDevelopers.length} developer{visibleDevelopers.length !== 1 ? "s" : ""} found
               </span>
-                  {isFetching && <Spinner size="sm" />}
-                </div>
-            )}
+              {isFetching && <Spinner size="sm" />}
+            </div>
+          )}
 
+<<<<<<< Updated upstream
+          {isLoading ? (
+            <div className="flex justify-center py-20">
+              <Spinner size="lg" />
+            </div>
+          ) : isError ? (
+            <EmptyState
+              icon={AlertTriangle}
+              title="Something went wrong"
+              description={
+                error?.message || "Couldn't load developers. Please try again."
+              }
+              action={
+                <Button variant="outline" onClick={refetch}>
+                  Try again
+                </Button>
+              }
+            />
+          ) : visibleDevelopers.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="No developers found"
+              description="Try adjusting your filters or search terms."
+              action={
+                <Button variant="outline" onClick={clearAllFilters}>
+                  Clear filters
+                </Button>
+              }
+            />
+          ) : (
+            <DeveloperGrid
+              developers={visibleDevelopers}
+              renderCard={(developer) => (
+                <DeveloperCard
+                  key={developer.userId}
+                  {...toCardProps(developer)}
+                  to={`/discover/developers/${developer.username}`}
+                  onViewProfile={() =>
+                    navigate(`/discover/developers/${developer.username}`)
+                  }
+=======
             {!hasSearched ? (
-                suggestions.length > 0 ? (
-                    <div className="flex flex-col gap-4">
-                      <h2 className="text-sm font-medium text-[var(--cm-muted)]">
-                        Suggested for you
-                      </h2>
-                      <DeveloperGrid
-                          developers={suggestions}
-                          renderCard={(developer) => (
-                              <DeveloperCard
-                                  key={developer.userId}
-                                  {...toCardProps(developer)}
-                                  to={`/discover/developers/${developer.username}`}
-                                  onViewProfile={() =>
-                                      navigate(`/discover/developers/${developer.username}`)
-                                  }
-                              />
-                          )}
-                      />
-                    </div>
-                ) : isLoadingSuggestions ? (
-                    <div className="flex justify-center py-20">
+                <div className="flex flex-col gap-6">
+                  <EmptyState
+                    icon={Search}
+                    title="Search for developers"
+                    description="Type a name, username, skill, or bio and press Enter, or pick a filter on the left to get started."
+                  />
+                  {isLoadingSuggestions ? (
+                    <div className="flex justify-center py-10">
                       <Spinner size="lg" />
                     </div>
-                ) : (
-                    <EmptyState
-                        icon={Search}
-                        title="Search for developers"
-                        description="Type a name, username, skill, or bio and press Enter, or pick a filter on the left to get started."
+                  ) : suggestions.length > 0 ? (
+                    <SuggestedDevelopers
+                      developers={suggestions.map(toSuggestedShape)}
+                      title="Suggested for you"
+                      showViewAll={false}
+                      className="flex flex-col gap-4"
+                      gridClassName="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
                     />
-                )
-            ) : isLoading ? (
+                  ) : null}
+                </div>
+              ) : isLoading ? (
                 <div className="flex justify-center py-20">
                   <Spinner size="lg" />
                 </div>
@@ -294,35 +332,13 @@ export default function DiscoverDevelopers() {
                         Try again
                       </Button>
                     }
+>>>>>>> Stashed changes
                 />
-            ) : visibleDevelopers.length === 0 ? (
-                <EmptyState
-                    icon={Users}
-                    title="No developers found"
-                    description="Try adjusting your filters or search terms."
-                    action={
-                      <Button variant="outline" onClick={clearAllFilters}>
-                        Clear filters
-                      </Button>
-                    }
-                />
-            ) : (
-                <DeveloperGrid
-                    developers={visibleDevelopers}
-                    renderCard={(developer) => (
-                        <DeveloperCard
-                            key={developer.userId}
-                            {...toCardProps(developer)}
-                            to={`/discover/developers/${developer.username}`}
-                            onViewProfile={() =>
-                                navigate(`/discover/developers/${developer.username}`)
-                            }
-                        />
-                    )}
-                />
-            )}
-          </div>
+              )}
+            />
+          )}
         </div>
       </div>
+    </div>
   );
 }

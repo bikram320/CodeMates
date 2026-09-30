@@ -99,7 +99,7 @@ export default function AddResourceModal({ open, saving = false, onClose, onSave
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. API Reference Doc"
+            placeholder="Enter resource name"
             required
             disabled={saving}
             className={inputClass}

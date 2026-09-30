@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   MessageSquare,
   Users,
+  UserGroup
 } from "lucide-react";
 
 
@@ -18,7 +19,7 @@ const DEFAULT_ITEMS = [
     label: "Discover",
     icon: Compass,
     children: [
-      { label: "Developers", to: "/discover/developers", icon: Users },
+      { label: "Developers", to: "/discover/developers", icon: UserGroup },
       { label: "Projects", to: "/discover/projects", icon: FolderGit2 },
     ],
   },

@@ -18,7 +18,7 @@ export default function ProjectOverview({ description, className = "" }) {
   return (
     <Card className={`flex flex-col gap-6 ${className}`}>
       <div>
-        <h2 className={SECTION_TITLE}>About this project</h2>
+        <h1 className={SECTION_TITLE} style={{ fontSize: '1.85rem' }}>About this project</h1>
         <p className="text-sm leading-relaxed text-[var(--cm-text-dim)]">
           {description || "No description provided."}
         </p>

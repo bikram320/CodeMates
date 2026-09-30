@@ -6,14 +6,20 @@
  * - totalConnections  number
  * - pendingCount      number
  */
+import { Users } from 'lucide-react';
+
 export default function ConnectionsHeader({ totalConnections = 0, pendingCount = 0 }) {
   return (
     <div className="flex flex-col gap-2 border-b border-[var(--cm-border)] pb-5 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-[var(--cm-text)]">
-          Connections
-        </h1>
-        <p className="mt-1.5 text-sm text-[var(--cm-text-dim)]">
+      {/* Left: icon + title, subtitle underneath */}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-3">
+          <Users size={28} className="shrink-0 text-indigo-500" />
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--cm-text)]">
+            Connections
+          </h1>
+        </div>
+        <p className="text-sm text-[var(--cm-text-dim)]">
           Developers you're connected with, plus pending requests.
         </p>
       </div>

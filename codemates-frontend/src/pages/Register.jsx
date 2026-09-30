@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 /**
  * src/pages/Register.jsx
  *
@@ -144,8 +145,13 @@ const INITIAL = {
 };
 
 /* ── Page ────────────────────────────────────────────────────────────────── */
+=======
+import AuthSlider from "./AuthSlider.jsx";
+>>>>>>> Stashed changes
 
+// Keeps the existing /register route working: it now renders the sliding auth page.
 export default function Register() {
+<<<<<<< Updated upstream
   const navigate = useNavigate();
   const { register } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -504,4 +510,7 @@ export default function Register() {
         </a>
       </SplitAuthLayout>
   );
+=======
+  return <AuthSlider />;
+>>>>>>> Stashed changes
 }

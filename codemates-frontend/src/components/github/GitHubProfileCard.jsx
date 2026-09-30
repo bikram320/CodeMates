@@ -72,7 +72,7 @@ export default function GithubProfileCard({ profile, onSync, isSyncing }) {
           disabled={isSyncing}
           aria-busy={isSyncing}
           className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-[#2E2A66] px-4 py-2
-                     text-sm font-medium text-[#F5F5F5] transition-colors hover:border-[#6C7BFF] hover:bg-[#1D1A40]
+                     text-sm font-medium bg-[#6C7BFF] text-[white] transition-colors hover:border-[#6C7BFF] hover:bg-[#1D1A40]
                      disabled:cursor-not-allowed disabled:opacity-60
                      focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
         >

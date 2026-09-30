@@ -12,8 +12,8 @@ const TYPE_OPTIONS = [
 function chipClass(active) {
   return `rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
     active
-      ? "border-[var(--cm-indigo)] bg-[var(--cm-indigo-soft)] text-[var(--cm-lavender)]"
-      : "border-[var(--cm-border)] text-[var(--cm-text-dim)] hover:border-[var(--cm-border-strong)] hover:text-[var(--cm-text)]"
+     ? 'border-[#6C7BFF] bg-[#6C7BFF]/10 text-[white]'
+      : 'border-[#26224A] text-[#8B88AE] hover:border-[#2E2A66] hover:text-[#F5F5F5]'
   }`;
 }
 

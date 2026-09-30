@@ -1,3 +1,21 @@
+<<<<<<< Updated upstream
+export default function Avatar({ name = "", size = 36, className = "" }) {
+  const initials = name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join("");
+
+  return (
+    <span
+      aria-hidden="true"
+      style={{ width: size, height: size }}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full bg-[var(--cm-indigo-soft)] text-xs font-medium text-[var(--cm-lavender)] ${className}`}
+    >
+      {initials || "?"}
+    </span>
+=======
 /**
  * src/components/ui/Avatar.jsx
  *
@@ -54,15 +72,25 @@ function paletteIndexFor(seed) {
   return Math.abs(hash) % AVATAR_PALETTE.length;
 }
 
-export default function Avatar({ name, username, avatarUrl, className = "" }) {
-  const seed = username || name || "?";
-  const initial = seed.trim().charAt(0).toUpperCase() || "?";
+function getInitials(value) {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "?";
+}
 
-  if (avatarUrl) {
+export default function Avatar({ name, username, avatarUrl, src, size, className = "" }) {
+  const resolvedAvatarUrl = avatarUrl || src;
+  const seed = username || name || "?";
+  const initial = getInitials(name || username || "?");
+  const dimension = typeof size === "number"
+    ? { width: `${size}px`, height: `${size}px`, minWidth: `${size}px`, minHeight: `${size}px` }
+    : undefined;
+
+  if (resolvedAvatarUrl) {
     return (
         <img
-            src={avatarUrl}
+            src={resolvedAvatarUrl}
             alt={name || username}
+            style={dimension}
             className={`shrink-0 rounded-full object-cover ${className}`}
         />
     );
@@ -74,9 +102,11 @@ export default function Avatar({ name, username, avatarUrl, className = "" }) {
       <div
           role="img"
           aria-label={name || username || "developer avatar"}
+          style={dimension}
           className={`flex shrink-0 items-center justify-center rounded-full font-semibold ${bg} ${text} ${className}`}
       >
         {initial}
       </div>
+>>>>>>> Stashed changes
   );
 }

@@ -145,7 +145,7 @@ export default function SkillsSection({ skills, onAdd, onRemove, isAdding }) {
               type="text"
               value={form.skillName}
               onChange={(e) => set('skillName')(e.target.value)}
-              placeholder="e.g. React"
+              placeholder="Enter skill"
               autoComplete="off"
               aria-invalid={Boolean(error)}
               className={inputClass(Boolean(error))}

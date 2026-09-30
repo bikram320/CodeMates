@@ -215,3 +215,120 @@ textarea::placeholder {
   opacity: 1;
 }
 
+/* Product surfaces follow the landing page: quiet blue-white space, indigo
+   navigation, hairline borders, and small technical labels. */
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) {
+  background: var(--cm-surface) !important;
+  color: var(--cm-text) !important;
+}
+
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) .main-container {
+  background-color: var(--cm-surface) !important;
+  background-image: linear-gradient(rgba(220, 232, 242, .35) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(220, 232, 242, .35) 1px, transparent 1px);
+  background-size: 72px 72px;
+}
+
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) .content-container {
+  background: transparent !important;
+}
+
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) .navbar,
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) .sidebar-container,
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) .drawer-panel {
+  background: rgba(255, 255, 255, .92) !important;
+  border-color: var(--cm-border) !important;
+  box-shadow: 0 3px 14px rgba(40, 65, 85, .05);
+}
+
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) .card,
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) .card-hover,
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="bg-[#0A0918]"],
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="bg-[#0D0C12]"],
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="bg-[#121029]"],
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="bg-[#1D1A40]"] {
+  border-color: var(--cm-border) !important;
+  border-radius: var(--cm-radius-md) !important;
+  background-color: rgba(255, 255, 255, .9) !important;
+  box-shadow: 0 10px 24px rgba(40, 65, 85, .06);
+}
+
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) .card-hover:hover,
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="hover\\:bg-[var(--cm-surface)]"]:hover {
+  border-color: var(--cm-border-strong) !important;
+  background-color: #f8fbff !important;
+  box-shadow: 0 14px 28px rgba(40, 65, 85, .09);
+}
+
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) input,
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) select,
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) textarea {
+  border-color: var(--cm-border-strong) !important;
+  border-radius: var(--cm-radius-sm);
+  background: rgba(255, 255, 255, .86) !important;
+  color: var(--cm-text) !important;
+}
+
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) input:focus,
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) select:focus,
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) textarea:focus {
+  border-color: var(--cm-indigo) !important;
+  box-shadow: 0 0 0 3px var(--cm-indigo-soft);
+  outline: 0;
+}
+
+/* Recolor legacy dark utility classes without changing the components that use them. */
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="bg-[#1D1A40]/"],
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="bg-[#1E1D36]/"] {
+  background-color: #f3f8fc !important;
+}
+
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="text-[#F5F5F5]"],
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="text-[#F3F2F8]"],
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="text-[#DAD8EE]"] {
+  color: var(--cm-text) !important;
+}
+
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="text-[#8B88AE]"],
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="text-[#8B86B8]"],
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="text-[#A9A6C8]"],
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="text-[#6B6890]"],
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="text-[#8A88A6]"] {
+  color: var(--cm-text-dim) !important;
+}
+
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="border-[#1C1A38]"],
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="border-[#26224A]"],
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="border-[#2E2A66]"],
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="divide-[#1C1A38]"] {
+  border-color: var(--cm-border) !important;
+}
+
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="bg-[#6C7BFF]"],
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="bg-[var(--cm-indigo)]"] {
+  background-color: var(--cm-indigo) !important;
+}
+
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="text-[#6C7BFF]"],
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) [class*="text-[#C9A8FF]"] {
+  color: var(--cm-indigo) !important;
+}
+
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) .page-section-heading,
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) h1,
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) h2,
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) h3 {
+  color: var(--cm-text);
+}
+
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) .text-xs,
+:where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) .uppercase {
+  letter-spacing: .06em;
+}
+
+@media (max-width: 760px) {
+  :where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) .main-container {
+    background-size: 48px 48px;
+  }
+}
+

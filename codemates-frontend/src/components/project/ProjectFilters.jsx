@@ -88,58 +88,40 @@ export default function ProjectFilters({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      {/* Search */}
-      <div className="relative flex-1 min-w-[180px] max-w-xs">
-        <Search
-          size={14}
-          className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-          style={{ color: '#6C7BFF' }}
-        />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search name, tech stack…"
-          className="w-full bg-[#121029] border border-[#26224A] text-[#F5F5F5]
-                     text-sm pl-9 pr-8 py-2 rounded-lg placeholder-[#4A4660]
-                     outline-none focus:border-[#6C7BFF] transition-colors"
-        />
-        {search && (
-          <button
-            onClick={() => onSearchChange('')}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2
-                       text-[#6B6890] hover:text-[#F5F5F5]"
-          >
-            <X size={13} />
-          </button>
-        )}
-      </div>
-
-      {/* Status */}
-      <SelectField
-        value={statusFilter}
-        onChange={onStatusChange}
-        options={STATUS_OPTIONS}
+  <div className="flex items-center gap-3 w-full">
+    {/* Search — fills all remaining space (max-w-xs removed) */}
+    <div className="relative flex-1 min-w-[180px]">
+      <Search
+        size={14}
+        className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+        style={{ color: '#6C7BFF' }}
       />
-
-      {/* Visibility */}
-      <SelectField
-        value={visibilityFilter}
-        onChange={onVisibilityChange}
-        options={VISIBILITY_OPTIONS}
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => onSearchChange(e.target.value)}
+        placeholder="Search name, tech stack…"
+        className="w-full bg-[#121029] border border-[#26224A] text-[#F5F5F5]
+                   text-sm pl-9 pr-8 py-2 rounded-lg placeholder-[#4A4660]
+                   outline-none focus:border-[#6C7BFF] transition-colors"
       />
+      {search && (
+        <button
+          onClick={() => onSearchChange('')}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2
+                     text-[#6B6890] hover:text-[#F5F5F5]"
+        >
+          <X size={13} />
+        </button>
+      )}
+    </div>
 
-      {/* Sort — pushed right */}
-      <div className="ml-auto">
-        <SelectField
-          value={sortBy}
-          onChange={onSortChange}
-          options={SORT_OPTIONS}
-        />
-      </div>
+    {/* All filter controls grouped on the right */}
+    <div className="flex items-center gap-3 shrink-0 ml-auto">
+      <SelectField value={statusFilter} onChange={onStatusChange} options={STATUS_OPTIONS} />
+      <SelectField value={visibilityFilter} onChange={onVisibilityChange} options={VISIBILITY_OPTIONS} />
+      <SelectField value={sortBy} onChange={onSortChange} options={SORT_OPTIONS} />
 
-      {/* Clear */}
       {hasFilters && (
         <button
           onClick={clearAll}
@@ -151,5 +133,6 @@ export default function ProjectFilters({
         </button>
       )}
     </div>
-  );
+  </div>
+);
 }

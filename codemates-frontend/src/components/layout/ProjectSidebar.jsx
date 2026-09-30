@@ -7,6 +7,7 @@ import {
   ListTodo,
   MessageSquare,
   Users,
+  UserGroup
 } from "lucide-react";
 import BackButton from "../ui/BackButton";
 
@@ -17,7 +18,7 @@ const DEFAULT_ITEMS = [
   { label: "Team", path: "/team", icon: Users },
   { label: "Chat", path: "/chat", icon: MessageSquare },
   { label: "Resources", path: "/resources", icon: Files },
-  { label: "Contributions", path: "/contributions", icon: BarChart3 },
+  { label: "Contributions", path: "/contributions", icon: UserGroup },
   { label: "Analytics", path: "/analytics", icon: BarChart3 },
   { label: "GitHub", path: "/github", icon: User },
 ];

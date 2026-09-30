@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/CodeMates.iml" filepath="$PROJECT_DIR$/.idea/CodeMates.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/auth-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/auth-service.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.codemates.contribution-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/com.codemates.contribution-service.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/contribution-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/contribution-service.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/discovery-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/discovery-service.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/github-sync-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/github-sync-service.main.iml" />
