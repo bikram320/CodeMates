@@ -84,8 +84,8 @@ function AssigneeChip({ member }) {
 
 export default function TaskCard({ task, members, onClick }) {
   const assignee = task.assignedToUserId
-    ? getMemberById(members, task.assignedToUserId)
-    : null;
+      ? members?.find((m) => m.userId === task.assignedToUserId) ?? null
+      : null;
 
   const priorityColor  = PRIORITY_COLOR[task.priority]  ?? '#6B6890';
   const priorityBadge  = PRIORITY_BADGE[task.priority]  ?? { label: task.priority, className: 'text-[#6B6890] border-[#26224A]' };

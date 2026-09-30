@@ -95,12 +95,16 @@ export default function GithubSection({ onNotify = () => {} }) {
           ) : (
               <div className="flex flex-col gap-4">
                 <GitHubProfileCard profile={profile} onSync={handleSync} isSyncing={isSyncing} />
-                <RepositoryList
-                    repositories={repositories}
-                    isLoading={isLoadingRepositories}
-                    error={repositoriesError}
-                    onRetry={refetchRepositories}
-                />
+                {/* Capped height so a long repo list scrolls inside the card
+                    instead of stretching the whole Profile page. */}
+                <div className="max-h-96 overflow-y-auto pr-1">
+                  <RepositoryList
+                      repositories={repositories}
+                      isLoading={isLoadingRepositories}
+                      error={repositoriesError}
+                      onRetry={refetchRepositories}
+                  />
+                </div>
               </div>
           )}
         </SectionBody>

@@ -30,14 +30,14 @@ import { discoverProjects } from "../api/projectApi";
  * with those omitted — it guards each with `&&`).
  *
  *   const { projects, total, isLoading, isError, error } = useProjects({
- *     search, techStack, projectType, experience, availability,
+ *     search, techStack, projectType, availability, enabled,
  *   });
  *
  * @param {Object} filters
  * @param {string} [filters.search]
  * @param {string[]} [filters.techStack]
  * @param {string|null} [filters.projectType]
- * @param {string|null} [filters.experience]
+ * @param {boolean} [filters.enabled=true]  false → no request is made
  * @param {string|null} [filters.availability]  maps to the backend's `status`
  *   the same way DeveloperFilters' Availability maps to openToCollaborate —
  *   see toStatus() below for the exact mapping and its gap.
@@ -104,22 +104,22 @@ export function useProjects(filters = {}) {
     search = "",
     techStack = [],
     projectType = null,
-    experience = null,
     availability = null,
+    enabled = true, // set false to skip the request (e.g. until the user searches/filters)
   } = filters;
 
   const status = toStatus(availability);
 
   const query = useQuery({
-    queryKey: ["projects", "discover", { techStack, projectType, experience, status }],
+    queryKey: ["projects", "discover", { techStack, projectType, status }],
     queryFn: () =>
         discoverProjects({
           techStack,
           projectType,
-          requiredExperience: experience,
           status,
         }),
     retry: 1,
+    enabled,
   });
 
   const rawProjects = query.data ?? [];

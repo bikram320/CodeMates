@@ -22,6 +22,7 @@ import EmptyState from "../components/ui/EmptyState";
 import useAuth from "../hooks/useAuth";
 import { useProjectMembers } from "../hooks/useMyProjects";
 import useGithub from "../hooks/useGitHub";
+import useUserDirectory from "../hooks/useUserDirectory";
 import { useProjectContributions, useContributorEvents } from "../hooks/useProjectContributions";
 
 function aggregateEventsByDay(events) {
@@ -41,8 +42,10 @@ const EVENT_TYPE_LABEL = {
   MESSAGE_SENT: "sent a message",
 };
 
-// ⚠️ Same fallback used on the Analytics page — neither
-// ContributionScoreResponse nor ContributionEventResponse carry a name.
+// Fallback only for a user whose profile lookup came back empty (deleted
+// account, lookup failure, still loading). The primary path is now
+// useUserDirectory — neither ContributionScoreResponse nor
+// ContributionEventResponse carries a name, so it's resolved separately.
 function shortUserLabel(userId) {
   return `User ${userId?.slice(0, 8)}`;
 }
@@ -106,6 +109,20 @@ export default function ProjectContributions() {
     isLoading: isDrilldownLoading,
   } = useContributorEvents(projectId, drilldownUserId);
 
+  // Resolve real names/avatars for everyone who appears on this page.
+  // Must run before the early returns below (hooks can't be conditional);
+  // useUserDirectory dedupes ids and skips the request while the list is empty.
+  const { directory: profileDirectory } = useUserDirectory([
+    ...(scores ?? []).map((s) => s.userId),
+    ...(events ?? []).map((e) => e.userId),
+    drilldownUserId,
+  ]);
+
+  function displayName(userId) {
+    const profile = profileDirectory[userId];
+    return profile?.fullName || profile?.username || shortUserLabel(userId);
+  }
+
   if (isLoading) {
     return (
         <div className="flex justify-center py-20">
@@ -126,8 +143,8 @@ export default function ProjectContributions() {
 
   const contributors = scores.map((score) => ({
     userId: score.userId,
-    name: shortUserLabel(score.userId),
-    avatarUrl: undefined,
+    name: displayName(score.userId),
+    avatarUrl: profileDirectory[score.userId]?.avatarUrl,
     role: undefined,
     tasksCompleted: score.tasksCompleted,
     commitsCount: score.commitsCount,
@@ -156,7 +173,7 @@ export default function ProjectContributions() {
   const chartData = aggregateEventsByDay(events);
   const enrichedEvents = events.slice(0, 8).map((event) => ({
     ...event,
-    label: shortUserLabel(event.userId),
+    label: displayName(event.userId),
   }));
 
   function handleLinkRepo(e) {
@@ -169,26 +186,24 @@ export default function ProjectContributions() {
 
   return (
       <div className="project-contributions-page flex flex-col gap-6">
-        <div className="flex items-start justify-between gap-4">
-          <ContributionHeader
-              description="How the team has been contributing to this project."
-              stats={headerStats}
-              className="flex-1"
-          />
-
-          {canManage && (
-              <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  leftIcon={Sparkles}
-                  onClick={() => predictSignificance()}
-                  disabled={isPredicting}
-              >
-                {isPredicting ? "Predicting..." : "Predict significance"}
-              </Button>
-          )}
-        </div>
+        <ContributionHeader
+            description="How the team has been contributing to this project."
+            stats={headerStats}
+            action={
+                canManage && (
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        leftIcon={Sparkles}
+                        onClick={() => predictSignificance()}
+                        disabled={isPredicting}
+                    >
+                      {isPredicting ? "Predicting..." : "Predict significance"}
+                    </Button>
+                )
+            }
+        />
         {predictError && (
             <p className="text-xs text-[var(--cm-lavender)]">{predictError.message}</p>
         )}
@@ -303,7 +318,7 @@ export default function ProjectContributions() {
               >
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-[var(--cm-text)]">
-                    {shortUserLabel(drilldownUserId)} — activity
+                    {displayName(drilldownUserId)} — activity
                   </h3>
                   <button type="button" onClick={() => setDrilldownUserId(null)}>
                     <X size={16} className="text-[var(--cm-muted)]" />

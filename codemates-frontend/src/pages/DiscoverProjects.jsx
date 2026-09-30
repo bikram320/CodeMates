@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, FolderGit2 } from "lucide-react";
+import { AlertTriangle, FolderGit2, Search } from "lucide-react";
 
 import PageHeader from "../components/layout/PageHeader";
 import SearchBar from "../components/ui/SearchBar";
@@ -29,8 +29,14 @@ export default function DiscoverProjects() {
   const [search, setSearch] = useState("");
   const [selectedTech, setSelectedTech] = useState([]);
   const [selectedType, setSelectedType] = useState(null);
-  const [selectedExperience, setSelectedExperience] = useState(null);
   const [selectedAvailability, setSelectedAvailability] = useState(null);
+
+  // Nothing is shown until the user searches or picks a filter.
+  const hasQuery =
+      search.trim() !== "" ||
+      selectedTech.length > 0 ||
+      selectedType !== null ||
+      selectedAvailability !== null;
 
   const {
     projects,
@@ -44,15 +50,14 @@ export default function DiscoverProjects() {
     search,
     techStack: selectedTech,
     projectType: selectedType,
-    experience: selectedExperience,
     availability: selectedAvailability,
+    enabled: hasQuery, // no request until there is something to search for
   });
 
   function clearAllFilters() {
     setSearch("");
     setSelectedTech([]);
     setSelectedType(null);
-    setSelectedExperience(null);
     setSelectedAvailability(null);
   }
 
@@ -70,11 +75,9 @@ export default function DiscoverProjects() {
             <DiscoverProjectFilters
                 selectedTech={selectedTech}
                 selectedType={selectedType}
-                selectedExperience={selectedExperience}
                 selectedAvailability={selectedAvailability}
                 onTechChange={setSelectedTech}
                 onTypeChange={setSelectedType}
-                onExperienceChange={setSelectedExperience}
                 onAvailabilityChange={setSelectedAvailability}
                 onClearAll={clearAllFilters}
             />
@@ -89,7 +92,7 @@ export default function DiscoverProjects() {
 
             {/* Result count + a quiet "updating" indicator while a filter
               change is in flight (isFetching) but old data is still showing. */}
-            {!isLoading && !isError && (
+            {hasQuery && !isLoading && !isError && (
                 <div className="flex items-center gap-2 text-sm text-[var(--cm-muted)]">
               <span>
                 {total} project{total !== 1 ? "s" : ""} found
@@ -98,7 +101,13 @@ export default function DiscoverProjects() {
                 </div>
             )}
 
-            {isLoading ? (
+            {!hasQuery ? (
+                <EmptyState
+                    icon={Search}
+                    title="Search for a project"
+                    description="Type a project name, description or technology above, or pick a filter, to find projects looking for collaborators."
+                />
+            ) : isLoading ? (
                 <div className="flex justify-center py-20">
                   <Spinner size="lg" />
                 </div>

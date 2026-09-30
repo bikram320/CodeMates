@@ -2,7 +2,6 @@ import { SearchX, UserPlus, Users } from 'lucide-react';
 
 import EmptyState from '../ui/EmptyState';
 import TeamMemberCard from '../team/TeamMemberCard';
-import useUserDirectory from '../../hooks/useUserDirectory';
 
 const secondaryButton =
     'inline-flex items-center gap-2 rounded-lg border border-[#2E2A66] px-4 py-2 text-sm font-medium ' +
@@ -14,13 +13,13 @@ const secondaryButton =
  * key); `member.userId` identifies the actual person and is what's compared
  * against `currentUserId` and passed to the manage actions.
  *
- * Names: ProjectMemberResponseDto has no display name, so this batch-
- * resolves every visible member's userId to a real profile in one call
- * (useUserDirectory → GET /api/users/by-ids) and hands each card its own
- * resolved profile, instead of every card doing its own lookup.
+ * Names: `directory` (userId -> profile) is resolved once by ProjectTeam via
+ * useUserDirectory, so search can match names too, and each card just gets
+ * its own profile.
  */
 export default function TeamMemberList({
                                            members,
+                                           directory = {},
                                            totalCount,
                                            hasActiveFilters,
                                            currentUserId,
@@ -31,7 +30,6 @@ export default function TeamMemberList({
                                            onInvite,
                                            onClearFilters,
                                        }) {
-    const { directory } = useUserDirectory(members.map((m) => m.userId));
 
     /* Project has nobody on it */
     if (totalCount === 0) {

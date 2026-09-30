@@ -9,66 +9,81 @@ const TYPE_OPTIONS = [
   { value: "OTHER", label: "Other" },
 ];
 
-function chipClass(active) {
-  return `rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-    active
-     ? 'border-[#6C7BFF] bg-[#6C7BFF]/10 text-[white]'
-      : 'border-[#26224A] text-[#8B88AE] hover:border-[#2E2A66] hover:text-[#F5F5F5]'
-  }`;
-}
+const selectClass =
+    "rounded-md border border-[var(--cm-border)] bg-[var(--cm-surface)] px-3 py-2 text-sm text-[var(--cm-text)] focus:border-[var(--cm-indigo)] focus:outline-none";
 
 /**
- * Controls bar for the Resources page: search, resource-type filter
- * chips, and the "Add Resource" action.
+ * Controls bar for the Resources page: search, "Add Resource" action,
+ * and two filter dropdowns (resource type, uploaded by).
  *
  * Props:
- * - search            string
- * - onSearchChange    (string) => void
- * - selectedType      string | null
- * - onTypeChange      (string | null) => void
- * - onAddClick        () => void
+ * - search             string
+ * - onSearchChange     (string) => void
+ * - selectedType       string | null
+ * - onTypeChange       (string | null) => void
+ * - selectedUploader   string | null   (a userId)
+ * - onUploaderChange   (string | null) => void
+ * - uploaderOptions    { value: userId, label: displayName }[]
+ * - onAddClick         () => void
  */
 export default function ResourceHeader({
-  search,
-  onSearchChange,
-  selectedType,
-  onTypeChange,
-  onAddClick,
-}) {
+                                         search,
+                                         onSearchChange,
+                                         selectedType,
+                                         onTypeChange,
+                                         selectedUploader,
+                                         onUploaderChange,
+                                         uploaderOptions = [],
+                                         onAddClick,
+                                       }) {
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <SearchBar
-          value={search}
-          onChange={onSearchChange}
-          placeholder="Search resources..."
-          className="sm:flex-1"
-        />
-        <Button
-          variant="primary"
-          leftIcon={Plus}
-          onClick={onAddClick}
-          className="shrink-0"
-        >
-          Add Resource
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {TYPE_OPTIONS.map((type) => (
-          <button
-            key={type.value}
-            type="button"
-            onClick={() =>
-              onTypeChange(selectedType === type.value ? null : type.value)
-            }
-            aria-pressed={selectedType === type.value}
-            className={chipClass(selectedType === type.value)}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <SearchBar
+              value={search}
+              onChange={onSearchChange}
+              placeholder="Search resources..."
+              className="sm:flex-1"
+          />
+          <Button
+              variant="primary"
+              leftIcon={Plus}
+              onClick={onAddClick}
+              className="shrink-0"
           >
-            {type.label}
-          </button>
-        ))}
+            Add Resource
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <select
+              value={selectedType ?? ""}
+              onChange={(e) => onTypeChange(e.target.value || null)}
+              aria-label="Filter by resource type"
+              className={selectClass}
+          >
+            <option value="">All types</option>
+            {TYPE_OPTIONS.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+            ))}
+          </select>
+
+          <select
+              value={selectedUploader ?? ""}
+              onChange={(e) => onUploaderChange(e.target.value || null)}
+              aria-label="Filter by uploader"
+              className={selectClass}
+          >
+            <option value="">All members</option>
+            {uploaderOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+            ))}
+          </select>
+        </div>
       </div>
-    </div>
   );
 }

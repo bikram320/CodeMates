@@ -21,9 +21,27 @@ import { useProfileConnection } from "../hooks/useProfileConnection";
 // label change, based on which URL prefix got here. This also makes the
 // sidebar highlight the right section automatically, since AppSidebar's
 // NavLink does prefix matching on the path.
+//   /projects/:projectId/members/:username   (inside the project layout, so the
+//                                              project sidebar stays visible)
+// For the project route the back link goes to `location.state.backTo` if the
+// link that got here set one, otherwise to the project overview.
 function BackLink() {
   const location = useLocation();
+  const { projectId } = useParams();
+  const fromProject = Boolean(projectId) && location.pathname.startsWith(`/projects/${projectId}/members/`);
   const fromConnections = location.pathname.startsWith("/connections/developers");
+
+  if (fromProject) {
+    return (
+        <Link
+            to={location.state?.backTo ?? `/projects/${projectId}`}
+            className="mb-4 inline-flex items-center gap-1.5 text-sm text-[var(--cm-muted)] transition-colors hover:text-[var(--cm-text)]"
+        >
+          <ArrowLeft size={16} />
+          {location.state?.backLabel ?? "Back to Project"}
+        </Link>
+    );
+  }
 
   return fromConnections ? (
       <Link
@@ -280,38 +298,38 @@ export default function DeveloperProfile() {
               <div className="flex flex-col gap-3">
                 {githubUrl && (
                     <a href={githubUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-[var(--cm-text-dim)] hover:text-white"
-                  >
-                  <FaGithub />
-                  GitHub
-                  </a>
-                  )}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className="flex items-center gap-2 text-sm text-[var(--cm-text-dim)] hover:text-white"
+                    >
+                      <FaGithub />
+                      GitHub
+                    </a>
+                )}
 
                 {profile.linkedinUrl && (
 
                     <a href={profile.linkedinUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-[var(--cm-text-dim)] hover:text-white"
-                  >
-                  <FaLinkedin />
-                  LinkedIn
-                  </a>
-                  )}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className="flex items-center gap-2 text-sm text-[var(--cm-text-dim)] hover:text-white"
+                    >
+                      <FaLinkedin />
+                      LinkedIn
+                    </a>
+                )}
 
                 {profile.portfolioUrl && (
 
                     <a href={profile.portfolioUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-[var(--cm-text-dim)] hover:text-white"
-                  >
-                  <Globe />
-                  Portfolio
-                  </a>
-                  )}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className="flex items-center gap-2 text-sm text-[var(--cm-text-dim)] hover:text-white"
+                    >
+                      <Globe />
+                      Portfolio
+                    </a>
+                )}
 
                 {!hasLinks && (
                     <p className="text-sm text-[var(--cm-text-dim)]">

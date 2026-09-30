@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import {
-  Bell,
   ChevronDown,
   Compass,
   LayoutDashboard,
@@ -14,6 +13,7 @@ import {
 import Logo from "src/components/ui/Logo";
 import Avatar from "src/components/ui/Avatar";
 import LogoutConfirmModal from "src/components/auth/LogoutConfirmModal";
+import NotificationBell from "src/components/notifications/NotificationBell";
 import useProfile from "src/hooks/useProfile";
 
 const DEFAULT_LINKS = [
@@ -47,7 +47,6 @@ export default function Navbar({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const menuRef = useRef(null);
-  const navigate = useNavigate();
 
   // AppLayout always passes a `user` prop (activeUser = user || authUser),
   // so it's never null/undefined — a plain `user ?? fallback` never falls
@@ -66,11 +65,6 @@ export default function Navbar({
     role: user?.role || profile?.role || "",
     avatarUrl: user?.avatarUrl || profile?.avatarUrl || null,
   };
-
-  // Bell had no handler wired up from any parent, so it looked broken.
-  // Default it to the existing /notifications route (see sidebar) unless
-  // a parent explicitly passes its own onNotificationsClick.
-  const handleNotificationsClick = onNotificationsClick ?? (() => navigate("/notifications"));
 
   // Close the profile dropdown on outside click or Escape.
   useEffect(() => {
@@ -126,23 +120,11 @@ export default function Navbar({
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
-            <button
-                type="button"
-                onClick={handleNotificationsClick}
-                aria-label={
-                  notificationCount > 0
-                      ? `Notifications, ${notificationCount} unread`
-                      : "Notifications"
-                }
-                className="relative inline-flex h-10 w-10 items-center justify-center rounded-md text-[var(--cm-text-dim)] transition-colors hover:bg-[var(--cm-surface)] hover:text-[var(--cm-text)]"
-            >
-              <Bell size={21} />
-              {notificationCount > 0 && (
-                  <span className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--cm-indigo)] px-1 text-[10px] font-medium text-white">
-                {notificationCount > 9 ? "9+" : notificationCount}
-              </span>
-              )}
-            </button>
+            {/* Bell opens a small notifications popover (see NotificationBell) */}
+            <NotificationBell
+                countOverride={notificationCount}
+                onNotificationsClick={onNotificationsClick}
+            />
 
             {/* Profile dropdown */}
             <div className="relative" ref={menuRef}>

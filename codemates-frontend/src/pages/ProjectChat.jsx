@@ -170,6 +170,7 @@ export default function ProjectChat() {
                     messages={messages}
                     currentUserId={currentUserId}
                     userDirectory={messageUserDirectory}
+                    showSenderName
                     hasMore={hasMoreMessages}
                     onLoadMore={isLoadingMore ? undefined : loadMoreMessages}
                     onEditMessage={editMessage}

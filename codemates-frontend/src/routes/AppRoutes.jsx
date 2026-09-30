@@ -122,6 +122,8 @@ export default function AppRoutes() {
                 <Route path="contributions" element={<ProjectContributions />} />
                 <Route path="analytics" element={<ProjectAnalytics />} />
                 <Route path="github" element={<GitHubIntegration />} />
+                {/* Member profile opened from inside a project: keeps the project sidebar */}
+                <Route path="members/:username" element={<DeveloperProfile />} />
 
                 {/* <Route
           path="settings"

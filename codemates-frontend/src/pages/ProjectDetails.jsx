@@ -17,20 +17,16 @@ import useAuth from "../hooks/useAuth";
  *
  * Wired directly to ProjectController via projectApi.js — no mock data.
  *
+ * Layout: the header card on top; below it a main column (About, then the
+ * Team with real names/avatars) and a narrow Details sidebar (team size,
+ * created date, visibility).
+ *
  * Editing: PUT /api/projects/{id} (projectApi.updateProject), LEADER only.
  * `canManage` is derived from the fetched member list + the signed-in
- * user's id, mirroring the server-side check, so the Edit button only
- * shows up for someone who'd actually be allowed to use it.
+ * user's id, mirroring the server-side check.
  *
- * Dropped vs. the earlier mock version, because ProjectResponse and the
- * real member endpoint don't carry the data for them:
- * - "Request to Join" CTA (no self-serve join endpoint on the backend)
- * - projectType badge (no matching field; replaced with visibility)
- * - goals / requiredSkills / rolesNeeded sections (no matching fields)
- * - task count / progress stat (lives behind a task-service endpoint
- *   not covered here)
- * - member names/avatars (getProjectMembers returns userId only —
- *   ProjectMemberPreview now resolves these via useUserDirectory)
+ * Member names/avatars: getProjectMembers returns userId only —
+ * ProjectMemberPreview resolves them via useUserDirectory.
  */
 export default function ProjectDetails() {
   const { projectId } = useParams();
@@ -119,16 +115,18 @@ export default function ProjectDetails() {
           />
         </div>
 
-        <div className="body-container mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
-          <div className="main-container">
+        <div className="body-container mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_300px]">
+          <div className="main-container flex min-w-0 flex-col gap-6">
             <ProjectOverview description={project.description} />
+            <ProjectMemberPreview members={members} />
           </div>
 
           <div className="sidebar-container flex flex-col gap-6">
             <ProjectStats
                 teamSize={{ current: project.memberCount, max: project.maxMembers }}
+                createdAt={project.createdAt}
+                visibility={project.visibility}
             />
-            <ProjectMemberPreview members={members} />
           </div>
         </div>
 

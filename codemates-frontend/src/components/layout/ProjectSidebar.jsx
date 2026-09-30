@@ -1,5 +1,6 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import {
+  ArrowLeft,
   BarChart3,
   Files,
   User,
@@ -9,7 +10,6 @@ import {
   Users,
   UserGroup
 } from "lucide-react";
-import BackButton from "../ui/BackButton";
 
 
 const DEFAULT_ITEMS = [
@@ -32,18 +32,6 @@ export default function ProjectSidebar({
                                          className = "",
                                        }) {
   const root = basePath || `/projects/${project.id}`;
-  const navigate = useNavigate();
-
-  // Previously this was onClick={onNavigate} — on desktop onNavigate is
-  // undefined (it's only passed for the mobile drawer's close-on-navigate
-  // case), so BackButton fell through to its own default, which is
-  // browser-history-back, i.e. "wherever you were last," not necessarily
-  // My Projects. Always route to /projects explicitly instead, and still
-  // close the drawer on mobile when onNavigate is present.
-  function handleBack() {
-    onNavigate?.();
-    navigate("/projects");
-  }
 
   // First letter of the project name, used as a compact project mark.
   const mark = (project.name || "?").trim().charAt(0).toUpperCase();
@@ -54,11 +42,14 @@ export default function ProjectSidebar({
           className={`flex h-full shrink-0 flex-col border-r border-[var(--cm-border)] bg-[var(--cm-bg)] ${className}`}
       >
         <div className="border-b border-[var(--cm-border)] p-3">
-          <BackButton
-              label={backLabel}
-              onClick={handleBack}
-              className="mb-3 text-xs text-[var(--cm-muted)] hover:text-[var(--cm-text-dim)]"
-          />
+          <Link
+              to="/projects"
+              onClick={onNavigate}
+              className="mb-3 inline-flex items-center gap-1.5 text-xs text-[var(--cm-muted)] transition-colors hover:text-[var(--cm-text-dim)]"
+          >
+            <ArrowLeft size={14} aria-hidden="true" />
+            {backLabel}
+          </Link>
 
           <div className="flex items-start gap-2.5">
           <span
