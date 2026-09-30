@@ -27,10 +27,10 @@ import EmptyState from "../components/ui/EmptyState";
 import useNotifications from "../hooks/useNotifications";
 
 const secondaryButton =
-  "inline-flex items-center gap-2 rounded-lg border border-[#2E2A66] px-4 py-2 text-sm font-medium " +
-  "text-[#F5F5F5] transition-colors duration-150 hover:border-[#6C7BFF] hover:bg-[#1D1A40] " +
+  "inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium " +
+  "text-gray-800 transition-colors duration-150 hover:bg-gray-50 " +
   "disabled:cursor-not-allowed disabled:opacity-60 " +
-  "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60";
+  "focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300";
 
 export default function Notifications() {
   const [status, setStatus] = useState("all"); // "all" | "unread"
@@ -64,22 +64,25 @@ export default function Notifications() {
   };
 
   return (
-    <div className="notifications-page">
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-        <NotificationHeader unreadCount={unreadCount} isLoading={isLoading} onMarkAllAsRead={markAllAsRead} />
+  <div className="notifications-page">
+    <div className="flex w-full flex-col gap-4">
+      <NotificationHeader unreadCount={unreadCount} isLoading={isLoading} onMarkAllAsRead={markAllAsRead} />
 
-        <NotificationFilters
-          status={status}
-          category={category}
-          totalCount={notifications.length}
-          unreadCount={unreadCount}
-          disabled={isLoading || isError}
-          onStatusChange={setStatus}
-          onCategoryChange={setCategory}
-        />
+      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+        <div className="border-b border-gray-200 bg-white px-4 py-3">
+          <NotificationFilters
+            status={status}
+            category={category}
+            totalCount={notifications.length}
+            unreadCount={unreadCount}
+            disabled={isLoading || isError}
+            onStatusChange={setStatus}
+            onCategoryChange={setCategory}
+          />
+        </div>
 
         {isError ? (
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center px-4 py-10">
             <EmptyState
               icon={AlertCircle}
               title="Couldn't load notifications"
@@ -103,19 +106,17 @@ export default function Notifications() {
             />
 
             {!isLoading && hasMore && (
-              <button
-                type="button"
-                onClick={loadMore}
-                disabled={isFetchingMore}
-                className={`${secondaryButton} self-center`}
-              >
-                {isFetchingMore && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
-                {isFetchingMore ? "Loading…" : "Load more"}
-              </button>
+              <div className="flex justify-center border-t border-gray-200 px-4 py-3">
+                <button type="button" onClick={loadMore} disabled={isFetchingMore} className={secondaryButton}>
+                  {isFetchingMore && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
+                  {isFetchingMore ? "Loading…" : "Load more"}
+                </button>
+              </div>
             )}
           </>
         )}
       </div>
     </div>
-  );
+  </div>
+);
 }

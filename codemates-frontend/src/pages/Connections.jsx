@@ -90,6 +90,7 @@ export default function Connections() {
   });
 
   return (
+<<<<<<< Updated upstream
     <div className="connections-page flex flex-col gap-8">
       <ConnectionsHeader
         totalConnections={connections.length}
@@ -109,6 +110,28 @@ export default function Connections() {
         </h2>
         <div className="mb-4">
           <ConnectionFilters search={search} onSearchChange={setSearch} />
+=======
+  <div className="connections-page flex flex-col gap-6">
+    <ConnectionsHeader
+      totalConnections={connections.length}
+      pendingCount={incomingRequests.length}
+    />
+
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+      {/* Left: search + connections */}
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
+        <ConnectionFilters search={search} onSearchChange={setSearch} />
+
+        <div>
+          <h2 className="mb-4 text-sm font-semibold text-[var(--cm-text)]">
+            Your Connections
+          </h2>
+          <ConnectionList
+            connections={filteredConnections}
+            onRemove={(connection) => removeConnection(connection.connectionId)}
+            onBlock={(connection) => blockConnection(connection.connectionId)}
+          />
+>>>>>>> Stashed changes
         </div>
         <ConnectionList
           connections={filteredConnections}
@@ -116,6 +139,26 @@ export default function Connections() {
           onBlock={(connection) => blockConnection(connection.connectionId)}
         />
       </div>
+<<<<<<< Updated upstream
     </div>
   );
+=======
+
+      {/* Right: incoming requests in a vertical box */}
+      <aside
+        className="w-full shrink-0 rounded-xl border border-[var(--cm-border)]
+                   bg-[var(--cm-surface)] p-4 lg:sticky lg:top-4 lg:w-80
+                   lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto"
+      >
+        <ConnectionRequests
+          incoming={enrichedIncoming}
+          onAccept={(request) => acceptConnectionRequest(request.id)}
+          onReject={(request) => rejectConnectionRequest(request.id)}
+          onBlock={(request) => blockConnection(request.id)}
+        />
+      </aside>
+    </div>
+  </div>
+);
+>>>>>>> Stashed changes
 }

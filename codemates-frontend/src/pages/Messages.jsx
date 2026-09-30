@@ -182,7 +182,81 @@ export default function Messages() {
               <div className="flex flex-1 items-center justify-center">
                 <Spinner size="lg" />
               </div>
+<<<<<<< Updated upstream
             ) : isMessagesError ? (
+=======
+          )}
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          {activeEntry ? (
+              <>
+                <ChatHeader
+                    title={activeEntry.displayName}
+                    subtitle={activeEntry.isOnline ? "Online" : "Offline"}
+                    avatarUrl={activeEntry.displayAvatar}
+                    isGroup={false}
+              
+                    action={
+                      activeConversationId ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            leftIcon={isMuted ? BellOff : Bell}
+                            onClick={() => setMuted(!isMuted)}
+                            className="cursor-pointer !bg-[#6366F1] !text-white hover:!bg-[#4F46E5] hover:!text-white"
+                          >
+                            {isMuted ? "Unmute" : "Mute"}
+                          </Button>
+                      ) : undefined
+                    }
+                />
+
+                {!activeConversationId ? (
+                    <MessageList messages={[]} currentUserId={currentUserId} userDirectory={{}} />
+                ) : isLoadingMessages ? (
+                    <div className="flex flex-1 items-center justify-center">
+                      <Spinner size="lg" />
+                    </div>
+                ) : isMessagesError ? (
+                    <div className="flex flex-1 items-center justify-center p-6">
+                      <EmptyState
+                          icon={AlertTriangle}
+                          title="Couldn't load messages"
+                          description={messagesError?.message || "Please try again."}
+                      />
+                    </div>
+                ) : (
+                    <MessageList
+                        messages={messages}
+                        currentUserId={currentUserId}
+                        userDirectory={{
+                          [activeEntry.otherUserId]: {
+                            name: activeEntry.displayName,
+                            avatarUrl: activeEntry.displayAvatar,
+                          },
+                        }}
+                        hasMore={hasMoreMessages}
+                        onLoadMore={isLoadingMore ? undefined : loadMoreMessages}
+                        onEditMessage={editMessage}
+                        onDeleteMessage={deleteMessage}
+                    />
+                )}
+
+                <TypingIndicator typingUsers={typingNames} />
+
+                {sendError && (
+                    <p className="px-5 pb-1 text-xs text-[var(--cm-lavender)]">{sendError}</p>
+                )}
+
+                <MessageInput
+                    onSend={handleSend}
+                    onTyping={activeConversationId ? notifyTyping : undefined}
+                    disabled={isStartingConversation}
+                />
+              </>
+          ) : (
+>>>>>>> Stashed changes
               <div className="flex flex-1 items-center justify-center p-6">
                 <EmptyState
                   icon={AlertTriangle}

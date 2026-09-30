@@ -114,7 +114,7 @@ export default function InterestsSection({ interests, onAdd, onRemove, isAdding 
               setName(e.target.value);
               if (error) setError('');
             }}
-            placeholder="e.g. Machine Learning"
+            placeholder="Enter interest"
             autoComplete="off"
             aria-invalid={Boolean(error)}
             className={`flex-1 ${inputClass(Boolean(error))}`}

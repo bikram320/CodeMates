@@ -81,11 +81,11 @@ export default function MyProjectCard({ project, onView, currentUserId = null })
         <div className="flex items-center gap-2 flex-wrap">
           {/* Status pill */}
           <span
-            className={`inline-flex items-center gap-1.5 text-[10px] font-mono
-                        px-2 py-0.5 rounded-full border
+            className={`inline-flex items-center gap-[9px] text-[15px] font-mono
+                        px-3 py-[3px] rounded-full border
                         ${statusCfg.text} ${statusCfg.border} ${statusCfg.bg}`}
           >
-            <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
+            <span className={`w-[9px] h-[9px] rounded-full ${statusCfg.dot}`} />
             {statusCfg.label}
           </span>
 
@@ -123,12 +123,12 @@ export default function MyProjectCard({ project, onView, currentUserId = null })
 
       {/* ── Tech stack chips (parsed from String) ───────────────────────── */}
       {techList.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-4">
+        <div className="flex flex-wrap gap-2 mb-4">
           {techList.map((tech) => (
             <span
               key={tech}
-              className="text-[10px] font-mono text-[#C9A8FF] border border-[#2E2A66]
-                         px-1.5 py-0.5 rounded"
+              className="text-[15px] font-mono text-[#C9A8FF] border border-[#2E2A66]
+                        px-[9px] py-[3px] rounded"
             >
               {tech}
             </span>

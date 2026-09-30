@@ -63,12 +63,21 @@ function AssigneeChip({ member }) {
 
   if (member.avatarUrl) {
     return (
+<<<<<<< Updated upstream
       <img
         src={member.avatarUrl}
         alt={member.fullName}
         title={member.fullName}
         className="w-5 h-5 rounded-full border border-[#2E2A66] object-cover"
       />
+=======
+        <div
+            title={displayName}
+            className="w-[26px] h-[26px] rounded-full bg-[#1D1A40] border border-[#2E2A66] flex items-center justify-center text-[14px] font-bold text-[#6C7BFF] select-none"
+        >
+            {initials}
+        </div>
+>>>>>>> Stashed changes
     );
   }
 

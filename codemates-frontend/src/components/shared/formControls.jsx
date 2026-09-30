@@ -1,41 +1,36 @@
-/**
- * Generic form building blocks shared across CodeMates settings-style pages
- * (Project Settings, the Profile page, and previously Account Settings).
- *
- *   isEqual(a, b)                    deep-ish equality for dirty tracking
- *   <SettingsSection>                titled card
- *   <SectionBody>                    padded content area inside a card
- *   <FormActions>                    "Unsaved changes" + Cancel / Save row
- *   <Field>                          label + control + hint / error
- *   describedBy(id, { error, hint })
- *   inputClass(hasError)             text input / textarea styling
- *   <Select>                         styled native select
- *   <ToggleSwitch>, <ToggleRow>      accessible on/off switches
- *   <DemoBadge>                      "demo only" chip for actions that do nothing yet
- *   primaryButtonClass / secondaryButtonClass
- */
-
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Pencil } from 'lucide-react';
 
 export const isEqual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 
 export const primaryButtonClass =
-  'inline-flex items-center justify-center gap-2 rounded-lg bg-[#6C7BFF] px-4 py-2 text-sm font-semibold ' +
-  'text-[#0A0918] transition-colors hover:bg-[#8190FF] ' +
+  'inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#6C7BFF] px-4 py-2 text-sm font-semibold ' +
+  '!text-white transition-colors hover:bg-[#8190FF] ' +
   'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[#6C7BFF] ' +
-  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A8FF]';
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60';
 
 export const secondaryButtonClass =
-  'inline-flex items-center justify-center gap-2 rounded-lg border border-[#2E2A66] px-4 py-2 text-sm font-medium ' +
-  'text-[#F5F5F5] transition-colors hover:bg-[#1D1A40] ' +
-  'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent ' +
+  'inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#D9DCE1] bg-white px-4 py-2 text-sm font-medium ' +
+  'text-[#16171D] transition-colors hover:border-[#6C7BFF] hover:bg-[#6C7BFF]/5 ' +
+  'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-[#D9DCE1] disabled:hover:bg-white ' +
   'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60';
+
+/** Small outlined "Edit" button for card headers. */
+export function EditButton({ onClick, label = 'Edit', ...rest }) {
+  return (
+    <button type="button" onClick={onClick} className={`${secondaryButtonClass} !px-3 !py-1.5 text-xs`} {...rest}>
+      {label}
+      <Pencil size={12} aria-hidden="true" />
+    </button>
+  );
+}
 
 /* ── Layout ──────────────────────────────────────────────────────────────── */
 
-export function SettingsSection({ id, title, description, badge, tone = 'default', children }) {
+export const cardClass = 'rounded-2xl bg-white shadow-[0_2px_12px_rgba(16,24,40,0.06)]';
+
+export function SettingsSection({ id, title, description, badge, action = null, tone = 'default', children }) {
   const danger = tone === 'danger';
 
   return (
@@ -43,29 +38,26 @@ export function SettingsSection({ id, title, description, badge, tone = 'default
       id={id}
       tabIndex={-1}
       aria-labelledby={`${id}-title`}
-      className={`scroll-mt-6 rounded-xl border bg-[#0A0918] focus:outline-none ${
-        danger ? 'border-red-400/30' : 'border-[#1C1A38]'
-      }`}
+      className={`${cardClass} scroll-mt-6 focus:outline-none ${danger ? 'ring-1 ring-red-300' : ''}`}
     >
       <div
-        className={`border-b px-5 py-4 ${
-          danger ? 'border-red-400/20' : 'border-[#1C1A38]'
+        className={`flex items-center justify-between gap-3 border-b px-6 py-4 sm:px-10 sm:py-5 ${
+          danger ? 'border-red-200' : 'border-[#ECEEF1]'
         }`}
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <h2
-            id={`${id}-title`}
-            className={`text-base font-semibold ${
-              danger ? 'text-red-200' : 'text-[#F5F5F5]'
-            }`}
-          >
-            {title}
-          </h2>
-          {badge}
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2
+              id={`${id}-title`}
+              className={`text-base font-semibold ${danger ? 'text-red-700' : 'text-[#16171D]'}`}
+            >
+              {title}
+            </h2>
+            {badge}
+          </div>
+          {description && <p className="mt-1 text-sm text-[#6B7280]">{description}</p>}
         </div>
-        {description && (
-          <p className="mt-1 text-sm text-[#8B88AE]">{description}</p>
-        )}
+        {action}
       </div>
       {children}
     </section>
@@ -73,7 +65,23 @@ export function SettingsSection({ id, title, description, badge, tone = 'default
 }
 
 export function SectionBody({ children, className = '' }) {
-  return <div className={`space-y-5 p-5 ${className}`}>{children}</div>;
+  return <div className={`space-y-5 px-6 py-6 sm:px-10 ${className}`}>{children}</div>;
+}
+
+/** Read-only label/value grid, like the reference cards. */
+export function InfoGrid({ children }) {
+  return <dl className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-3">{children}</dl>;
+}
+
+export function InfoItem({ label, value, mono = false, className = '' }) {
+  return (
+    <div className={`min-w-0 ${className}`}>
+      <dt className="text-xs text-[#6B7280]">{label}</dt>
+      <dd className={`mt-1.5 break-words text-sm font-medium text-[#16171D] ${mono ? 'font-mono' : ''}`}>
+        {value || <span className="font-normal text-[#9CA3AF]">Not set</span>}
+      </dd>
+    </div>
+  );
 }
 
 export function FormActions({
@@ -82,13 +90,14 @@ export function FormActions({
   saveLabel = 'Save changes',
   cancelLabel = 'Cancel',
   leading = null,
+  alwaysAllowCancel = false,
 }) {
   return (
-    <div className="flex flex-col gap-3 border-t border-[#1C1A38] px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 border-t border-[#ECEEF1] px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-10">
       <div className="flex min-h-[20px] flex-wrap items-center gap-x-4 gap-y-2 text-xs">
         {leading}
         {dirty && (
-          <span className="inline-flex items-center gap-1.5 text-[#8B88AE]" role="status">
+          <span className="inline-flex items-center gap-1.5 text-[#6B7280]" role="status">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
             Unsaved changes
           </span>
@@ -99,7 +108,7 @@ export function FormActions({
         <button
           type="button"
           onClick={onCancel}
-          disabled={!dirty}
+          disabled={!dirty && !alwaysAllowCancel}
           title="Discard unsaved changes"
           className={secondaryButtonClass}
         >
@@ -117,11 +126,11 @@ export function FormActions({
 
 export function inputClass(hasError = false) {
   return (
-    'w-full rounded-lg border bg-[#1D1A40]/50 px-3 py-2.5 text-base text-[#F5F5F5] ' +
-    'placeholder:text-[#6B6890] sm:text-sm focus:outline-none focus:ring-2 ' +
+    'w-full rounded-lg border bg-white px-3 py-2.5 text-base text-[#16171D] ' +
+    'placeholder:text-[#9CA3AF] sm:text-sm focus:outline-none focus:ring-2 ' +
     (hasError
-      ? 'border-red-400/70 focus:border-red-400 focus:ring-red-400/20'
-      : 'border-[#2E2A66] hover:border-[#3A3580] focus:border-[#6C7BFF] focus:ring-[#6C7BFF]/30')
+      ? 'border-red-400 focus:border-red-500 focus:ring-red-400/20'
+      : 'border-[#D9DCE1] hover:border-[#B8BDC6] focus:border-[#6C7BFF] focus:ring-[#6C7BFF]/30')
   );
 }
 
@@ -131,22 +140,17 @@ export const describedBy = (id, { error, hint } = {}) =>
 export function Field({ id, label, hint, error, optional = false, className = '', children }) {
   return (
     <div className={className}>
-      <label
-        htmlFor={id}
-        className="mb-1.5 flex items-baseline gap-1.5 text-sm font-medium text-[#F5F5F5]"
-      >
+      <label htmlFor={id} className="mb-1.5 flex items-baseline gap-1.5 text-sm font-medium !text-[#16171D]">
         {label}
-        {optional && (
-          <span className="text-xs font-normal text-[#6B6890]">(optional)</span>
-        )}
+        {optional && <span className="text-xs font-normal text-[#9CA3AF]">(optional)</span>}
       </label>
       {children}
       {error ? (
-        <p id={`${id}-error`} className="mt-1.5 text-xs text-red-300">
+        <p id={`${id}-error`} className="mt-1.5 text-xs text-red-600">
           {error}
         </p>
       ) : hint ? (
-        <p id={`${id}-hint`} className="mt-1.5 text-xs text-[#6B6890]">
+        <p id={`${id}-hint`} className="mt-1.5 text-xs text-[#6B7280]">
           {hint}
         </p>
       ) : null}
@@ -161,7 +165,7 @@ export function Select({ id, value, onChange, options, error = false, ...rest })
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`${inputClass(error)} appearance-none pr-9 [color-scheme:dark]`}
+        className={`${inputClass(error)} cursor-pointer appearance-none pr-9`}
         {...rest}
       >
         {options.map((o) => (
@@ -173,21 +177,13 @@ export function Select({ id, value, onChange, options, error = false, ...rest })
       <ChevronDown
         size={15}
         aria-hidden="true"
-        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#6B6890]"
+        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280]"
       />
     </div>
   );
 }
 
-export function ToggleSwitch({
-  id,
-  checked,
-  onChange,
-  label,
-  labelledBy,
-  describedByIds,
-  disabled = false,
-}) {
+export function ToggleSwitch({ id, checked, onChange, label, labelledBy, describedByIds, disabled = false }) {
   return (
     <button
       type="button"
@@ -199,16 +195,16 @@ export function ToggleSwitch({
       aria-describedby={describedByIds}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-150
-                  focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A8FF] focus-visible:ring-offset-2
-                  focus-visible:ring-offset-[#0A0918] disabled:cursor-not-allowed disabled:opacity-50 ${
-                    checked ? 'bg-[#6C7BFF]' : 'bg-[#2E2A66]'
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-150
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60 focus-visible:ring-offset-2
+                  focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50 ${
+                    checked ? 'bg-[#6C7BFF]' : 'bg-[#D1D5DB]'
                   }`}
     >
       <span
         aria-hidden="true"
-        className={`inline-block h-4 w-4 rounded-full transition-transform duration-150 ${
-          checked ? 'translate-x-6 bg-white' : 'translate-x-1 bg-[#8B88AE]'
+        className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-150 ${
+          checked ? 'translate-x-6' : 'translate-x-1'
         }`}
       />
     </button>
@@ -219,11 +215,11 @@ export function ToggleRow({ id, label, description, checked, onChange, disabled 
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="min-w-0">
-        <p id={`${id}-label`} className="text-sm font-medium text-[#F5F5F5]">
+        <p id={`${id}-label`} className="text-sm font-medium text-[#16171D]">
           {label}
         </p>
         {description && (
-          <p id={`${id}-desc`} className="mt-0.5 text-xs leading-relaxed text-[#8B88AE]">
+          <p id={`${id}-desc`} className="mt-0.5 text-xs leading-relaxed text-[#6B7280]">
             {description}
           </p>
         )}
@@ -244,8 +240,8 @@ export function DemoBadge({ children = 'demo only', title = 'Nothing is saved to
   return (
     <span
       title={title}
-      className="inline-flex items-center rounded-md border border-[#C9A8FF]/30 bg-[#C9A8FF]/10
-                 px-1.5 py-0.5 font-mono text-[10px] text-[#C9A8FF]"
+      className="inline-flex items-center rounded-md border border-[#6C7BFF]/30 bg-[#6C7BFF]/10
+                 px-1.5 py-0.5 font-mono text-[10px] text-[#4F5DE8]"
     >
       {children}
     </span>

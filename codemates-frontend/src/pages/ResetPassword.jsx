@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 /**
  * src/pages/ResetPassword.jsx
  *
@@ -20,6 +21,9 @@
  * Password rules mirror the backend's actual @Size(min=8) on newPassword —
  * nothing stricter. Keep in sync with Register.jsx's PASSWORD_RULES.
  */
+=======
+
+>>>>>>> Stashed changes
 
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -28,6 +32,7 @@ import { AlertCircle, ArrowLeft, Check, CheckCircle2, Loader2, Lock } from "luci
 import AuthLayout from "../components/auth/AuthLayout";
 import AuthInput from "../components/auth/AuthInput";
 import useAuth from "../hooks/useAuth";
+import { primaryButton, textLink } from "./authStyles.js";
 
 // Kept in sync with Register.jsx's PASSWORD_RULES: both mirror the backend's
 // @Size(min=8) on password fields, nothing more.
@@ -43,6 +48,7 @@ function validate({ password, confirmPassword }) {
   return e;
 }
 
+<<<<<<< Updated upstream
 const primaryButton =
   "inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#6C7BFF] px-4 py-2.5 text-sm font-semibold " +
   "text-[#16171D] transition-colors hover:bg-[#8190FF] " +
@@ -51,6 +57,8 @@ const primaryButton =
 
 const textLink =
   "rounded text-[#C9A8FF] transition-colors hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A8FF]/60";
+=======
+>>>>>>> Stashed changes
 
 const backToLogin = (
   <Link to="/login" className={`inline-flex items-center gap-1.5 font-medium ${textLink}`}>
@@ -136,6 +144,7 @@ export default function ResetPassword() {
   /* ── Success ─────────────────────────────────────────────────────────── */
   if (done) {
     return (
+<<<<<<< Updated upstream
       <AuthLayout title="Password updated">
         <div ref={resultRef} tabIndex={-1} role="status" className="flex flex-col items-center text-center focus:outline-none">
           <span aria-hidden="true" className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#C9A8FF]/10 text-[#C9A8FF]">
@@ -148,11 +157,29 @@ export default function ResetPassword() {
           Back to login
         </Link>
       </AuthLayout>
+=======
+        <AuthLayout title="Password updated">
+          
+
+          <div ref={resultRef} tabIndex={-1} role="status" className="flex flex-col items-center text-center focus:outline-none">
+          <span aria-hidden="true" className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#C9A8FF]/10 text-[#C9A8FF]">
+            <CheckCircle2 size={22} />
+          </span>
+            <p className="text-sm leading-relaxed text-[#F3F4F6]">{successMessage || "Your password has been reset."}</p>
+            <p className="mt-2 text-sm leading-relaxed text-[#9CA3AF]">Log in with your new password to get back to your projects.</p>
+          </div>
+          <Link to="/login" className={`${primaryButton} mt-6`}>
+            Back to login
+          </Link>
+          
+        </AuthLayout>
+>>>>>>> Stashed changes
     );
   }
 
   /* ── Form ────────────────────────────────────────────────────────────── */
   return (
+<<<<<<< Updated upstream
     <AuthLayout
       title="Reset your password"
       subtitle="Choose a new password for your CodeMates account."
@@ -169,11 +196,31 @@ export default function ResetPassword() {
           </p>
         </div>
       )}
+=======
+      <AuthLayout
+          title="Reset your password"
+          subtitle="Enter the 8-digit code we emailed you and choose a new password."
+          footer={backToLogin}
+      >
+        <div className="[&_label]:!text-[#16171D]">
+        {error && (
+            <div role="alert" className="mb-5 flex items-start gap-2.5 rounded-xl border border-red-400/30 bg-red-400/5 px-3.5 py-3">
+              <AlertCircle size={15} aria-hidden="true" className="mt-0.5 shrink-0 text-red-300" />
+              <p className="text-sm leading-relaxed text-red-200">
+                {error}{" "}
+                <Link to="/forgot-password" className={`font-medium ${textLink}`}>
+                  Request a new code
+                </Link>
+              </p>
+            </div>
+        )}
+>>>>>>> Stashed changes
 
       <form onSubmit={handleSubmit} noValidate aria-busy={isLoading}>
         <fieldset disabled={isLoading} className="m-0 flex min-w-0 flex-col gap-5 border-0 p-0">
           <div className="flex flex-col gap-2.5">
             <AuthInput
+<<<<<<< Updated upstream
               id="reset-password"
               label="New password"
               type="password"
@@ -186,6 +233,19 @@ export default function ResetPassword() {
                 : {})}
               hint={showRules ? undefined : "Use at least 8 characters."}
               {...bind("password")}
+=======
+                id="reset-email"
+                label="Email"
+                type="email"
+                icon={Mail}
+                placeholder="Enter email"
+                autoComplete="email"
+                inputMode="email"
+                autoCapitalize="none"
+                spellCheck={false}
+                error={errorFor("email")}
+                {...bind("email")}
+>>>>>>> Stashed changes
             />
             {showRules && (
               <ul id="reset-password-rules" aria-label="Password requirements" className="flex flex-col gap-1">
@@ -218,6 +278,7 @@ export default function ResetPassword() {
             {...bind("confirmPassword")}
           />
 
+<<<<<<< Updated upstream
           <button type="submit" className={primaryButton}>
             {isLoading && <Loader2 size={15} className="animate-spin" aria-hidden="true" />}
             {isLoading ? "Resetting password…" : "Reset Password"}
@@ -225,5 +286,61 @@ export default function ResetPassword() {
         </fieldset>
       </form>
     </AuthLayout>
+=======
+            <div className="flex flex-col gap-2.5">
+              <AuthInput
+                  id="reset-password"
+                  label="New password"
+                  type="password"
+                  icon={Lock}
+                  placeholder="Create a new password"
+                  autoComplete="new-password"
+                  error={errorFor("password")}
+                  {...(showRules
+                      ? { "aria-describedby": `reset-password-rules${errorFor("password") ? " reset-password-error" : ""}` }
+                      : {})}
+                  hint={showRules ? undefined : "Use at least 8 characters."}
+                  {...bind("password")}
+              />
+              {showRules && (
+                  <ul id="reset-password-rules" aria-label="Password requirements" className="flex flex-col gap-1">
+                    {PASSWORD_RULES.map((r) => {
+                      const met = r.test(values.password);
+                      return (
+                          <li key={r.id} className={`flex items-center gap-2 text-xs ${met ? "text-[#C9A8FF]" : "text-[#9CA3AF]"}`}>
+                            {met ? (
+                                <Check size={13} aria-hidden="true" />
+                            ) : (
+                                <span aria-hidden="true" className="ml-1 mr-1 h-1.5 w-1.5 rounded-full bg-[#9CA3AF]/60" />
+                            )}
+                            {r.label}
+                            <span className="sr-only">{met ? " (met)" : " (not met yet)"}</span>
+                          </li>
+                      );
+                    })}
+                  </ul>
+              )}
+            </div>
+
+            <AuthInput
+                id="reset-confirmPassword"
+                label="Confirm new password"
+                type="password"
+                icon={Lock}
+                placeholder="Re-enter your new password"
+                autoComplete="new-password"
+                error={errorFor("confirmPassword")}
+                {...bind("confirmPassword")}
+            />
+
+            <button type="submit" className={primaryButton}>
+              {isLoading && <Loader2 size={15} className="animate-spin" aria-hidden="true" />}
+              {isLoading ? "Resetting password…" : "Reset Password"}
+            </button>
+          </fieldset>
+        </form>
+        </div>
+      </AuthLayout>
+>>>>>>> Stashed changes
   );
 }

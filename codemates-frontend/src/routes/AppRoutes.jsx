@@ -5,6 +5,7 @@ import Publiclayout from "src/layouts/Publiclayout";
 import Applayout from "src/layouts/Applayout";
 import Projectlayout from "src/layouts/Projectlayout";
 
+import AuthSlider from "src/pages/AuthSlider.jsx";
 import Landing from "src/pages/Landing";
 import Login from "src/pages/Login";
 import Register from "src/pages/Register";
@@ -87,6 +88,7 @@ export default function AppRoutes() {
         />
       </Route>
 
+<<<<<<< Updated upstream
       <Route element={<Publiclayout showFooter={false} />}>
         <Route path="/logged-out" element={<LoggedOut />} />
       </Route>
@@ -125,6 +127,56 @@ export default function AppRoutes() {
           element={<Notifications />}
         />
         {/* <Route
+=======
+            {/*
+              Auth screens + standalone pages: no marketing footer. These were
+              previously grouped with Landing under the footer-on layout above,
+              which is why Login/Register rendered with an oversized footer —
+              moved here alongside the other showFooter={false} pages.
+            */}
+           
+            <Route element={<Publiclayout showHeader={false} showFooter={false} />}>
+                <Route path="/login" element={<AuthSlider />} />
+                <Route path="/register" element={<AuthSlider />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/oauth/callback" element={<OAuthCallback />} />
+                <Route path="/logged-out" element={<LoggedOut />} />
+            </Route>
+
+            {/* Authenticated app pages */}
+            <Route element={<Applayout />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+               
+                <Route path="/profile" element={<Profile />} />
+                
+                <Route path="/discover/developers" element={<DiscoverDevelopers />} />
+                <Route path="/discover/developers/:username" element={<DeveloperProfile />} />
+               
+                <Route path="/connections/developers/:username" element={<DeveloperProfile />} />
+                <Route path="/discover/projects" element={<DiscoverProjects />} />
+                <Route
+                    path="/projects"
+                    element={<MyProjects />}
+                />
+                <Route
+                    path="/projects/create"
+                    element={<CreateProject />}
+                />
+                <Route
+                    path="/connections"
+                    element={<Connections />}
+                />
+                <Route
+                    path="/messages"
+                    element={<Messages />}
+                />
+                <Route
+                    path="/notifications"
+                    element={<Notifications />}
+                />
+                {/* <Route
+>>>>>>> Stashed changes
           path="/settings"
           element={<Settings />}
         /> */}

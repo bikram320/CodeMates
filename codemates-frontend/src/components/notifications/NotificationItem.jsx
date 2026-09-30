@@ -55,69 +55,60 @@ export default function NotificationItem({ notification, onMarkAsRead }) {
   const { label, icon: Icon, accent } = getNotificationMeta(type);
 
   return (
-    <li
-      className={`flex items-start gap-3 border-l-2 px-4 py-4 transition-colors sm:gap-4 sm:px-5 ${
-        isRead ? "border-l-transparent" : "border-l-[#6C7BFF] bg-[#6C7BFF]/[0.06]"
-      }`}
-    >
-      <div
-        aria-hidden="true"
-        className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-        style={{ backgroundColor: `${accent}1F`, color: accent, opacity: isRead ? 0.7 : 1 }}
+  <li className="group flex items-center gap-3 bg-white px-4 py-3 transition-colors hover:bg-gray-50">
+    {/* Unread dot */}
+    <span
+      aria-hidden="true"
+      className="h-2 w-2 shrink-0 rounded-full"
+      style={{ backgroundColor: isRead ? "transparent" : "#3B82F6" }}
+    />
+
+    <Icon size={16} aria-hidden="true" className="shrink-0" style={{ color: accent, opacity: isRead ? 0.6 : 1 }} />
+
+    <div className="min-w-0 flex-1">
+      <p className="truncate text-xs text-gray-500">{label}</p>
+      <h3
+        className={`truncate text-sm leading-snug ${
+          isRead ? "font-normal text-gray-600" : "font-semibold text-gray-900"
+        }`}
       >
-        <Icon size={18} />
-      </div>
+        {!isRead && <span className="sr-only">Unread: </span>}
+        {title}
+      </h3>
+      <p className="truncate text-xs text-gray-500">{body}</p>
+    </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-3">
-          <h3
-            className={`text-sm leading-snug ${
-              isRead ? "font-medium text-[#A9A6C8]" : "font-semibold text-[#F5F5F5]"
-            }`}
-          >
-            {!isRead && <span className="sr-only">Unread: </span>}
-            {title}
-          </h3>
-          <time
-            dateTime={createdAt}
-            title={new Date(createdAt).toLocaleString()}
-            className="shrink-0 pt-px text-xs text-[#6B6890]"
-          >
-            {formatRelativeTime(createdAt)}
-          </time>
-        </div>
+    <span className="hidden shrink-0 rounded border border-gray-200 bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 sm:inline-block">
+      {label}
+    </span>
 
-        <p className={`mt-1 break-words text-sm leading-relaxed ${isRead ? "text-[#8B86B8]" : "text-[#A9A6C8]"}`}>
-          {body}
-        </p>
+    <div className="flex w-28 shrink-0 justify-end">
+      {isRead ? (
+        <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+          <Check size={12} aria-hidden="true" />
+          Read
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={() => onMarkAsRead(id)}
+          className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs
+                     font-medium text-gray-800 transition-colors duration-150 hover:bg-gray-50
+                     focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+        >
+          <Check size={12} aria-hidden="true" />
+          Mark as read
+        </button>
+      )}
+    </div>
 
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <span
-            className="rounded-md border px-2 py-0.5 text-[11px] font-medium"
-            style={{ borderColor: `${accent}40`, color: accent }}
-          >
-            {label}
-          </span>
-
-          {isRead ? (
-            <span className="inline-flex items-center gap-1 text-xs text-[#6B6890]">
-              <Check size={12} aria-hidden="true" />
-              Read
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={() => onMarkAsRead(id)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#2E2A66] px-2.5 py-1 text-xs font-medium
-                         text-[#F5F5F5] transition-colors duration-150 hover:border-[#6C7BFF] hover:bg-[#1D1A40]
-                         focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
-            >
-              <Check size={12} aria-hidden="true" />
-              Mark as read
-            </button>
-          )}
-        </div>
-      </div>
-    </li>
-  );
+    <time
+      dateTime={createdAt}
+      title={new Date(createdAt).toLocaleString()}
+      className="w-20 shrink-0 text-right text-xs text-gray-500"
+    >
+      {formatRelativeTime(createdAt)}
+    </time>
+  </li>
+);
 }

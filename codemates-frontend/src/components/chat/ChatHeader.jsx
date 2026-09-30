@@ -1,4 +1,9 @@
+<<<<<<< Updated upstream
 import { Users } from "lucide-react";
+=======
+
+import Avatar from "../ui/Avatar";
+>>>>>>> Stashed changes
 
 /**
  * Header for the currently open conversation.
@@ -17,6 +22,7 @@ export default function ChatHeader({
 }) {
   return (
     <div
+<<<<<<< Updated upstream
       className={`flex items-center justify-between gap-3 border-b border-[var(--cm-border)] px-5 py-4 ${className}`}
     >
       <div className="flex min-w-0 items-center gap-3">
@@ -31,6 +37,12 @@ export default function ChatHeader({
             className="h-9 w-9 shrink-0 rounded-full object-cover"
           />
         )}
+=======
+      className={`flex items-center justify-between gap-3 border-b-2 border-gray-300 bg-white px-5 py-4 ${className}`}
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <Avatar name={title} src={isGroup ? undefined : avatarUrl} size={36} />
+>>>>>>> Stashed changes
 
         <div className="min-w-0">
           <h2 className="truncate text-sm font-semibold text-[var(--cm-text)]">
@@ -42,7 +54,12 @@ export default function ChatHeader({
         </div>
       </div>
 
+<<<<<<< Updated upstream
       {action && <div className="shrink-0">{action}</div>}
+=======
+      {/* Mute button, rightmost */}
+      <div className="flex shrink-0 items-center">{action}</div>
+>>>>>>> Stashed changes
     </div>
   );
 }

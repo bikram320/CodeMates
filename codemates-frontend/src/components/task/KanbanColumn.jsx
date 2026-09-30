@@ -30,7 +30,7 @@ function EmptyColumn({ status }) {
       <div className="w-8 h-8 rounded-lg bg-[#1D1A40] flex items-center justify-center mb-3">
         <div className="w-3 h-3 rounded-sm border-2 border-[#2E2A66]" />
       </div>
-      <p className="text-xs text-[#4A4660]">{messages[status] ?? 'No tasks.'}</p>
+      <p className="text-[1.125rem] text-[#4A4660]">{messages[status] ?? 'No tasks.'}</p>
     </div>
   );
 }
@@ -45,7 +45,7 @@ export default function KanbanColumn({
   onAddTask,
 }) {
   return (
-    <div className="flex flex-col min-w-[272px] w-[272px] bg-[#0A0918] border border-[#1C1A38] rounded-xl overflow-hidden shrink-0">
+    <div className="flex flex-1 flex-col min-w-[272px] bg-[#0A0918] border border-[#1C1A38] rounded-xl overflow-hidden">
 
       {/* ── Column header ─────────────────────────────────────────────────── */}
       <div className="px-4 py-3 border-b border-[#1C1A38] flex items-center gap-2.5">
@@ -60,10 +60,6 @@ export default function KanbanColumn({
           {title}
         </span>
 
-        {/* Task count badge */}
-        <span className="text-[10px] font-mono text-[#6B6890] bg-[#1D1A40] px-1.5 py-0.5 rounded">
-          {tasks.length}
-        </span>
       </div>
 
       {/* ── Task list ─────────────────────────────────────────────────────── */}

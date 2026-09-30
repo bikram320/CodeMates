@@ -45,14 +45,10 @@ export default function MessageBubble({
   }
 
   return (
-    <div className={`group flex items-end gap-2 ${isOwn ? "flex-row-reverse" : ""}`}>
+    <div className={`group flex items-start gap-2 ${isOwn ? "flex-row-reverse" : ""}`}>
       {!isOwn && <Avatar name={senderName ?? "?"} src={senderAvatarUrl} size={28} />}
 
       <div className={`flex max-w-[75%] flex-col ${isOwn ? "items-end" : "items-start"}`}>
-        {!isOwn && senderName && (
-          <span className="mb-1 px-1 text-xs text-[var(--cm-muted)]">{senderName}</span>
-        )}
-
         {isEditing ? (
           <div className="flex w-full flex-col gap-1.5">
             <textarea

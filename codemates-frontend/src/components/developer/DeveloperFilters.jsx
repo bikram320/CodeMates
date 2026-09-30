@@ -32,10 +32,10 @@ const DEFAULT_EXPERIENCE = ["Beginner", "Intermediate", "Advanced", "Expert"];
 const DEFAULT_AVAILABILITY = ["Available", "Open to offers", "Not available"];
 
 function chipClass(active) {
-  return `rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+  return `cursor-pointer rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
     active
-      ? "border-[var(--cm-indigo)] bg-[var(--cm-indigo-soft)] text-[var(--cm-lavender)]"
-      : "border-[var(--cm-border)] text-[var(--cm-text-dim)] hover:border-[var(--cm-border-strong)] hover:text-[var(--cm-text)]"
+      ? "border-[#6366F1] bg-[#6366F1] text-white"
+      : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
   }`;
 }
 
@@ -127,7 +127,7 @@ export default function DeveloperFilters({
         <button
           type="button"
           onClick={onClearAll}
-          className="self-start text-xs text-[var(--cm-muted)] underline-offset-2 hover:text-[var(--cm-text-dim)] hover:underline"
+          className="cursor-pointer self-start text-xs text-[var(--cm-muted)] underline-offset-2 hover:text-[var(--cm-text-dim)] hover:underline"
         >
           Clear all filters
         </button>

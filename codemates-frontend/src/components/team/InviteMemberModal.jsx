@@ -151,6 +151,7 @@ function ModalBody({ onClose, onInvite, takenUserIds }) {
           </button>
         </div>
 
+<<<<<<< Updated upstream
         <form onSubmit={handleSubmit} noValidate>
           <div className="space-y-5 px-5 py-5">
             {/* ── User ID ───────────────────────────────────────────────── */}
@@ -179,6 +180,66 @@ function ModalBody({ onClose, onInvite, takenUserIds }) {
                 className={`w-full rounded-lg border bg-[#1D1A40]/50 px-3 py-2.5 font-mono text-sm text-[#F5F5F5]
                             placeholder:text-[#6B6890]
                             focus:outline-none focus:ring-2 ${
+=======
+          <form onSubmit={handleSubmit} noValidate>
+            <div className="space-y-5 px-5 py-5">
+              {/* ── Who ───────────────────────────────────────────────────── */}
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                <span className="text-sm font-medium text-[#F5F5F5]">
+                  {mode === 'connections' ? 'From your connections' : 'User ID'}
+                </span>
+                  <button
+                      type="button"
+                      onClick={() => switchMode(mode === 'connections' ? 'manual' : 'connections')}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-[#8E9BFF]
+                             transition-colors hover:text-[#C9A8FF] focus:outline-none
+                             focus-visible:underline"
+                  >
+                    {mode === 'connections' ? (
+                        <>
+                          <Link2 size={12} />
+                          Invite by user ID instead
+                        </>
+                    ) : (
+                        <>
+                          <Users size={12} />
+                          Search connections instead
+                        </>
+                    )}
+                  </button>
+                </div>
+
+                {mode === 'connections' ? (
+                    <ConnectionPicker
+                        selectedUserId={selectedUserId}
+                        onSelect={(id) => {
+                          setSelectedUserId(id);
+                          if (error) setError('');
+                        }}
+                        takenUserIds={takenUserIds}
+                    />
+                ) : (
+                    <>
+                      <input
+                          ref={manualInputRef}
+                          id="invite-user-id"
+                          type="text"
+                          autoComplete="off"
+                          autoCapitalize="none"
+                          spellCheck={false}
+                          value={manualId}
+                          onChange={(e) => {
+                            setManualId(e.target.value);
+                            if (error) setError('');
+                          }}
+                          placeholder="Enter user ID"
+                          aria-invalid={Boolean(error)}
+                          aria-describedby={error ? 'invite-user-id-error' : 'invite-user-id-hint'}
+                          className={`w-full rounded-lg border bg-[#1D1A40]/50 px-3 py-2.5 font-mono text-sm text-[#F5F5F5]
+                                placeholder:text-[#6B6890]
+                                focus:outline-none focus:ring-2 ${
+>>>>>>> Stashed changes
                               error
                                 ? 'border-red-400/70 focus:border-red-400 focus:ring-red-400/20'
                                 : 'border-[#2E2A66] focus:border-[#6C7BFF] focus:ring-[#6C7BFF]/30'

@@ -1,0 +1,58 @@
+.dashboard-page {
+  --dashboard-ink: #20232b;
+  --dashboard-muted: #7b818d;
+  --dashboard-blue: #6C7BFF;
+  max-width: 1180px;
+  margin: 0 auto;
+  color: var(--dashboard-ink);
+  font-family: "DM Sans", "Segoe UI", sans-serif;
+}
+
+.dashboard-page .dashboard-welcome { margin-bottom: 28px; }
+.dashboard-page h1 { font-size: clamp(1.65rem, 2vw, 2.05rem); letter-spacing: -0.055em; }
+.dashboard-page .dashboard-welcome p { color: var(--dashboard-muted); font-size: .88rem; }
+.dashboard-page .dashboard-welcome a { border-radius: 9px; padding: 10px 17px; font-size: .78rem; }
+.dashboard-page .dashboard-welcome a:first-child { border-color: #e4e6eb; color: #555b66; }
+.dashboard-page .dashboard-welcome a:last-child { background: var(--dashboard-blue); box-shadow: 0 5px 12px rgba(48, 72, 216, .18); }
+
+.dashboard-page .dashboard-stats { gap: 16px; margin-bottom: 22px; }
+.dashboard-page .dashboard-stat { min-height: 124px; border-color: #e7e9ee; border-radius: 15px; padding: 18px; box-shadow: 0 5px 18px rgba(31, 36, 53, .035); }
+.dashboard-page .dashboard-stat > div:first-child { width: 37px; height: 37px; border-radius: 9px; background: #eef1ff; }
+.dashboard-page .dashboard-stat svg { color: var(--dashboard-blue); width: 17px; }
+.dashboard-page .dashboard-stat > div:nth-child(2) { margin-top: 14px; font-size: 1.42rem; letter-spacing: -.04em; }
+.dashboard-page .dashboard-stat > div:last-child { color: var(--dashboard-muted); font-size: .73rem; }
+
+.dashboard-page > .grid { align-items: start; gap: 16px; }
+.dashboard-panel { min-width: 0; border: 1px solid #e7e9ee; border-radius: 15px; background: #fff; box-shadow: 0 5px 18px rgba(31, 36, 53, .035); }
+.dashboard-panel-heading { display: flex; align-items: center; justify-content: space-between; padding: 17px 18px 14px; }
+.dashboard-panel-heading h2 { font-size: .86rem; letter-spacing: -.02em; }
+.dashboard-view-link { color: #676d78; font-size: .68rem; text-decoration: underline; text-underline-offset: 2px; }
+.dashboard-chart { position: relative; height: 205px; padding: 8px 17px 28px 42px; border-top: 1px solid #f0f1f4; }
+.dashboard-chart::before { position: absolute; inset: 35px 17px 34px 42px; background: repeating-linear-gradient(to bottom, #eef0f4 0, #eef0f4 1px, transparent 1px, transparent 41px); content: ""; }
+.dashboard-chart svg { position: relative; z-index: 1; width: 100%; height: 156px; overflow: visible; }
+.dashboard-chart-area { fill: url(#activity-fill); }
+.dashboard-chart-line { fill: none; stroke: var(--dashboard-blue); stroke-linecap: round; stroke-width: 2.5; }
+.dashboard-chart-dot { fill: #fff; stroke: var(--dashboard-blue); stroke-width: 2.5; }
+.dashboard-chart-scale { position: absolute; top: 16px; bottom: 45px; left: 17px; display: flex; flex-direction: column; justify-content: space-between; color: #b1b5bd; font-size: .58rem; }
+.dashboard-chart-labels { position: absolute; right: 17px; bottom: 11px; left: 42px; display: flex; justify-content: space-between; color: #a5a9b1; font-size: .6rem; }
+.dashboard-activity-list { padding: 0 18px 18px; }
+.dashboard-subheading { margin-bottom: 8px; color: #8b909a; font-size: .65rem; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; }
+.dashboard-activity-list > div:last-child { padding: 0 14px; box-shadow: none; }
+.dashboard-activity-list .py-4 { padding-top: 11px; padding-bottom: 11px; }
+.dashboard-activity-list p { font-size: .72rem; }
+
+.developers-panel { padding-bottom: 18px; }
+.activity-panel .dashboard-view-link,
+.developers-panel .dashboard-view-link { color: var(--dashboard-blue); font-size: 1.36rem; font-weight: 600; }
+.developers-panel > .grid { padding: 0 18px; }
+.developers-panel .rounded-2xl.border { border-color: #eceef2; border-radius: 11px; padding: 13px; box-shadow: none; }
+.developers-panel .rounded-2xl.border p.text-xs.text-slate-400 { color: #000; }
+.developers-panel .rounded-2xl.border button { margin-top: 12px; padding: 8px; border-radius: 7px; background: #eef1ff; color: var(--dashboard-blue); box-shadow: none; font-size: .72rem; }
+.developers-panel .rounded-2xl.border button:hover { background: #e0e5ff; }
+
+@media (max-width: 640px) {
+  .dashboard-page .dashboard-welcome a { padding: 9px 12px; }
+  .dashboard-page .dashboard-stat { padding: 14px; }
+  .dashboard-chart { height: 180px; }
+  .dashboard-chart svg { height: 132px; }
+}

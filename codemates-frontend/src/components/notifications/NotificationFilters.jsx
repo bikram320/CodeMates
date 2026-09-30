@@ -1,3 +1,6 @@
+import { useEffect, useRef, useState } from "react";
+import { Check, ChevronDown } from "lucide-react";
+
 export const STATUS_OPTIONS = [
   { id: "all", label: "All" },
   { id: "unread", label: "Unread" },
@@ -12,7 +15,7 @@ export const CATEGORY_OPTIONS = [
   { id: "github", label: "GitHub" },
 ];
 
-const focusRing = "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60";
+const focusRing = "focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300";
 
 export default function NotificationFilters({
   status,
@@ -24,15 +27,30 @@ export default function NotificationFilters({
   onCategoryChange,
 }) {
   const counts = { all: totalCount, unread: unreadCount };
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  // Close the menu on outside click / Escape
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const activeCategory = CATEGORY_OPTIONS.find((o) => o.id === category);
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex items-center justify-between gap-3">
       {/* Read status */}
-      <div
-        role="group"
-        aria-label="Filter by read status"
-        className="inline-flex self-start rounded-lg border border-[#1C1A38] bg-[#0A0918] p-1"
-      >
+      <div role="group" aria-label="Filter by read status" className="inline-flex gap-2">
         {STATUS_OPTIONS.map((opt) => {
           const active = status === opt.id;
           return (
@@ -42,18 +60,18 @@ export default function NotificationFilters({
               disabled={disabled}
               aria-pressed={active}
               onClick={() => onStatusChange(opt.id)}
-              className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors
-                          disabled:cursor-not-allowed disabled:opacity-60 ${focusRing} ${
-                active ? "bg-[#1D1A40] text-[#F5F5F5]" : "text-[#8B86B8] hover:text-[#F5F5F5]"
+              className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium
+                          transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${focusRing} ${
+                active
+                  ? "border-[#6366F1] bg-[#6366F1] text-white"
+                  : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
               }`}
             >
               {opt.label}
               {!disabled && (
                 <span
                   className={`rounded px-1.5 text-xs tabular-nums ${
-                    opt.id === "unread" && unreadCount > 0
-                      ? "bg-[#6C7BFF] text-[#0A0918]"
-                      : "bg-[#26224A] text-[#A9A6C8]"
+                    active ? "bg-white text-[#6366F1]" : "bg-gray-100 text-gray-700"
                   }`}
                 >
                   {counts[opt.id]}
@@ -64,32 +82,51 @@ export default function NotificationFilters({
         })}
       </div>
 
-      {/* Type */}
-      <div
-        role="group"
-        aria-label="Filter by notification type"
-        className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0"
-      >
-        {CATEGORY_OPTIONS.map((opt) => {
-          const active = category === opt.id;
-          return (
-            <button
-              key={opt.id}
-              type="button"
-              disabled={disabled}
-              aria-pressed={active}
-              onClick={() => onCategoryChange(opt.id)}
-              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors
-                          disabled:cursor-not-allowed disabled:opacity-60 ${focusRing} ${
-                active
-                  ? "border-[#C9A8FF]/60 bg-[#C9A8FF]/10 text-[#C9A8FF]"
-                  : "border-[#2E2A66] text-[#A9A6C8] hover:border-[#6C7BFF] hover:text-[#F5F5F5]"
-              }`}
-            >
-              {opt.label}
-            </button>
-          );
-        })}
+      {/* Group by (type filter) */}
+      <div ref={menuRef} className="relative">
+        <button
+          type="button"
+          disabled={disabled}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+          className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5
+                      text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50
+                      disabled:cursor-not-allowed disabled:opacity-60 ${focusRing}`}
+        >
+          Group by
+          {category !== "all" && <span className="text-[#6366F1]">: {activeCategory?.label}</span>}
+          <ChevronDown size={14} aria-hidden="true" className={`transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+
+        {open && (
+          <div
+            role="menu"
+            className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+          >
+            {CATEGORY_OPTIONS.map((opt) => {
+              const active = category === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={active}
+                  onClick={() => {
+                    onCategoryChange(opt.id);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50 ${
+                    active ? "font-medium text-[#6366F1]" : "text-gray-700"
+                  }`}
+                >
+                  {opt.label}
+                  {active && <Check size={14} aria-hidden="true" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

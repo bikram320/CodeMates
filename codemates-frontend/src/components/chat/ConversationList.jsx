@@ -1,4 +1,5 @@
 import ConversationItem from "./ConversationItem";
+import { MessageSquare } from "lucide-react";
 
 /**
  * Sidebar listing all of the user's conversations. Purely presentational —
@@ -20,13 +21,12 @@ export default function ConversationList({
     <div
       className={`flex h-full flex-col border-r border-[var(--cm-border)] ${className}`}
     >
-      <div className="border-b border-[var(--cm-border)] px-4 py-4">
-        <h2 className="text-sm font-semibold text-[var(--cm-text)]">
-          Conversations
-        </h2>
+      <div className="flex h-[69px] items-center gap-3 border-b border-[#6366F1] bg-[#6366F1] px-4">
+        <MessageSquare size={24} className="shrink-0 !text-white" aria-hidden="true" />
+        <h2 className="text-xl font-semibold !text-white">Messages</h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className={`flex h-full flex-col border-r border-[var(--cm-border)] bg-white ${className}`}>
         {conversations.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-[var(--cm-muted)]">
             No conversations yet.
