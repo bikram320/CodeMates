@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 /**
  * src/pages/Login.jsx
  *
@@ -46,13 +45,8 @@ const primaryButton =
 
 const textLink =
   "rounded text-[#C9A8FF] transition-colors hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A8FF]/60";
-=======
-import AuthSlider from "./AuthSlider.jsx";
->>>>>>> Stashed changes
 
-// Keeps the existing /login route working: it now renders the sliding auth page.
 export default function Login() {
-<<<<<<< Updated upstream
   const navigate = useNavigate();
   const location = useLocation();
   const redirectTo = location.state?.from?.pathname ?? DEFAULT_REDIRECT;
@@ -171,7 +165,4 @@ export default function Login() {
       </form>
     </AuthLayout>
   );
-=======
-  return <AuthSlider />;
->>>>>>> Stashed changes
 }

@@ -28,7 +28,7 @@
 
 import { useMemo, useState }        from 'react';
 import { useNavigate }              from 'react-router-dom';
-import { AlertCircle, RefreshCw, Plus }   from 'lucide-react';
+import { AlertCircle, RefreshCw }   from 'lucide-react';
 
 import { useMyProjects }            from '../hooks/useMyProjects';
 import MyProjectsHeader             from '../components/project/MyProjectsHeader';
@@ -130,37 +130,8 @@ export default function MyProjects() {
       result = result.filter((p) => p.visibility === visibilityFilter);
     }
 
-<<<<<<< Updated upstream
     return applySort(result, sortBy);
   }, [allProjects, search, statusFilter, visibilityFilter, sortBy]);
-=======
-            {/* Header */}
-            {/*
-        NOTE: PendingInvitationsWidget is placed as a sibling here rather
-        than passed into MyProjectsHeader, since that component's internal
-        layout wasn't available to edit directly. If MyProjectsHeader
-        already has a slot for secondary actions next to "Create Project",
-        move this button there instead for a tighter layout.
-      */}
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <MyProjectsHeader
-                    totalCount={allProjects.length}
-                    ownedCount={ownedCount}
-                    onCreate={() => navigate('/projects/create')}
-                />
-                <div className="flex gap-2">
-                    <MyJoinRequestsWidget />
-                    <PendingInvitationsWidget />
-                    <button
-                        onClick={() => navigate('/projects/create')}
-                        className="btn-primary text-sm shrink-0"
-                    >
-                        <Plus size={15} />
-                        Create Project
-                    </button>
-                </div>
-            </div>
->>>>>>> Stashed changes
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const hasFilters = Boolean(search || statusFilter || visibilityFilter);

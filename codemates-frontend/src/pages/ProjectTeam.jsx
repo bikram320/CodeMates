@@ -224,7 +224,6 @@ export default function ProjectTeam() {
           </p>
         </div>
 
-<<<<<<< Updated upstream
         {canManage && (
           <button
             type="button"
@@ -232,124 +231,6 @@ export default function ProjectTeam() {
             className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#6C7BFF] px-4 py-2.5
                        text-sm font-semibold text-[#0A0918] transition-colors hover:bg-[#8190FF]
                        focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A8FF] sm:w-auto"
-=======
-          {canManage && (
-              <button
-                  type="button"
-                  onClick={() => setInviteOpen(true)}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#6C7BFF] px-4 py-2.5
-                       text-sm font-semibold text-[white] transition-colors hover:bg-[#8190FF] cursor-pointer sm:w-auto
-                       focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C7BFF]/60"
-              >
-                    
-                <UserPlus size={15} />
-                Invite member
-              </button>
-          )}
-        </div>
-
-        {/* ── Filters + list ──────────────────────────────────────────────── */}
-        <div className="body-container mt-6 flex flex-col gap-5">
-          {isLoading ? (
-              <TeamSkeleton />
-          ) : isError ? (
-              <TeamError error={error} onRetry={() => refetch()} />
-          ) : (
-              <>
-                {canManage && joinRequests.length > 0 && (
-                    <div className="join-requests-container rounded-xl border border-[#1C1A38] bg-[#0A0918] p-4">
-                      <h2 className="flex items-center gap-2 text-sm font-semibold text-[#F5F5F5]">
-                        Join requests
-                        <span className="rounded-full bg-[#6C7BFF]/20 px-2 py-0.5 text-xs text-[#8E9BFF]">
-                          {joinRequests.length}
-                        </span>
-                      </h2>
-                      <div className="mt-3 space-y-2.5">
-                        {joinRequests.map((jr) => {
-                          const requester = directory[jr.requestingUserId];
-                          const name =
-                              requester?.fullName ||
-                              requester?.username ||
-                              `${jr.requestingUserId.slice(0, 8)}…`;
-                          return (
-                              <div
-                                  key={jr.id}
-                                  className="flex items-center justify-between gap-3 rounded-lg border border-[#1C1A38] bg-[#1D1A40]/40 p-3"
-                              >
-                                <p className="text-sm text-[#F5F5F5]">
-                                  <span className="font-medium">{name}</span> wants to join this project
-                                </p>
-                                <div className="flex shrink-0 gap-2">
-                                  <button
-                                      type="button"
-                                      onClick={() => handleRejectJoinRequest(jr)}
-                                      className={secondaryButton}
-                                  >
-                                    Decline
-                                  </button>
-                                  <button
-                                      type="button"
-                                      onClick={() => handleAcceptJoinRequest(jr)}
-                                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#6C7BFF] px-3 py-1.5
-                                             text-sm font-semibold text-[#0A0918] transition-colors hover:bg-[#8190FF]"
-                                  >
-                                    Accept
-                                  </button>
-                                </div>
-                              </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                )}
-                <TeamFilters
-                    search={search}
-                    onSearchChange={setSearch}
-                    role={roleFilter}
-                    onRoleChange={setRoleFilter}
-                    counts={counts}
-                />
-
-                <TeamMemberList
-                    members={filteredMembers}
-                    totalCount={members.length}
-                    hasActiveFilters={hasActiveFilters}
-                    currentUserId={currentUserId}
-                    canManage={canManage}
-                    leaderCount={counts.LEADER}
-                    onChangeRole={handleChangeRole}
-                    onRemove={handleRemove}
-                    onInvite={() => setInviteOpen(true)}
-                    onClearFilters={clearFilters}
-                />
-              </>
-          )}
-        </div>
-
-        {/* ── Invite modal ────────────────────────────────────────────────── */}
-        <InviteMemberModal
-            open={inviteOpen}
-            onClose={() => setInviteOpen(false)}
-            onInvite={handleInvite}
-            takenUserIds={members.map((m) => m.userId)}
-        />
-
-        {/* ── Confirmation / error toast ──────────────────────────────────── */}
-        {notice && (
-            <div
-                role={notice.tone === "error" ? "alert" : "status"}
-                aria-live={notice.tone === "error" ? "assertive" : "polite"}
-                className="fixed bottom-4 left-4 right-4 z-40 mx-auto flex max-w-sm items-center gap-2.5 rounded-xl
-                     border border-[#2E2A66] bg-[#0F0E24] px-4 py-3 text-sm text-[#F5F5F5]
-                     shadow-xl shadow-black/50 sm:left-auto sm:right-6 sm:mx-0"
-            >
-          <span
-              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
-                  notice.tone === "error"
-                      ? "bg-red-400/20 text-red-300"
-                      : "bg-[#6C7BFF]/20 text-[#8E9BFF]"
-              }`}
->>>>>>> Stashed changes
           >
             <UserPlus size={15} />
             Invite member

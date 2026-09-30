@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 /**
  * src/pages/ForgotPassword.jsx
  *
@@ -20,8 +19,6 @@
  * The emailed link would open /reset-password?token=…, which calls
  * POST /api/auth/reset-password { token, newPassword }.
  */
-=======
->>>>>>> Stashed changes
 
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
@@ -30,11 +27,9 @@ import { AlertCircle, ArrowLeft, Loader2, Mail, MailCheck } from "lucide-react";
 import AuthLayout from "../components/auth/AuthLayout";
 import AuthInput from "../components/auth/AuthInput";
 import useAuth from "../hooks/useAuth";
-import { primaryButton, outlineButton, textLink } from "./authStyles.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-<<<<<<< Updated upstream
 const primaryButton =
   "inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#6C7BFF] px-4 py-2.5 text-sm font-semibold " +
   "text-[#16171D] transition-colors hover:bg-[#8190FF] " +
@@ -48,9 +43,6 @@ const outlineButton =
 
 const textLink =
   "rounded text-[#C9A8FF] transition-colors hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A8FF]/60";
-=======
-
->>>>>>> Stashed changes
 
 export default function ForgotPassword() {
   const { forgotPassword } = useAuth();
@@ -111,16 +103,8 @@ export default function ForgotPassword() {
   /* ── Success ─────────────────────────────────────────────────────────── */
   if (result) {
     return (
-<<<<<<< Updated upstream
       <AuthLayout title="Check your email" footer={backToLogin}>
         <div ref={successRef} tabIndex={-1} role="status" className="flex flex-col items-center text-center focus:outline-none">
-=======
-        <AuthLayout title="Check your email" footer={backToLogin}>
-         
-          {errorBanner}
-
-          <div ref={successRef} tabIndex={-1} role="status" className="flex flex-col items-center text-center focus:outline-none">
->>>>>>> Stashed changes
           <span
             aria-hidden="true"
             className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#C9A8FF]/10 text-[#C9A8FF]"
@@ -136,55 +120,15 @@ export default function ForgotPassword() {
           </p>
         </div>
 
-<<<<<<< Updated upstream
         <button type="button" onClick={useDifferentEmail} className={`${outlineButton} mt-6`}>
           Use a different email
         </button>
       </AuthLayout>
-=======
-          <form onSubmit={handleVerify} noValidate className="mt-6">
-            <div className="flex flex-col gap-5">
-              <AuthInput
-                  id="forgot-code"
-                  label="8-digit code"
-                  type="text"
-                  icon={KeyRound}
-                  placeholder="12345678"
-                  autoComplete="one-time-code"
-                  inputMode="numeric"
-                  maxLength={8}
-                  spellCheck={false}
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
-                  onBlur={() => setCodeTouched(true)}
-                  error={shownCodeError}
-                  hint={shownCodeError ? undefined : "The code expires in 15 minutes."}
-              />
-
-              <button type="submit" className={primaryButton}>
-                Verify code
-              </button>
-            </div>
-          </form>
-
-          <div className="mt-4 flex flex-col gap-3">
-            <button type="button" onClick={sendCode} disabled={isLoading} className={outlineButton}>
-              {isLoading && <Loader2 size={15} className="animate-spin" aria-hidden="true" />}
-              {isLoading ? "Sending…" : "Resend code"}
-            </button>
-            <button type="button" onClick={useDifferentEmail} className={`${textLink} text-sm`}>
-              Use a different email
-            </button>
-          </div>
-        
-        </AuthLayout>
->>>>>>> Stashed changes
     );
   }
 
   /* ── Form ────────────────────────────────────────────────────────────── */
   return (
-<<<<<<< Updated upstream
     <AuthLayout
       title="Forgot your password?"
       subtitle="Enter the email you signed up with and we'll send you a link to reset your password."
@@ -228,51 +172,5 @@ export default function ForgotPassword() {
         </fieldset>
       </form>
     </AuthLayout>
-=======
-      <AuthLayout
-          title="Forgot your password?"
-          subtitle="Enter the email you signed up with and we'll send you a code and a link to reset your password."
-          footer={backToLogin}
-      >
-        <div className="[&_label]:!text-[#16171D]">
-        {errorBanner}
-
-        <form onSubmit={handleSubmit} noValidate aria-busy={isLoading}>
-          <fieldset disabled={isLoading} className="m-0 flex min-w-0 flex-col gap-5 border-0 p-0">
-            <AuthInput
-                id="forgot-email"
-                label="Email"
-                type="email"
-                icon={Mail}
-                placeholder="Enter email"
-                autoComplete="email"
-                inputMode="email"
-                autoCapitalize="none"
-                spellCheck={false}
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  setError(null);
-                }}
-                onBlur={() => setTouched(true)}
-                error={shownError}
-            />
-
-            <button type="submit" className={primaryButton}>
-              {isLoading && <Loader2 size={15} className="animate-spin" aria-hidden="true" />}
-              {isLoading ? "Sending code…" : "Send Reset Code"}
-            </button>
-          </fieldset>
-        </form>
-
-        <p className="mt-5 text-center text-sm text-[#9CA3AF]">
-          Already have a code?{" "}
-          <Link to="/reset-password" className={`font-medium ${textLink}`}>
-            Enter it here
-          </Link>
-        </p>
-        </div>
-      </AuthLayout>
->>>>>>> Stashed changes
   );
 }

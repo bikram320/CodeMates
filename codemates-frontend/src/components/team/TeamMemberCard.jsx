@@ -44,22 +44,22 @@ export const ROLE_META = {
     label: 'Leader',
     icon: Crown,
     description: 'Manages members, roles and project settings.',
-    badge: 'bg-[#008ADE] text-white border-[#1B2A4A]',
-    iconBox: 'bg-[#008ADE] text-white',
+    badge: 'bg-[#C9A8FF]/10 text-[#C9A8FF] border-[#C9A8FF]/30',
+    iconBox: 'bg-[#C9A8FF]/10 text-[#C9A8FF]',
   },
   CONTRIBUTOR: {
     label: 'Contributor',
     icon: Code,
     description: 'Takes on tasks and ships work to the project.',
-    badge: 'bg-[#C68000] text-white border-[#E39300]',
-    iconBox: 'bg-[#C68000] text-white',
+    badge: 'bg-[#6C7BFF]/10 text-[#8E9BFF] border-[#6C7BFF]/30',
+    iconBox: 'bg-[#6C7BFF]/10 text-[#8E9BFF]',
   },
   REVIEWER: {
     label: 'Reviewer',
     icon: ShieldCheck,
     description: 'Reviews submitted work and approves tasks.',
-    badge: 'bg-[#008000] text-white border-[#008000]',
-    iconBox: 'bg-[#008000] text-white',
+    badge: 'bg-emerald-400/10 text-emerald-300 border-emerald-400/25',
+    iconBox: 'bg-emerald-400/10 text-emerald-300',
   },
 };
 
@@ -256,7 +256,6 @@ export default function TeamMemberCard({
       <div className="flex items-start gap-3">
         <Avatar name="" size={44} />
 
-<<<<<<< Updated upstream
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h3 className="truncate font-mono text-sm font-semibold text-[#F5F5F5]">
@@ -264,15 +263,6 @@ export default function TeamMemberCard({
             </h3>
             {isCurrentUser && (
               <span className="shrink-0 rounded bg-[#1D1A40] px-1.5 py-0.5 font-mono text-[10px] text-[#8B88AE]">
-=======
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h3 className="truncate text-sm font-semibold text-[#F5F5F5]">
-                {displayName}
-              </h3>
-              {isCurrentUser && (
-                  <span className="shrink-0 rounded bg-[#1D1A40] px-1.5 py-0.5 font-mono text-[17px] text-[#8B88AE]">
->>>>>>> Stashed changes
                 you
               </span>
             )}
@@ -292,13 +282,8 @@ export default function TeamMemberCard({
       {/* ── Role ──────────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-2">
         <span
-<<<<<<< Updated upstream
           className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5
                       font-mono text-[10px] font-semibold uppercase tracking-wider ${role.badge}`}
-=======
-            className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5
-                      font-mono text-[17px] font-semibold uppercase tracking-wider ${role.badge}`}
->>>>>>> Stashed changes
         >
           <RoleIcon size={11} />
           {member.role}
