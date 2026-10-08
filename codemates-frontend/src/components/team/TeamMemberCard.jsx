@@ -46,22 +46,22 @@ export const ROLE_META = {
     label: 'Leader',
     icon: Crown,
     description: 'Manages members, roles and project settings.',
-    badge: 'bg-[#C9A8FF]/10 text-[#C9A8FF] border-[#C9A8FF]/30',
-    iconBox: 'bg-[#C9A8FF]/10 text-[#C9A8FF]',
+    badge: 'bg-[blue] text-[white] border-[#C9A8FF]/30',
+    iconBox: 'bg-[blue] text-[white]',
   },
   CONTRIBUTOR: {
     label: 'Contributor',
     icon: Code,
     description: 'Takes on tasks and ships work to the project.',
-    badge: 'bg-[#6C7BFF]/10 text-[#8E9BFF] border-[#6C7BFF]/30',
-    iconBox: 'bg-[#6C7BFF]/10 text-[#8E9BFF]',
+    badge: 'bg-[orange] text-[white] border-[#6C7BFF]/30',
+    iconBox: 'bg-[orange] text-[white]',
   },
   REVIEWER: {
     label: 'Reviewer',
     icon: ShieldCheck,
     description: 'Reviews submitted work and approves tasks.',
-    badge: 'bg-emerald-400/10 text-emerald-300 border-emerald-400/25',
-    iconBox: 'bg-emerald-400/10 text-emerald-300',
+    badge: 'bg-[green] text-[white] border-emerald-400/25',
+    iconBox: 'bg-[green] text-[white]',
   },
 };
 

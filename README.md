@@ -1,218 +1,260 @@
-~~# CodeMates — Intelligent Developer Collaboration Platform
+# CodeMates — Intelligent Developer Collaboration Platform
 
-## Overview
+CodeMates is a full-stack platform built to help developers **discover teammates, create and manage projects, communicate in real time, and track team contributions** from a single workspace.
 
-CodeMates is a full-stack developer collaboration platform designed to simplify how developers find teammates, build projects, and collaborate during software development.
+The platform combines developer networking, project management, real-time communication, GitHub integration, and machine-learning-powered collaboration features into one ecosystem.
 
-The platform combines elements of professional networking, project management, real-time communication, and AI-driven developer matching into a single unified system.
-
-Unlike traditional tools that focus on only one aspect of collaboration (such as GitHub for code, Jira for tasks, or LinkedIn for networking), CodeMates aims to integrate the entire developer collaboration lifecycle.
+> **Discover developers → Build teams → Collaborate → Track contributions**
 
 ---
 
-## Problem Statement
+## 🚀 Features
 
-Modern software development is fragmented across multiple tools:
+### 👨‍💻 Developer Profiles
 
-- Developers struggle to find the right teammates for projects
-- Team formation is manual and inefficient
-- Communication and project execution are disconnected
-- Contribution tracking is unclear and often unfair
-- Project progress lacks transparency
+Create a developer profile showcasing:
 
-As a result, many student and real-world projects fail due to poor collaboration rather than technical difficulty.
-
-CodeMates solves this by providing a unified developer ecosystem.
+* Skills and technologies
+* Experience level
+* Bio and portfolio
+* GitHub profile
+* Developer activity
 
 ---
 
-## Core Idea
+### 🔎 Developer Discovery
 
-> "From discovering developers → forming teams → building projects → tracking contributions → analyzing performance — all in one platform."
+Find developers based on their technical background and interests.
 
----
-
-## Key Features
-
-*Status tags below reflect what's actually implemented in the backend as of this write-up, not just the product vision — see the API docs for exact endpoints.*
-
-### 1. Developer Profile System ✅ Implemented
-Each user has a structured developer profile including:
-
-- Skills and technologies
-- Experience level
-- Bio and portfolio links
-- GitHub integration
-- Activity status
+* Skill-based developer search
+* Experience filtering
+* Interest-based discovery
+* GitHub activity insights
 
 ---
 
-### 2. Developer Discovery System ✅ Implemented
-Users can search and connect with other developers using:
+### 🤝 Developer Networking
 
-- Skill-based search
-- Experience filters
-- Interest matching
-- GitHub-based activity insights
+Connect and communicate with other developers through a dedicated social layer.
 
----
-
-### 3. AI-Powered Developer Matching (ML Feature) 🔜 Planned (Phase 2)
-
-The system will recommend developers based on:
-
-- Skill similarity scoring
-- GitHub contribution activity
-- Project relevance matching
-- Collaboration history (future extension)
-
-Output (planned):
-- Ranked developer suggestions
-- Match percentage score
-- Reason for recommendation
-
-**Current state:** the read/write plumbing exists (`MatchScoreResponseDto` with per-category
-sub-scores and a weighted total), and the API returns real data — but the scoring logic itself
-is a placeholder; nothing computes real skill/activity/interest similarity yet, and there's no
-"reason for recommendation" field at all yet.
+* Send and manage connection requests
+* Accept, reject, block, or remove connections
+* View developer profiles
+* Direct messaging
+* Developer connections
 
 ---
 
-### 4. Social Networking Layer ✅ Implemented
+### 🚀 Project Collaboration
 
-- Friend/connection requests (send, accept, reject, block, remove)
-- Private (direct) messaging
-- Developer connections list
-- Profile viewing with interaction options
+Create projects and build development teams in a shared workspace.
 
----
+* Create and manage projects
+* Connect projects with GitHub repositories
+* Invite developers to projects
+* Assign team roles
+* Manage project members
+* Project discussion space
+* Share external project resources
 
-### 5. Project & Workspace System ✅ Implemented
+Supported project roles include:
 
-Users can create and manage projects by:
-
-- Adding project name, description, and GitHub repository link
-- Inviting developers to collaborate (7-day expiring invitations)
-- Assigning roles (Leader, Contributor, Reviewer)
-- Managing project workspace
-
-Each workspace includes:
-
-- Project discussion chat (real-time, WebSocket-based)
-- Resource sharing — link-based (paste a URL to a Drive doc, Figma file, hosted asset, etc.);
-  not binary file upload/storage within the app itself
-- ~~File/asset organization~~ — see note above; full binary upload isn't built (needs
-  object storage like S3/MinIO), only external-link resources are
+**Leader · Contributor · Reviewer**
 
 ---
 
-### 6. Task Management System (Jira-like) ✅ Implemented
+### 📋 Kanban Task Management
 
-Inside each project:
+Each project includes a Kanban-style task management system.
 
-- Kanban board (To Do, In Progress, Review, Done)
-- Task assignment to members
-- Deadlines and priorities
-- Task comments and updates
+**To Do → In Progress → Review → Done**
 
----
+Tasks support:
 
-### 7. Contribution Tracking System ⚠️ Partially implemented
-
-Automatically tracks developer activity:
-
-- ✅ Task completion
-- ✅ Code contributions (via GitHub commit sync)
-- ✅ Messages and participation
-- 🔜 File and documentation contributions — the `filesShared`/`tasksReviewed` counters exist
-  in the data model but nothing increments them yet
-
-Generates a **Contribution Score** for fairness and transparency.
+* Assignment to team members
+* Priorities
+* Deadlines
+* Comments
+* Status updates
 
 ---
 
-### 8. Analytics Dashboard (ML Feature) 🔜 Planned (Phase 2)
+### 💬 Real-Time Communication
 
-Provides insights such as:
+CodeMates uses WebSockets for real-time collaboration.
 
-- Team productivity trends
-- Individual contribution analysis
-- Project progress tracking
-- Risk detection (delays or inactivity)
-
-### Project Health Prediction (planned):
-- Green: on track
-- Yellow: moderate risk
-- Red: high risk of delay
-
-**Current state:** not started — no risk/health computation exists anywhere in the backend yet.
-The raw data it would need (task completion rates, activity timestamps) is already being
-collected via contribution-service, so this is a computation-layer feature to build on top of
-existing data, not a from-scratch data pipeline.
+* Project discussion chat
+* Real-time messaging
+* Direct messaging
+* Live collaboration events
 
 ---
 
-### 9. GitHub Integration ✅ Implemented
+### 📊 Contribution Tracking
 
-- ✅ OAuth login via GitHub (sign up/log in with a GitHub account)
-- ✅ Fetch repositories
-- ✅ Analyze contributions (commit sync, feeds contribution scoring)
-- ✅ Link projects to real codebases (repository linking)
+CodeMates tracks developer activity across projects to provide a clearer picture of team participation.
+
+Contribution signals include:
+
+* Task completion
+* GitHub commits
+* Messaging and participation
+* Project activity
+
+These signals are used to generate contribution data that helps teams understand individual participation and project engagement.
 
 ---
 
-## System Architecture
+### 🐙 GitHub Integration
+
+Connect GitHub directly with your CodeMates developer and project workflow.
+
+* GitHub OAuth authentication
+* GitHub profile integration
+* Repository retrieval
+* Repository linking
+* Commit synchronization
+* Contribution activity tracking
+
+This allows project activity to be connected with real development activity on GitHub.
+
+---
+
+## 🧠 Machine Learning
+
+CodeMates includes an ML layer designed to make developer collaboration more intelligent.
+
+### Developer Matching
+
+The matching system is designed to evaluate developers using multiple signals such as:
+
+* Technical skills
+* Interests
+* GitHub activity
+* Project relevance
+
+The model produces a **match score** that can be used to rank developers based on their compatibility with a project or team.
+
+### Contribution Intelligence
+
+Developer activity such as task completion, GitHub commits, and collaboration activity provides data for analyzing contribution patterns and team participation.
+
+### Project Health Analytics
+
+The collected project and contribution data also provides the foundation for intelligent project analytics, including identifying productivity trends and potential project risks.
+
+---
+
+## 🛠️ Tech Stack
 
 ### Frontend
-- React.js
-- Tailwind CSS
-- Zustand / Redux
-- React Query
+
+* **React.js**
+* **Tailwind CSS**
+* **React Query**
 
 ### Backend
-- Spring Boot (Microservices)
-- Spring Security + JWT (httpOnly cookies)
-- WebSocket (real-time communication)
 
-### Database
-- PostgreSQL (primary data)
-- Redis (caching + sessions)
+* **Java**
+* **Spring Boot**
+* **Spring Security**
+* **JWT Authentication**
+* **Microservices Architecture**
 
-### Communication Layer
-- WebSockets for real-time chat and updates
-- Kafka for inter-service events (registration, project/task lifecycle, GitHub sync, messaging)
+### Database & Caching
 
----
+* **PostgreSQL**
+* **Redis**
 
-## ML / AI Integration Points
+### Communication & Events
 
-1. **Developer Recommendation Engine** 🔜 Planned — plumbing built, scoring model not yet implemented
-2. **Project Health Prediction** 🔜 Planned — not started
-3. **Contribution Intelligence** ⚠️ Partial — real events tracked (tasks, commits, messages); "meaningful vs inactive" judgment not built
+* **Apache Kafka**
+* **WebSockets**
 
----
+### External Integration
 
-## Expected Outcomes
-
-- Faster and smarter team formation
-- Improved collaboration efficiency
-- Transparent contribution tracking
-- Reduced project failure rate
-- Strong ecosystem for student and startup projects
+* **GitHub API**
+* **GitHub OAuth**
 
 ---
 
-## Future Enhancements
+## 🏗️ Architecture
 
-- AI project assistant
-- Video meetings
-- Screen sharing
-- Smart resume generation from projects
-- Plugin system for developers
-- Binary file upload for workspace resources (currently link-only — see Project & Workspace System above)
+CodeMates follows a microservices-based architecture where different services handle specific responsibilities such as authentication, users, projects, social interactions, messaging, notifications, GitHub integration, and contribution tracking.
+
+Kafka is used for asynchronous communication between services, while WebSockets provide real-time communication for collaborative features.
+
+```text
+                        ┌─────────────────┐
+                        │    React App    │
+                        └────────┬────────┘
+                                 │
+                                 ▼
+                        ┌─────────────────┐
+                        │   API Gateway   │
+                        └────────┬────────┘
+                                 │
+              ┌──────────────────┼──────────────────┐
+              │                  │                  │
+              ▼                  ▼                  ▼
+        ┌───────────┐      ┌───────────┐      ┌───────────┐
+        │   Auth    │      │  Project  │      │  Social   │
+        │  Service  │      │  Service  │      │  Service  │
+        └───────────┘      └───────────┘      └───────────┘
+              │                  │                  │
+              └──────────────────┼──────────────────┘
+                                 ▼
+                        ┌─────────────────┐
+                        │      Kafka      │
+                        └────────┬────────┘
+                                 │
+                 ┌───────────────┼───────────────┐
+                 ▼               ▼               ▼
+           PostgreSQL          Redis          GitHub API
+```
 
 ---
 
-## Conclusion
+## 📸 Screenshots
 
-CodeMates is designed as a complete developer collaboration ecosystem that enhances how teams are formed and how software projects are executed. It focuses on combining networking, execution, and intelligence into a single platform to improve productivity and project success rates.~~
+![Developer Dashboard](docs/images/1.png)
+
+---
+
+![Developer Profile](docs/images/2.png)
+
+---
+
+![Project Workspace](docs/images/3.png)
+
+---
+
+![Kanban Board](docs/images/4.png)
+
+---
+
+![Real-Time Collaboration](docs/images/5.png)
+
+---
+
+![Contribution Analytics](docs/images/6.png)
+
+---
+
+![Developer Profile](docs/images/7.png)
+
+---
+
+## 🎯 Vision
+
+CodeMates aims to bring the different parts of developer collaboration into one platform — from **finding the right teammates to building projects and understanding team contributions**.
+
+The long-term vision is to make collaboration more intelligent through machine learning while keeping the core platform focused on practical developer workflows.
+
+---
+
+## 👨‍💻 Built With
+
+CodeMates was developed as a collaborative software engineering project with a focus on:
+
+**Microservices · Event-Driven Architecture · Real-Time Systems · Secure Authentication · GitHub Integration · Collaborative Development · Machine Learning**

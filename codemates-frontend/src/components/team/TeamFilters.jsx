@@ -56,7 +56,7 @@ export default function TeamFilters({ search, onSearchChange, role, onRoleChange
                             aria-pressed={active}
                             className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                                 active
-                                    ? 'border-[#6C7BFF] bg-[#6C7BFF]/10 text-[#8E9BFF]'
+                                    ? 'border-[#6C7BFF] bg-[#6C7BFF]/10 text-white'
                                     : 'border-[#26224A] text-[#8B88AE] hover:border-[#2E2A66] hover:text-[#F5F5F5]'
                             }`}
                         >

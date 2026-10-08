@@ -38,13 +38,6 @@ def main():
     for name, model in candidates.items():
         print(f"Training {name} ...")
 
-
-
-
-
-
-
-
         model.fit(X_train, y_train)
         metrics = evaluate(model, X_val, y_val)
         results[name] = metrics; fitted[name] = model
