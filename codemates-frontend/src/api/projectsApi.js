@@ -3,10 +3,14 @@
  *
  * Read API layer for My Projects, plus project creation.
  *
- * Intentionally separate from the existing projectApi.js, which handles
- * project-level mutations (invitations, member management, resource sharing).
- * This file is the list/detail read layer used by the My Projects page, and
- * the create call used by the Create Project page.
+ * Wired directly to the real Spring Boot endpoints — no mock. (The
+ * previous version of this file called createProjectMock/getMockProjects/
+ * getMockProjectById without ever importing them, which threw
+ * "createProjectMock is not defined" the moment Create Project was
+ * submitted. Since the real backend is confirmed working — see
+ * ProjectController / ProjectService / CreateProjectRequest — the mock
+ * branch has been removed rather than fixed, so there's nothing left to
+ * silently fall back to.)
  *
  * Real Spring Boot endpoints:
  *   GET  /api/projects/my         → ProjectResponse[]   (owned + member-of)
@@ -15,17 +19,9 @@
  *
  * All endpoints are protected by the auth cookie (credentials: 'include')
  * which the API client already sets on every request.
- *
- * ── Switching to the real backend ─────────────────────────────────────────────
- *   Set VITE_USE_MOCK=false in .env
- *   Set VITE_API_BASE_URL=http://localhost:8080
- *   Nothing in useMyProjects.js, useCreateProject.js or the pages changes.
  */
 
 import client from './client';
-
-
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
@@ -38,7 +34,6 @@ const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
  * @returns {Promise<ProjectResponse[]>}
  */
 export async function getMyProjects() {
-  if (USE_MOCK) return getMockProjects();
   return client.get('/api/projects/my');
 }
 
@@ -52,7 +47,6 @@ export async function getMyProjects() {
  * @returns {Promise<ProjectResponse>}
  */
 export async function getProjectById(projectId) {
-  if (USE_MOCK) return getMockProjectById(projectId);
   return client.get(`/api/projects/${projectId}`);
 }
 
@@ -65,25 +59,25 @@ export async function getProjectById(projectId) {
  * `.fieldErrors` ({ fieldName: message }) so the form can show messages
  * next to the right inputs.
  *
- * Request fields:
- *   name, description, githubRepoUrl, visibility, techStack, maxMembers,
- *   projectType, rolesNeeded, status
- * Today's backend CreateProjectRequest only accepts the first six. The last
- * three (projectType, rolesNeeded, status) need backend support before the
- * real endpoint can store them.
+ * Request fields must match CreateProjectRequest exactly:
+ *   name, description, githubRepoUrl, visibility, techStack (string,
+ *   comma-separated), maxMembers (number)
+ *
+ * Note: projectType, rolesNeeded and status are NOT accepted by the
+ * backend today — there's no field for the first two anywhere in
+ * project-service, and status is hardcoded to "ACTIVE" on create
+ * regardless of what's sent. Don't include them in projectData.
  *
  * @param {object} projectData
  * @returns {Promise<ProjectResponse>} the created project (includes its `id`)
  */
 export async function createProject(projectData) {
-  if (USE_MOCK) return createProjectMock(projectData);
   return client.post('/api/projects', projectData);
 }
 
-// ── Future mutations (forwarded to projectsMock / real endpoints) ─────────────
+// ── Future mutations ─────────────────────────────────────────────────────────
 // Uncomment and expand when the Archive flow is built.
 
 // export async function archiveProject(projectId) {
-//   if (USE_MOCK) return archiveProjectMock(projectId);
 //   return client.delete(`/api/projects/${projectId}`);
 // }

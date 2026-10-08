@@ -15,12 +15,38 @@
  *     → PUT /api/projects/{projectId}/tasks/{taskId}/status
  *     → Status only: TODO | IN_PROGRESS | REVIEW | DONE
  *
- * ProjectTasks.jsx calls them independently based on what changed in the form.
- * Both use optimistic updates so the board feels instant.
+ * ProjectTasks.jsx calls them independently based on what changed in the form,
+ * and — because both target the same task — they can be in flight at the
+ * same time. Both use optimistic updates so the board feels instant.
+ *
+ * IMPORTANT — why onSuccess here does a narrow merge, not a full replace:
+ * TaskResponse always includes every field (status, title, dueDate, ...)
+ * regardless of which endpoint returned it. If updateTask's onSuccess wrote
+ * the *entire* server response into the cache, and its response happened to
+ * arrive after changeStatus's response (two independent requests racing —
+ * arrival order isn't guaranteed just because you called one first), it
+ * would silently stomp the just-changed status back to whatever it was when
+ * the fields-only endpoint processed its request. That was the bug behind
+ * "status changes, then snaps back to DONE." Each mutation now only merges
+ * the keys the endpoint it called actually owns, so neither can clobber the
+ * other no matter which response comes back first.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as taskApi from '../api/taskApi';
+
+// Keys each endpoint is actually allowed to write. Used to build a narrow
+// merge patch from a server response instead of trusting the whole object.
+const FIELD_KEYS = ['title', 'description', 'priority', 'assignedToUserId', 'dueDate', 'updatedAt'];
+const STATUS_KEYS = ['status', 'completedAt', 'position', 'updatedAt'];
+
+function pick(obj, keys) {
+  const out = {};
+  keys.forEach((key) => {
+    if (obj[key] !== undefined) out[key] = obj[key];
+  });
+  return out;
+}
 
 export function useTasks(projectId) {
   const queryClient = useQueryClient();
@@ -71,9 +97,11 @@ export function useTasks(projectId) {
     },
 
     onSuccess: (newTask, _, ctx) => {
-      // Replace optimistic placeholder with the real server response
+      // Replace optimistic placeholder with the real server response — safe
+      // as a full replace here, since this is brand-new row, not a merge
+      // with something else that might be mid-flight.
       queryClient.setQueryData(queryKey, (old) =>
-        (old ?? []).map((t) => (t.id === ctx.optimisticId ? newTask : t))
+          (old ?? []).map((t) => (t.id === ctx.optimisticId ? newTask : t))
       );
     },
   });
@@ -82,18 +110,18 @@ export function useTasks(projectId) {
   // Maps to PUT /tasks/{taskId} — UpdateTaskRequest
   const updateFieldsMutation = useMutation({
     mutationFn: ({ taskId, data }) =>
-      taskApi.updateTask(projectId, taskId, data),
+        taskApi.updateTask(projectId, taskId, data),
 
     onMutate: async ({ taskId, data }) => {
       await queryClient.cancelQueries({ queryKey });
       const previous = queryClient.getQueryData(queryKey);
 
       queryClient.setQueryData(queryKey, (old) =>
-        (old ?? []).map((t) =>
-          t.id === taskId
-            ? { ...t, ...data, updatedAt: new Date().toISOString() }
-            : t
-        )
+          (old ?? []).map((t) =>
+              t.id === taskId
+                  ? { ...t, ...data, updatedAt: new Date().toISOString() }
+                  : t
+          )
       );
 
       return { previous };
@@ -104,9 +132,13 @@ export function useTasks(projectId) {
     },
 
     onSuccess: (updatedTask) => {
-      // Replace optimistic patch with real server response
+      // Narrow merge: only apply the keys this endpoint owns. Never let a
+      // stale `status`/`completedAt` from this response overwrite a status
+      // change that changeStatusMutation may have already applied (or is
+      // still in flight) for the same task.
+      const patch = pick(updatedTask, FIELD_KEYS);
       queryClient.setQueryData(queryKey, (old) =>
-        (old ?? []).map((t) => (t.id === updatedTask.id ? updatedTask : t))
+          (old ?? []).map((t) => (t.id === updatedTask.id ? { ...t, ...patch } : t))
       );
     },
   });
@@ -116,31 +148,31 @@ export function useTasks(projectId) {
   // completedAt is auto-managed by the backend (set on DONE, cleared otherwise)
   const changeStatusMutation = useMutation({
     mutationFn: ({ taskId, status, position }) =>
-      taskApi.changeTaskStatus(projectId, taskId, {
-        status,
-        ...(position !== undefined && { position }),
-      }),
+        taskApi.changeTaskStatus(projectId, taskId, {
+          status,
+          ...(position !== undefined && { position }),
+        }),
 
     onMutate: async ({ taskId, status, position }) => {
       await queryClient.cancelQueries({ queryKey });
       const previous = queryClient.getQueryData(queryKey);
 
       queryClient.setQueryData(queryKey, (old) =>
-        (old ?? []).map((t) =>
-          t.id === taskId
-            ? {
-                ...t,
-                status,
-                ...(position !== undefined && { position }),
-                // Mirror backend's completedAt logic for the optimistic update
-                completedAt:
-                  status === 'DONE'
-                    ? (t.completedAt ?? new Date().toISOString())
-                    : null,
-                updatedAt: new Date().toISOString(),
-              }
-            : t
-        )
+          (old ?? []).map((t) =>
+              t.id === taskId
+                  ? {
+                    ...t,
+                    status,
+                    ...(position !== undefined && { position }),
+                    // Mirror backend's completedAt logic for the optimistic update
+                    completedAt:
+                        status === 'DONE'
+                            ? (t.completedAt ?? new Date().toISOString())
+                            : null,
+                    updatedAt: new Date().toISOString(),
+                  }
+                  : t
+          )
       );
 
       return { previous };
@@ -151,8 +183,12 @@ export function useTasks(projectId) {
     },
 
     onSuccess: (updatedTask) => {
+      // Narrow merge, mirroring updateFieldsMutation above: only apply the
+      // keys this endpoint owns, so a slow status response can't clobber
+      // title/description/etc. edited in the same save.
+      const patch = pick(updatedTask, STATUS_KEYS);
       queryClient.setQueryData(queryKey, (old) =>
-        (old ?? []).map((t) => (t.id === updatedTask.id ? updatedTask : t))
+          (old ?? []).map((t) => (t.id === updatedTask.id ? { ...t, ...patch } : t))
       );
     },
   });
@@ -165,7 +201,7 @@ export function useTasks(projectId) {
       await queryClient.cancelQueries({ queryKey });
       const previous = queryClient.getQueryData(queryKey);
       queryClient.setQueryData(queryKey, (old) =>
-        (old ?? []).filter((t) => t.id !== taskId)
+          (old ?? []).filter((t) => t.id !== taskId)
       );
       return { previous };
     },
@@ -184,16 +220,21 @@ export function useTasks(projectId) {
     error:     query.error,
     refetch:   query.refetch,
 
-    // Mutations — deliberately split to match the two backend endpoints
+    // Mutations — deliberately split to match the two backend endpoints.
+    // Exposed as *Async variants too, so callers that fire both mutations
+    // for one save can await them in sequence instead of racing.
     createTask:   createMutation.mutate,       // (data) — no status
     updateTask:   updateFieldsMutation.mutate, // ({ taskId, data }) — no status
     changeStatus: changeStatusMutation.mutate, // ({ taskId, status, position? })
     deleteTask:   deleteMutation.mutate,       // (taskId)
 
+    updateTaskAsync:   updateFieldsMutation.mutateAsync,
+    changeStatusAsync: changeStatusMutation.mutateAsync,
+
     // Pending flags
     isCreating: createMutation.isPending,
     isUpdating:
-      updateFieldsMutation.isPending || changeStatusMutation.isPending,
+        updateFieldsMutation.isPending || changeStatusMutation.isPending,
     isDeleting: deleteMutation.isPending,
   };
 }

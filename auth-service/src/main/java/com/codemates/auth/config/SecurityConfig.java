@@ -36,13 +36,16 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // public endpoints — no token needed
                         .requestMatchers(
+                                "/api/auth/health",
                                 "/api/auth/register",
                                 "/api/auth/login",
                                 "/api/auth/refresh",
+                                "/api/auth/logout",
                                 "/api/auth/forgot-password",
                                 "/api/auth/reset-password",
                                 "/api/auth/github",
-                                "/api/auth/github/callback"
+                                "/api/auth/github/callback",
+                                "/error"
                         ).permitAll()
 
                         // everything else requires a valid JWT

@@ -34,7 +34,7 @@
 
 import { useMemo, useState }              from 'react';
 import { useParams }                      from 'react-router-dom';
-import { Plus, SquareKanban, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, SquareKanban, AlertCircle, RefreshCw ,  } from 'lucide-react';
 
 import { useTasks }                       from '../hooks/useTasks';
 import { useProjectMembers }              from '../hooks/useMyProjects';
@@ -78,36 +78,6 @@ function KanbanSkeleton() {
             <Pulse className="h-5 w-28" />
             <Pulse className="h-3 w-40" />
           </div>
-<<<<<<< Updated upstream
-=======
-          <Pulse className="h-9 w-32 rounded-lg" />
-        </div>
-        <div className="flex gap-3">
-          <Pulse className="h-10 flex-1 max-w-xs rounded-lg" />
-          <Pulse className="h-10 w-36 rounded-lg" />
-          <Pulse className="h-10 w-36 rounded-lg" />
-        </div>
-        <div className="flex gap-4 overflow-hidden">
-          {[0, 1, 2, 3].map((i) => (
-              <div
-                  key={i}
-                  className="min-w-[272px] flex-1 bg-[#0A0918] border border-[#1C1A38] rounded-xl p-3 space-y-3"
-              >
-                <Pulse className="h-8 w-full rounded-lg" />
-                {Array.from({ length: Math.max(1, 3 - i) }).map((_, j) => (
-                    <div key={j} className="border border-[#26224A] rounded-xl p-3.5 space-y-2.5">
-                      <Pulse className="h-4 w-4/5" />
-                      <Pulse className="h-3 w-full" />
-                      <Pulse className="h-3 w-3/5" />
-                      <div className="flex justify-between pt-1">
-                        <Pulse className="w-5 h-5 rounded-full" />
-                        <Pulse className="h-4 w-16 rounded" />
-                      </div>
-                    </div>
-                ))}
-              </div>
-          ))}
->>>>>>> Stashed changes
         </div>
         <Pulse className="h-9 w-32 rounded-lg" />
       </div>
@@ -272,12 +242,11 @@ export default function ProjectTasks() {
   return (
     <div className="flex flex-col h-full min-h-0 space-y-5">
 
-<<<<<<< Updated upstream
       {/* Page header */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-[#1D1A40] flex items-center justify-center">
-            <LayoutKanban size={16} style={{ color: '#6C7BFF' }} />
+            <SquareKanban size={16} style={{ color: '#6C7BFF' }} />
           </div>
           <div>
             <h1 className="text-lg font-bold text-[#F5F5F5] tracking-tight">
@@ -286,19 +255,6 @@ export default function ProjectTasks() {
             <p className="text-xs text-[#6B6890] font-mono">
               {tasks.length} task{tasks.length !== 1 ? 's' : ''}
             </p>
-=======
-        {/* Page header */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#1D1A40] flex items-center justify-center">
-              <LayoutDashboard size={16} style={{ color: '#6C7BFF' }} />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-[#F5F5F5] tracking-tight">
-                Task Board
-              </h1>
-            </div>
->>>>>>> Stashed changes
           </div>
         </div>
 

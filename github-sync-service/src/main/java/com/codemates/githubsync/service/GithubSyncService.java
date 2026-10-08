@@ -20,7 +20,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -51,6 +56,8 @@ public class GithubSyncService {
         profile.setPublicReposCount(apiUser.getPublicRepos());
         profile.setFollowersCount(apiUser.getFollowers());
         profile.setFollowingCount(apiUser.getFollowing());
+        profile.setPublicGistsCount(apiUser.getPublicGists());
+        profile.setAccountCreatedAt(parseGithubDate(apiUser.getCreatedAt()));
         profile.setIsDeleted(false);
 
         GithubProfile saved = githubProfileRepository.save(profile);
@@ -69,6 +76,8 @@ public class GithubSyncService {
         profile.setPublicReposCount(apiUser.getPublicRepos());
         profile.setFollowersCount(apiUser.getFollowers());
         profile.setFollowingCount(apiUser.getFollowing());
+        profile.setPublicGistsCount(apiUser.getPublicGists());
+        profile.setAccountCreatedAt(parseGithubDate(apiUser.getCreatedAt()));
         profile.setLastSyncedAt(LocalDateTime.now());
         githubProfileRepository.save(profile);
 
@@ -92,11 +101,20 @@ public class GithubSyncService {
             repo.setIsPrivate(Boolean.TRUE.equals(apiRepo.getIsPrivate()));
             repo.setIsForked(Boolean.TRUE.equals(apiRepo.getFork()));
             repo.setLastPushedAt(parseGithubDate(apiRepo.getPushedAt()));
+            repo.setOpenIssuesCount(apiRepo.getOpenIssuesCount());
+            repo.setSizeKb(apiRepo.getSize());
+            repo.setLicense(apiRepo.getLicense() != null ? apiRepo.getLicense().getName() : null);
+            repo.setRepoCreatedAt(parseGithubDate(apiRepo.getCreatedAt()));
+            repo.setTopics(apiRepo.getTopics() != null && !apiRepo.getTopics().isEmpty()
+                    ? String.join(",", apiRepo.getTopics()) : null);
             repo.setLastSyncedAt(LocalDateTime.now());
             repo.setIsDeleted(false);
 
             Repository savedRepo = repositoryRepository.save(repo);
             syncCommitStats(savedRepo, profile.getGithubUsername(), token);
+            int contributors = githubApiClient.fetchContributorsCount(token, savedRepo.getRepoFullName());
+            savedRepo.setContributorsCount(contributors);
+            repositoryRepository.save(savedRepo);
             syncedCount++;
         }
 
@@ -126,6 +144,81 @@ public class GithubSyncService {
         commitStatRepository.save(stat);
     }
 
+    /**
+     * Internal lookup used by project-service's health-prediction sync job.
+     * repoFullName format: "owner/repo" (matches GitHub's own fullName field).
+     */
+    public RepoHealthStatsDto getRepoStatsForHealth(String repoFullName) {
+        Repository repo = repositoryRepository.findByRepoFullNameAndIsDeletedFalse(repoFullName)
+                .orElseThrow(() -> new GithubProfileNotFoundException("No synced data for repo: " + repoFullName));
+
+        int ageDays = repo.getRepoCreatedAt() != null
+                ? (int) java.time.temporal.ChronoUnit.DAYS.between(repo.getRepoCreatedAt(), LocalDateTime.now())
+                : 0;
+
+        return RepoHealthStatsDto.builder()
+                .repoFullName(repo.getRepoFullName())
+                .stars(repo.getStarsCount())
+                .forks(repo.getForksCount())
+                .openIssues(repo.getOpenIssuesCount())
+                .contributors(repo.getContributorsCount())
+                .sizeKb(repo.getSizeKb())
+                .projectAgeDays(ageDays)
+                .language(repo.getPrimaryLanguage())
+                .license(repo.getLicense())
+                .build();
+    }
+
+    /**
+     * Internal lookup used by discovery-service's match-sync job.
+     * Builds a skill profile from every repo this user has contributed to:
+     * languages used, topics used, and their single most-frequent language.
+     */
+    public DeveloperSkillProfileDto getDeveloperSkillProfile(UUID userId) {
+        GithubProfile profile = githubProfileRepository.findByUserIdAndIsDeletedFalse(userId)
+                .orElseThrow(() -> new GithubProfileNotFoundException("No GitHub profile connected for user: " + userId));
+
+        List<Repository> repos = repositoryRepository.findByUserIdAndIsDeletedFalse(userId);
+
+        Set<String> languages = repos.stream()
+                .map(Repository::getPrimaryLanguage)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Set<String> topics = repos.stream()
+                .map(Repository::getTopics)
+                .filter(Objects::nonNull)
+                .flatMap(t -> Arrays.stream(t.split(",")))
+                .map(String::trim)
+                .filter(t -> !t.isEmpty())
+                .collect(Collectors.toSet());
+
+        String primaryLanguage = repos.stream()
+                .map(Repository::getPrimaryLanguage)
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(l -> l, Collectors.counting()))
+                .entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(null);
+
+        int accountAgeDays = profile.getAccountCreatedAt() != null
+                ? (int) java.time.temporal.ChronoUnit.DAYS.between(profile.getAccountCreatedAt(), LocalDateTime.now())
+                : 0;
+
+        return DeveloperSkillProfileDto.builder()
+                .userId(userId.toString())
+                .languages(new ArrayList<>(languages))
+                .topics(new ArrayList<>(topics))
+                .primaryLanguage(primaryLanguage)
+                .publicRepos(profile.getPublicReposCount())
+                .publicGists(profile.getPublicGistsCount())
+                .followers(profile.getFollowersCount())
+                .following(profile.getFollowingCount())
+                .accountAgeDays(accountAgeDays)
+                .build();
+    }
+
     public GithubProfileResponseDto getProfile(UUID userId) {
         GithubProfile profile = githubProfileRepository.findByUserIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new GithubProfileNotFoundException("No GitHub profile connected for this user"));
@@ -146,6 +239,31 @@ public class GithubSyncService {
                 .commitsLast30Days(stat.getCommitsLast30Days())
                 .commitsLast7Days(stat.getCommitsLast7Days())
                 .lastCommitAt(stat.getLastCommitAt())
+                .build();
+    }
+
+    /**
+     * Internal lookup used by contribution-service's significance prediction
+     * (GET /api/github/repositories/{repositoryId}/context).
+     * NOTE: "subscribers" is not stored by the sync yet, so it is 0 for now.
+     */
+    public RepoContextResponseDto getRepoContext(UUID repositoryId) {
+        Repository repo = repositoryRepository.findById(repositoryId)
+                .orElseThrow(() -> new GithubProfileNotFoundException("No synced repository found: " + repositoryId));
+
+        List<String> topics = repo.getTopics() == null
+                ? new ArrayList<>()
+                : Arrays.stream(repo.getTopics().split(","))
+                .map(String::trim)
+                .filter(t -> !t.isEmpty())
+                .collect(Collectors.toList());
+
+        return RepoContextResponseDto.builder()
+                .stars(repo.getStarsCount())
+                .forks(repo.getForksCount())
+                .subscribers(0)
+                .topics(topics)
+                .language(repo.getPrimaryLanguage())
                 .build();
     }
 

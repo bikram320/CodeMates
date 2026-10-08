@@ -49,4 +49,22 @@ public class GithubSyncController {
     public ApiResponse<CommitStatResponseDto> getCommitStats(@PathVariable UUID repositoryId) {
         return ApiResponse.success("Commit stats fetched", githubSyncService.getCommitStats(repositoryId));
     }
+
+    // Internal endpoint -- called by contribution-service's significance prediction, not the frontend
+    @GetMapping("/repositories/{repositoryId}/context")
+    public ApiResponse<RepoContextResponseDto> getRepoContext(@PathVariable UUID repositoryId) {
+        return ApiResponse.success("Repo context fetched", githubSyncService.getRepoContext(repositoryId));
+    }
+
+    // Internal endpoint -- called by project-service's health-sync job, not the frontend
+    @GetMapping("/repositories/lookup")
+    public ApiResponse<RepoHealthStatsDto> lookupRepoStats(@RequestParam String repoFullName) {
+        return ApiResponse.success("Repo stats fetched", githubSyncService.getRepoStatsForHealth(repoFullName));
+    }
+
+    // Internal endpoint -- called by discovery-service's match-sync job, not the frontend
+    @GetMapping("/profiles/{userId}/skill-profile")
+    public ApiResponse<DeveloperSkillProfileDto> getSkillProfile(@PathVariable UUID userId) {
+        return ApiResponse.success("Skill profile fetched", githubSyncService.getDeveloperSkillProfile(userId));
+    }
 }

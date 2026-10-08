@@ -198,3 +198,49 @@ export function useProjectMutations() {
     updateError: updateMutation.error,
   };
 }
+
+// ── My join requests ──────────────────────────────────────────────────────────
+
+/**
+ * Fetch all of the current user's own join requests, any status, across
+ * every project they've ever requested to join.
+ *
+ * Usage:
+ *   const { joinRequests, isLoading } = useMyJoinRequests();
+ */
+export function useMyJoinRequests() {
+  const query = useQuery({
+    queryKey:  ['join-requests', 'my'],
+    queryFn:   projectApi.getMyJoinRequests,
+    staleTime: 1000 * 30,
+    retry:     2,
+  });
+
+  return {
+    joinRequests: query.data ?? [],
+    isLoading:    query.isLoading,
+    isError:      query.isError,
+    refetch:      query.refetch,
+  };
+}
+
+/**
+ * Cancel a pending join request you sent.
+ *
+ * Usage:
+ *   const { cancelJoinRequest, isCancelling } = useJoinRequestMutations();
+ */
+export function useJoinRequestMutations() {
+  const queryClient = useQueryClient();
+
+  const cancelMutation = useMutation({
+    mutationFn: projectApi.cancelJoinRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['join-requests', 'my'] }),
+  });
+
+  return {
+    cancelJoinRequest: cancelMutation.mutate, // joinRequestId
+    isCancelling:      cancelMutation.isPending,
+    cancelError:       cancelMutation.error,
+  };
+}

@@ -1,9 +1,6 @@
 package com.codemates.contribution.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
@@ -18,6 +15,7 @@ public class ContributionScore {
     @Id
     @ColumnDefault("gen_random_uuid()")
     @Column(name = "id", nullable = false)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @jakarta.validation.constraints.NotNull
@@ -62,6 +60,9 @@ public class ContributionScore {
     @ColumnDefault("now()")
     @Column(name = "last_calculated_at", nullable = false)
     private Instant lastCalculatedAt;
+
+    private Double significanceProbability;   // Model 3's predicted probability (0-1), separate from totalScore
+    private Instant significancePredictedAt;
 
     @jakarta.validation.constraints.NotNull
     @ColumnDefault("false")

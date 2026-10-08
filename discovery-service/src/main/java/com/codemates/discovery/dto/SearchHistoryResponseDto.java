@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
@@ -14,5 +15,5 @@ public class SearchHistoryResponseDto {
     private String searchQuery;
     private Map<String, Object> filtersUsed;
     private Integer resultsCount;
-    private Instant createdAt;
+    private LocalDateTime createdAt;
 }

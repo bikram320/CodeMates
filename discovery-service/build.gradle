@@ -22,8 +22,11 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 
 	// REST Client
-	implementation 'org.springframework.boot:spring-boot-starter-restclient'
+	// Reactive WebClient -- needed for MlMatchClient / GithubProfileClient
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
+	// REST Client
+	implementation 'org.springframework.boot:spring-boot-starter-restclient'
 	// JPA + PostgreSQL
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	runtimeOnly 'org.postgresql:postgresql'

@@ -19,4 +19,10 @@ public class GithubUserApiResponse {
     private Integer publicRepos;
     private Integer followers;
     private Integer following;
+
+    @JsonProperty("public_gists")
+    private Integer publicGists;
+
+    @JsonProperty("created_at")
+    private String createdAt; // ISO 8601 with Z suffix -- parsed via GithubSyncService.parseGithubDate()
 }

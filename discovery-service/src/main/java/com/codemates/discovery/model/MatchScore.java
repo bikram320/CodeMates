@@ -1,13 +1,12 @@
 package com.codemates.discovery.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import org.hibernate.annotations.ColumnDefault;
+import org.springframework.cglib.core.Local;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @lombok.Getter
@@ -18,6 +17,7 @@ public class MatchScore {
     @Id
     @ColumnDefault("gen_random_uuid()")
     @Column(name = "id", nullable = false)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @jakarta.validation.constraints.NotNull
@@ -51,7 +51,7 @@ public class MatchScore {
     @jakarta.validation.constraints.NotNull
     @ColumnDefault("now()")
     @Column(name = "last_calculated_at", nullable = false)
-    private Instant lastCalculatedAt;
+    private LocalDateTime lastCalculatedAt;
 
     @jakarta.validation.constraints.NotNull
     @ColumnDefault("false")
@@ -59,16 +59,27 @@ public class MatchScore {
     private Boolean isDeleted = false;
 
     @Column(name = "deleted_at")
-    private Instant deletedAt;
+    private LocalDateTime deletedAt;
 
     @jakarta.validation.constraints.NotNull
     @ColumnDefault("now()")
     @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
+    private LocalDateTime createdAt;
 
     @jakarta.validation.constraints.NotNull
     @ColumnDefault("now()")
     @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
+    private LocalDateTime updatedAt;
 
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        createdAt = now;
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

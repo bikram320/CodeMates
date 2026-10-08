@@ -201,7 +201,6 @@ export default function CreateProjectForm({ onSubmit, onCancel, isSubmitting = f
   const suggestions = TECH_SUGGESTIONS.filter((s) => !values.techStack.some((t) => t.toLowerCase() === s.toLowerCase()));
 
   return (
-<<<<<<< Updated upstream
     <form onSubmit={handleSubmit} noValidate aria-busy={isSubmitting}>
       <fieldset disabled={disabled} className="m-0 flex min-w-0 flex-col gap-6 border-0 p-0">
         {/* ── Basics ─────────────────────────────────────────────────── */}
@@ -220,47 +219,9 @@ export default function CreateProjectForm({ onSubmit, onCancel, isSubmitting = f
               className={controlClass(!!errorFor("name"))}
               {...fieldProps("cp-name", errorFor("name"), null, true)}
               {...bind("name")}
-=======
-      <form onSubmit={handleSubmit} noValidate aria-busy={isSubmitting}>
-        <fieldset disabled={disabled} className="m-0 flex min-w-0 flex-col gap-6 border-0 p-0">
-          {/* ── Basics ─────────────────────────────────────────────────── */}
-          <ProjectFormSection title="Project basics" description="What are you building? This is what other developers see first.">
-            <FormField
-                id="cp-name"
-                label="Project name"
-                required
-                error={errorFor("name")}
-                counter={<Counter value={values.name.trim().length} max={LIMITS.nameMax} />}
-            >
-              <input
-                  type="text"
-                  autoComplete="off"
-                  placeholder="Enter project name"
-                  className={controlClass(!!errorFor("name"))}
-                  {...fieldProps("cp-name", errorFor("name"), null, true)}
-                  {...bind("name")}
-              />
-            </FormField>
-
-            <FormField
-                id="cp-description"
-                label="Description"
-                required
-                error={errorFor("description")}
-                hint="What does it do, who is it for, and what stage is it at?"
-                counter={<Counter value={values.description.trim().length} max={LIMITS.descMax} />}
-            >
-            <textarea
-                rows={5}
-                placeholder="A dashboard that shows how healthy a team's sprint is, pulled from tasks and GitHub activity…"
-                className={`${controlClass(!!errorFor("description"))} resize-y`}
-                {...fieldProps("cp-description", errorFor("description"), "hint", true)}
-                {...bind("description")}
->>>>>>> Stashed changes
             />
           </FormField>
 
-<<<<<<< Updated upstream
           <FormField
             id="cp-description"
             label="Description"
@@ -277,51 +238,6 @@ export default function CreateProjectForm({ onSubmit, onCancel, isSubmitting = f
               {...bind("description")}
             />
           </FormField>
-=======
-          {/* ── Tech stack ─────────────────────────────────────────────── */}
-          <ProjectFormSection title="Tech stack" description="The languages, frameworks and tools the project uses. Developers can find you by these.">
-            <FormField
-                id="cp-techStack"
-                label="Technologies"
-                required
-                error={techNote || errorFor("techStack")}
-                hint={`Press Enter or comma to add. Up to ${LIMITS.techMax}.`}
-            >
-              <div className="flex gap-2">
-                <input
-                    type="text"
-                    autoComplete="off"
-                    placeholder="Enter technology"
-                    value={techInput}
-                    className={controlClass(!!(techNote || errorFor("techStack")))}
-                    {...fieldProps("cp-techStack", techNote || errorFor("techStack"), "hint", true)}
-                    onChange={(e) => {
-                      if (e.target.value.includes(",")) addTech(e.target.value);
-                      else {
-                        setTechInput(e.target.value);
-                        setTechNote("");
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addTech(techInput);
-                      } else if (e.key === "Backspace" && !techInput && values.techStack.length) {
-                        removeTech(values.techStack[values.techStack.length - 1]);
-                      }
-                    }}
-                    onBlur={() => {
-                      if (techInput.trim()) addTech(techInput);
-                      touch("techStack");
-                    }}
-                />
-                <button type="button" onClick={() => addTech(techInput)} className={secondaryButton} aria-label="Add technology">
-                  <Plus size={15} />
-                  <span className="hidden sm:inline">Add</span>
-                </button>
-              </div>
-            </FormField>
->>>>>>> Stashed changes
 
           <FormField id="cp-projectType" label="Project type" required error={errorFor("projectType")}>
             <div className="relative">

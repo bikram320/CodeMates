@@ -326,6 +326,11 @@ textarea::placeholder {
   letter-spacing: .06em;
 }
 
+.app-layout,
+.project-layout {
+  position: relative;
+}
+
 @media (max-width: 760px) {
   :where(.app-layout, .project-layout, .public-layout:not(:has(.landing-page))) .main-container {
     background-size: 48px 48px;

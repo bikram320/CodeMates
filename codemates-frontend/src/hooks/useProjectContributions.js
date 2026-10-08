@@ -4,7 +4,9 @@ import {
   getContributionStats,
   getProjectContributions,
   getRepositoryLinks,
+  getUserContributionEvents,
   linkRepository as linkRepositoryApi,
+  predictSignificance as predictSignificanceApi, setProjectRepoUrl,
   unlinkRepository as unlinkRepositoryApi,
 } from "../api/contributionsApi";
 
@@ -12,12 +14,7 @@ const EMPTY_STATS = { totalScore: 0, tasksCompleted: 0, commitsCount: 0, message
 
 /**
  * ProjectContributions.jsx -> useProjectContributions(projectId) ->
- * contributionsApi.js -> real contribution-service (via apiClient).
- *
- * No mock data anywhere in this chain — every query below hits the real
- * Gateway.
- *
- * @param {string} projectId
+ * contributionsApi.js -> real contribution-service (via client.js).
  */
 export function useProjectContributions(projectId) {
   const queryClient = useQueryClient();
@@ -47,32 +44,58 @@ export function useProjectContributions(projectId) {
   });
 
   const isLoading =
-    contributionsQuery.isLoading ||
-    statsQuery.isLoading ||
-    activityQuery.isLoading ||
-    repoLinksQuery.isLoading;
+      contributionsQuery.isLoading ||
+      statsQuery.isLoading ||
+      activityQuery.isLoading ||
+      repoLinksQuery.isLoading;
 
   const isError =
-    contributionsQuery.isError ||
-    statsQuery.isError ||
-    activityQuery.isError ||
-    repoLinksQuery.isError;
+      contributionsQuery.isError ||
+      statsQuery.isError ||
+      activityQuery.isError ||
+      repoLinksQuery.isError;
 
   const error =
-    contributionsQuery.error ?? statsQuery.error ?? activityQuery.error ?? repoLinksQuery.error;
+      contributionsQuery.error ?? statsQuery.error ?? activityQuery.error ?? repoLinksQuery.error;
 
   function invalidateRepoLinks() {
     queryClient.invalidateQueries({ queryKey: ["contributions", "repoLinks", projectId] });
   }
 
   const linkMutation = useMutation({
-    mutationFn: (repositoryId) => linkRepositoryApi(projectId, repositoryId),
-    onSuccess: invalidateRepoLinks,
+    mutationFn: async ({ repositoryId, repoFullName }) => {
+      const link = await linkRepositoryApi(projectId, repositoryId);
+      if (repoFullName) {
+        try {
+          await setProjectRepoUrl(projectId, repoFullName);
+        } catch (e) {
+          // only the LEADER can update the project; never fail the link because of this
+          console.warn("Could not save repo URL on project", e);
+        }
+      }
+      return link;
+    },
+    onSuccess: () => {
+      invalidateRepoLinks();
+      // the backend now backfills commits on link, so refresh the numbers too
+      ["members", "stats", "activity"].forEach((k) =>
+          queryClient.invalidateQueries({ queryKey: ["contributions", k, projectId] })
+      );
+      queryClient.invalidateQueries({ queryKey: ["projectAnalytics", projectId] });
+    },
   });
 
   const unlinkMutation = useMutation({
     mutationFn: (repositoryId) => unlinkRepositoryApi(projectId, repositoryId),
     onSuccess: invalidateRepoLinks,
+  });
+
+  // Model 3 (Contribution Intelligence) — mirrors Health's "Recalculate now".
+  // On success, re-fetch the leaderboard so the new significanceProbability
+  // values show up (ContributionScoreResponse carries them per-member).
+  const predictMutation = useMutation({
+    mutationFn: () => predictSignificanceApi(projectId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contributions", "members", projectId] }),
   });
 
   return {
@@ -92,11 +115,34 @@ export function useProjectContributions(projectId) {
     unlinkRepository: unlinkMutation.mutate,
     isUnlinking: unlinkMutation.isPending,
 
+    predictSignificance: predictMutation.mutate,
+    isPredicting: predictMutation.isPending,
+    predictError: predictMutation.error,
+
     refetch: () => {
       contributionsQuery.refetch();
       statsQuery.refetch();
       activityQuery.refetch();
       repoLinksQuery.refetch();
     },
+  };
+}
+
+/**
+ * One contributor's event history, fetched lazily (only while a card's
+ * drilldown is open) rather than eagerly for every member on page load.
+ */
+export function useContributorEvents(projectId, userId) {
+  const query = useQuery({
+    queryKey: ["contributions", "events", projectId, userId],
+    queryFn: () => getUserContributionEvents(projectId, userId),
+    enabled: !!projectId && !!userId,
+  });
+
+  return {
+    events: query.data ?? [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
   };
 }

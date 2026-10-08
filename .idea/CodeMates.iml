@@ -12,6 +12,7 @@
       <sourceFolder url="file://$MODULE_DIR$/project-service/src/main/resources" type="java-resource" />
       <sourceFolder url="file://$MODULE_DIR$/social-service/src/main/resources" type="java-resource" />
       <sourceFolder url="file://$MODULE_DIR$/user-profile-service/src/main/resources" type="java-resource" />
+      <excludeFolder url="file://$MODULE_DIR$/ML/codemates_model2/.venv" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

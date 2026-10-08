@@ -1,6 +1,8 @@
 package com.codemates.notification.dto;
 
 import com.codemates.notification.model.Notification;
+import com.fasterxml.jackson.annotation.JsonGetter;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -17,9 +19,22 @@ public class NotificationResponse {
     private String body;
     private UUID referenceId;
     private String referenceType;
+
+    // Lombok normally generates `isRead()` for this field, and Jackson can then
+    // serialize it as "read" (stripping the "is" prefix from the getter name)
+    // instead of "isRead". To remove that ambiguity entirely, we skip Lombok's
+    // generated getter for this field and declare the getter explicitly below,
+    // pinning the JSON key with @JsonGetter.
+    @Getter(AccessLevel.NONE)
     private boolean isRead;
+
     private Instant readAt;
     private Instant createdAt;
+
+    @JsonGetter("isRead")
+    public boolean isRead() {
+        return isRead;
+    }
 
     public static NotificationResponse from(Notification n) {
         return NotificationResponse.builder()

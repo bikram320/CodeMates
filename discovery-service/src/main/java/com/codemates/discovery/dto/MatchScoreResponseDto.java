@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
@@ -18,5 +19,5 @@ public class MatchScoreResponseDto {
     private BigDecimal activityScore;
     private BigDecimal interestScore;
     private BigDecimal totalMatchScore;
-    private Instant lastCalculatedAt;
+    private LocalDateTime lastCalculatedAt;
 }

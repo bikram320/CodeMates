@@ -4,6 +4,7 @@ import com.codemates.contribution.dto.ApiResponse;
 import com.codemates.contribution.dto.LinkRepositoryRequest;
 import com.codemates.contribution.dto.RepositoryLinkResponse;
 import com.codemates.contribution.security.JwtCookieExtractor;
+import com.codemates.contribution.service.ContributionScoreService;
 import com.codemates.contribution.service.RepositoryLinkService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -22,14 +23,21 @@ public class RepositoryLinkController {
 
     private final RepositoryLinkService repositoryLinkService;
     private final JwtCookieExtractor jwtCookieExtractor;
+    private final ContributionScoreService contributionScoreService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<RepositoryLinkResponse>> link(
             HttpServletRequest request, @PathVariable UUID projectId,
             @Valid @RequestBody LinkRepositoryRequest dto) {
         UUID userId = jwtCookieExtractor.extractUserId(request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Repository linked", repositoryLinkService.linkRepository(userId, projectId, dto.getRepositoryId())));
+        RepositoryLinkResponse saved = repositoryLinkService.linkRepository(userId, projectId, dto.getRepositoryId());
+        try {
+            contributionScoreService.syncCommitsForLink(saved.getId());
+        } catch (Exception e) {
+            // never fail the link because of a backfill problem
+            org.slf4j.LoggerFactory.getLogger(getClass()).warn("Commit backfill after link failed", e);
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Repository linked", saved));
     }
 
     @DeleteMapping("/{repositoryId}")

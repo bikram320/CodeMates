@@ -13,17 +13,17 @@
  *   GET    /api/users/search?skills=&experienceLevel=&interests=&openToCollaborate=
  *                                                                -> ProfileResponse[] (public, no auth)
  *   GET    /api/users/{username}                                -> ProfileResponse (public)
+ *   GET    /api/users/by-ids?ids=&ids=...                        -> ProfileResponse[] (public, no auth)
  *   PUT    /api/users/me                    UpdateProfileRequest -> ProfileResponse
  *   POST   /api/users/me/skills             AddSkillRequest      -> SkillResponse (201)
  *   DELETE /api/users/me/skills/{skillId}                        -> null
  *   POST   /api/users/me/interests          AddInterestRequest   -> InterestResponse (201)
  *   DELETE /api/users/me/interests/{interestId}                  -> null
  *
- * That's the full surface the backend exposes, so that's the full surface
- * here too — no avatar upload (avatarUrl is just a pasted URL string), no
- * bulk skills/interests update (each is its own add/remove call), no email or
- * password anywhere in this service (that's auth-service, not shown), and no
- * notification or app-preference endpoints.
+ * /by-ids was added specifically for the Connections page:
+ * ConnectionSummaryDto/ConnectionResponseDto (social-service) only ever
+ * carry raw otherUserId/senderUserId — never a name, avatar, or skills —
+ * so this is the only way to resolve those into real profile data.
  *
  * ⚠️ Assumptions — please confirm/adjust once more of the backend is shared:
  *  - Base URL: requests go to a relative `/api/users/...` path — only correct
@@ -33,8 +33,8 @@
  *  - Auth: every request sends `credentials: 'include'` so the browser
  *    attaches the httpOnly `access_token` cookie ProfileController reads
  *    directly. If that cookie isn't set on this origin, or CORS doesn't
- *    allow credentialed requests, every /me call here 401s (the two public
- *    endpoints — search and get-by-username — don't need it).
+ *    allow credentialed requests, every /me call here 401s (the public
+ *    endpoints — search, get-by-username, by-ids — don't need it).
  *  - Error shape: no global exception handler was included, so this assumes
  *    a failed call still comes back as the `ApiResponse` envelope
  *    (`success:false`, `message`), possibly alongside a non-2xx status.
@@ -46,9 +46,9 @@
  *        IllegalArgumentException — treated as a 400. If your exception
  *        handler maps these to different statuses (409 would fit better),
  *        tell me and I'll adjust `isNotFoundError` / the status checks.
- *  - Search: `skills`/`interests` are sent as repeated query params
- *    (`?skills=a&skills=b`), matching Spring's default binding for
- *    `@RequestParam List<String>`.
+ *  - Search / by-ids: list params (`skills`, `interests`, `ids`) are sent as
+ *    repeated query params (`?skills=a&skills=b`), matching Spring's default
+ *    binding for `@RequestParam List<String>` / `List<UUID>`.
  *  - Skill/interest ids: SkillResponse/InterestResponse only return an `id`
  *    (no `skillName`/`interestName` echoed back beyond what was sent), which
  *    is fine since ProfileResponse.skills/interests already carry the full
@@ -91,8 +91,8 @@ async function request(path, options = {}) {
 
   if (!response.ok || body?.success === false) {
     throw new ProfileApiError(
-      body?.message || `Request failed with status ${response.status}.`,
-      response.status
+        body?.message || `Request failed with status ${response.status}.`,
+        response.status
     );
   }
 
@@ -139,6 +139,24 @@ export function getProfileByUsername(username) {
  */
 export function searchProfiles(filters = {}) {
   return request(`/api/users/search${toQueryString(filters)}`);
+}
+
+/**
+ * Batch-resolve user IDs to public profiles. Matches
+ * GET /api/users/by-ids?ids=&ids=... -> ProfileResponse[].
+ *
+ * Used by the Connections page: ConnectionSummaryDto/ConnectionResponseDto
+ * (social-service) only ever carry raw otherUserId/senderUserId — this is
+ * the only way to resolve them into real name/avatar/skills. Public
+ * endpoint, no auth required. Returns [] without a network call for an
+ * empty id list.
+ *
+ * @param {string[]} userIds
+ * @returns {Promise<Array>} ProfileResponse[]
+ */
+export function getProfilesByIds(userIds = []) {
+  if (!userIds.length) return Promise.resolve([]);
+  return request(`/api/users/by-ids${toQueryString({ ids: userIds })}`);
 }
 
 /**

@@ -4,36 +4,39 @@ import {
   inviteMember as inviteMemberApi,
   removeMember as removeMemberApi,
   changeMemberRole as changeMemberRoleApi,
+  getJoinRequests as getJoinRequestsApi,
+  acceptJoinRequest as acceptJoinRequestApi,
+  rejectJoinRequest as rejectJoinRequestApi,
 } from '../api/projectApi';
-import useAuth from './useAuth';
+import useProfile from './useProfile';
 
 export const teamKeys = {
   team: (projectId) => ['project-team', projectId],
+  joinRequests: (projectId) => ['project-team', projectId, 'join-requests'],
 };
 
 /**
  * Hook backing the Project Team page.
  *
- * Replaces the old mock `teamApi.js` — this calls projectApi.js's real
- * endpoints directly, since ProjectResourceController-style hydration
- * (mapping userId → name/skills/availability) has no backend support
- * yet (see the removed teamApi.js's own comments: profiles are only
- * looked up by username, not by userId).
- *
- * `pendingInvites` is always empty: the only invitations endpoint is
- * GET /api/projects/invitations/pending, which returns invites
- * addressed to the *current* user across all their projects, not
- * "invites this project has sent out." There's no per-project pending
- * list to show here.
+ * Adds join-request handling (Part C) alongside the existing
+ * invite/remove/change-role mutations. The join-requests list is only
+ * fetched for the viewer if they're already resolved as LEADER from the
+ * members list — GET .../join-requests 403s for non-leaders server-side,
+ * so this avoids every non-leader eating a failed request on page load.
  */
 export default function useProjectTeam(projectId) {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
 
-  // NOTE: exact field name on the auth user object is unverified (no
-  // authApi.js / UserInfoResponse shape was available). Adjust this if
-  // the real field differs.
-  const currentUserId = user?.id ?? user?.userId ?? null;
+  // Was sourced from useAuth()'s user.id/userId — a single, unscoped
+  // localStorage cache only populated by a real login() call in this
+  // browser (see useAuth.js's CACHE_KEY, and the identical fix in
+  // Projectlayout.jsx). That made isLeader below silently resolve to
+  // false for any account that didn't freshly log in in this exact
+  // browser, hiding the Join Requests tab from real leaders. useProfile()
+  // calls the real GET /api/users/me on every load — reliable regardless
+  // of login history or account-switching in the same browser.
+  const { profile } = useProfile();
+  const currentUserId = profile?.userId ?? null;
 
   const membersQuery = useQuery({
     queryKey: teamKeys.team(projectId),
@@ -41,12 +44,24 @@ export default function useProjectTeam(projectId) {
     enabled: !!projectId,
   });
 
+  const isLeader =
+      membersQuery.data?.find((m) => m.userId === currentUserId)?.role === 'LEADER';
+
+  const joinRequestsQuery = useQuery({
+    queryKey: teamKeys.joinRequests(projectId),
+    queryFn: () => getJoinRequestsApi(projectId),
+    enabled: !!projectId && isLeader,
+  });
+
   const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: teamKeys.team(projectId) });
+      queryClient.invalidateQueries({ queryKey: teamKeys.team(projectId) });
+
+  const invalidateJoinRequests = () =>
+      queryClient.invalidateQueries({ queryKey: teamKeys.joinRequests(projectId) });
 
   const inviteMutation = useMutation({
     mutationFn: ({ invitedUserId, role }) =>
-      inviteMemberApi(projectId, { invitedUserId, role }),
+        inviteMemberApi(projectId, { invitedUserId, role }),
     onSuccess: invalidate,
   });
 
@@ -57,22 +72,41 @@ export default function useProjectTeam(projectId) {
 
   const changeRoleMutation = useMutation({
     mutationFn: ({ memberUserId, role }) =>
-      changeMemberRoleApi(projectId, memberUserId, role),
+        changeMemberRoleApi(projectId, memberUserId, role),
     onSuccess: invalidate,
+  });
+
+  const acceptJoinRequestMutation = useMutation({
+    mutationFn: (joinRequestId) => acceptJoinRequestApi(joinRequestId),
+    onSuccess: () => {
+      invalidate(); // the accepted requester now shows up in the roster
+      invalidateJoinRequests();
+    },
+  });
+
+  const rejectJoinRequestMutation = useMutation({
+    mutationFn: (joinRequestId) => rejectJoinRequestApi(joinRequestId),
+    onSuccess: invalidateJoinRequests,
   });
 
   return {
     members: membersQuery.data ?? [],
-    pendingInvites: [], // see note above — no backend support for this
+    pendingInvites: [], // see original note — no per-project sent-invites endpoint
+    joinRequests: joinRequestsQuery.data ?? [],
+    isLoadingJoinRequests: joinRequestsQuery.isLoading,
     currentUserId,
     isLoading: membersQuery.isLoading,
     isError: membersQuery.isError,
     error: membersQuery.error,
     refetch: membersQuery.refetch,
     inviteMember: (invitedUserId, role) =>
-      inviteMutation.mutateAsync({ invitedUserId, role }),
+        inviteMutation.mutateAsync({ invitedUserId, role }),
     removeMember: (memberUserId) => removeMutation.mutateAsync(memberUserId),
     changeMemberRole: (memberUserId, role) =>
-      changeRoleMutation.mutateAsync({ memberUserId, role }),
+        changeRoleMutation.mutateAsync({ memberUserId, role }),
+    acceptJoinRequest: (joinRequestId) =>
+        acceptJoinRequestMutation.mutateAsync(joinRequestId),
+    rejectJoinRequest: (joinRequestId) =>
+        rejectJoinRequestMutation.mutateAsync(joinRequestId),
   };
 }

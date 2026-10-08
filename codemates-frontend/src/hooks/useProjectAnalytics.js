@@ -1,9 +1,7 @@
 /**
  * src/hooks/useProjectAnalytics.js
  *
- * Data hook for the Project Analytics page — real backend, no mock, no
- * analytics-specific service (there isn't one). This orchestrates five
- * already-real API modules and derives every display shape from them:
+ * Data hook for the Project Analytics page — real backend, no mock.
  *
  *   ProjectAnalytics.jsx → useProjectAnalytics(projectId)
  *     → projectApi.js         getProject, getProjectMembers   (project-service)
@@ -11,23 +9,15 @@
  *     → contributionsApi.js   getProjectContributions,
  *                             getContributionActivity          (contribution-service)
  *     → projectHealthApi.js   getProjectHealth, syncProjectHealth (project-service)
+ *     → useUserDirectory      userId → real profile (fullName / username)
  *
- * There is no project-wide activity/audit-log endpoint anywhere in this
- * backend. getContributionActivity() is the closest real thing: it merges
- * every contributor's event history (contribution-service) into one
- * newest-first feed, and it's what both the 14-day trend and the recent
- * activity list are built from below.
- *
- * No name/avatar hydration exists for a bare userId anywhere in what's been
- * connected (ProjectMemberResponseDto and ContributionScoreResponse both
- * carry only userId). shortUserLabel() mirrors the same fallback
- * ProjectContributions.jsx already uses for the same reason, kept in sync by
- * hand since there's no shared util file to import it from.
+ * Names: every DTO only carries a raw userId, so all userIds found in members,
+ * contribution scores and activity events are resolved in ONE batched call via
+ * useUserDirectory, then each derived shape gets a real display name.
+ * Fallback order: fullName → username → "User 1234abcd".
  *
  * Health is intentionally NOT part of the "core" ready-state: it has its own
- * loading/empty/error handling (data: null is success, not an error — see
- * projectHealthApi.js) and its own mutation (manual "Recalculate now"), so it
- * shouldn't block or be blocked by the rest of the page.
+ * loading/empty/error handling (data: null is success, not an error).
  */
 
 import { useMemo } from 'react';
@@ -37,6 +27,7 @@ import { getProject, getProjectMembers } from '../api/projectApi';
 import { getTasks } from '../api/taskApi';
 import { getProjectContributions, getContributionActivity } from '../api/contributionsApi';
 import { getProjectHealth, syncProjectHealth } from '../api/projectHealthApi';
+import useUserDirectory from './useUserDirectory';
 
 const keys = {
   project: (id) => ['projectAnalytics', id, 'project'],
@@ -47,8 +38,14 @@ const keys = {
   health: (id) => ['projectAnalytics', id, 'health'],
 };
 
-/** Same fallback ProjectContributions.jsx uses — no profile-hydration endpoint exists yet for either page to call. */
+/** Last-resort label when a profile can't be resolved. */
 const shortUserLabel = (userId) => `User ${userId?.slice(0, 8) ?? '?'}`;
+
+/** Builds a userId → display name resolver from the profile directory. */
+const makeNameOf = (directory) => (userId) => {
+  const p = directory?.[userId];
+  return p?.fullName?.trim() || p?.username || shortUserLabel(userId);
+};
 
 const options = { retry: false, staleTime: 30_000 };
 
@@ -77,8 +74,6 @@ function deriveTasks(tasks) {
     p.total += 1;
     if (t.status === 'DONE') p.done += 1;
 
-    // Only tasks with a due date in the past, not yet done, count as overdue —
-    // a task with no dueDate is simply not counted either way.
     if (t.dueDate && t.status !== 'DONE' && new Date(t.dueDate).getTime() < now) overdue += 1;
   });
 
@@ -99,11 +94,9 @@ function deriveTasks(tasks) {
 const ROLE_LABEL = { LEADER: 'Leader', CONTRIBUTOR: 'Contributor', REVIEWER: 'Reviewer' };
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
-function deriveTeam(members, events) {
+function deriveTeam(members, events, nameOf) {
   const now = Date.now();
   return members.map((m) => {
-    // `events` is already newest-first (contribution-service sorts server-side,
-    // and getContributionActivity() merges per-user lists preserving that order).
     const mine = events.filter((e) => e.userId === m.userId);
     const recent = mine.filter((e) => now - new Date(e.createdAt).getTime() <= SEVEN_DAYS_MS);
 
@@ -116,9 +109,9 @@ function deriveTeam(members, events) {
 
     return {
       userId: m.userId,
-      name: shortUserLabel(m.userId),
+      name: nameOf(m.userId),
       role: ROLE_LABEL[m.role] ?? m.role,
-      lastActiveAt: mine[0]?.createdAt ?? m.joinedAt, // falls back to when they joined if no events yet
+      lastActiveAt: mine[0]?.createdAt ?? m.joinedAt,
       weekly,
     };
   });
@@ -126,16 +119,14 @@ function deriveTeam(members, events) {
 
 /* ── Contribution breakdown (all-time, straight from the leaderboard) ───── */
 
-function deriveContributions(scores) {
+function deriveContributions(scores, nameOf) {
   return scores.map((s) => ({
     userId: s.userId,
-    name: shortUserLabel(s.userId),
+    name: nameOf(s.userId),
     tasksCompleted: s.tasksCompleted ?? 0,
     commitsCount: s.commitsCount ?? 0,
     messagesSent: s.messagesSent ?? 0,
     totalScore: Number(s.totalScore ?? 0),
-    // Tracked by the backend but not surfaced in this UI yet — easy to add
-    // to ContributionAnalytics.jsx/ActivityTimeline.jsx's SERIES later:
     tasksReviewed: s.tasksReviewed ?? 0,
     filesShared: s.filesShared ?? 0,
   }));
@@ -147,14 +138,14 @@ const DAY_MS = 86_400_000;
 
 function deriveTrend(events) {
   const days = Array.from({ length: 14 }, (_, i) =>
-    new Date(Date.now() - (13 - i) * DAY_MS).toISOString().slice(0, 10)
+      new Date(Date.now() - (13 - i) * DAY_MS).toISOString().slice(0, 10)
   );
   const buckets = Object.fromEntries(days.map((d) => [d, { tasksCompleted: 0, commits: 0, messages: 0 }]));
 
   events.forEach((e) => {
     const day = e.createdAt.slice(0, 10);
     const bucket = buckets[day];
-    if (!bucket) return; // outside the 14-day window
+    if (!bucket) return;
     if (e.eventType === 'TASK_COMPLETED') bucket.tasksCompleted += 1;
     else if (e.eventType === 'COMMIT') bucket.commits += 1;
     else if (e.eventType === 'MESSAGE_SENT') bucket.messages += 1;
@@ -182,21 +173,30 @@ export function useProjectAnalytics(projectId) {
   const failed = results.find((r) => r.isError);
   const ready = results.every((r) => r.isSuccess);
 
+  // One batched profile lookup for every user that appears anywhere on the page.
+  const allUserIds = [
+    ...(membersQ.data ?? []).map((m) => m.userId),
+    ...(contributionsQ.data ?? []).map((c) => c.userId),
+    ...(activityQ.data ?? []).map((e) => e.userId),
+  ];
+  const { directory } = useUserDirectory(allUserIds);
+
   const data = useMemo(() => {
     if (!ready) return null;
     const events = activityQ.data ?? [];
+    const nameOf = makeNameOf(directory);
     return {
       project: projectQ.data,
-      members: membersQ.data ?? [], // raw — e.g. for "is the current user the LEADER" checks
+      members: membersQ.data ?? [],
       tasks: deriveTasks(tasksQ.data ?? []),
-      team: deriveTeam(membersQ.data ?? [], events),
-      contributions: deriveContributions(contributionsQ.data ?? []),
+      team: deriveTeam(membersQ.data ?? [], events, nameOf),
+      contributions: deriveContributions(contributionsQ.data ?? [], nameOf),
       trend: deriveTrend(events),
-      activity: events.slice(0, 8),
+      // userName is resolved here so ActivityTimeline doesn't need its own lookup
+      activity: events.slice(0, 8).map((e) => ({ ...e, userName: nameOf(e.userId) })),
     };
-  }, [ready, projectQ.data, tasksQ.data, membersQ.data, contributionsQ.data, activityQ.data]);
+  }, [ready, directory, projectQ.data, tasksQ.data, membersQ.data, contributionsQ.data, activityQ.data]);
 
-  // ── Project health: independent of the above, `null` data is a valid empty state ──
   const healthQuery = useQuery({
     queryKey: keys.health(projectId),
     queryFn: () => getProjectHealth(projectId),

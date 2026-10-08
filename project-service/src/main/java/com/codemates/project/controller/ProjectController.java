@@ -44,14 +44,41 @@ public class ProjectController {
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<ProjectResponse> getById(@PathVariable UUID id) {
-        return ApiResponse.success("Project fetched", projectService.getProject(id));
+    public ApiResponse<ProjectResponse> getById(HttpServletRequest request, @PathVariable UUID id) {
+        UUID userId = jwtCookieExtractor.extractUserId(request);
+        return ApiResponse.success("Project fetched", projectService.getProject(id, userId));
     }
 
     @GetMapping("/my")
     public ApiResponse<List<ProjectResponse>> myProjects(HttpServletRequest request) {
         UUID userId = jwtCookieExtractor.extractUserId(request);
         return ApiResponse.success("Projects fetched", projectService.getMyProjects(userId));
+    }
+
+    /**
+     * Browse other users' PUBLIC projects (Discover Projects page).
+     * Distinct from /my: this excludes projects the caller already owns or
+     * has joined — see ProjectService.discoverProjects for why (a "discover"
+     * feed showing your own projects back to you isn't discovery).
+     *
+     * All filter params are optional; omitting all of them returns every
+     * PUBLIC project (still capped — see the service).
+     *
+     * techStack matches if the project's techStack contains ANY of the
+     * given values (OR, not AND) — same convention as discovery-service's
+     * skills param for developers.
+     */
+    @GetMapping("/discover")
+    public ApiResponse<List<ProjectResponse>> discover(
+            HttpServletRequest request,
+            @RequestParam(required = false) List<String> techStack,
+            @RequestParam(required = false) String projectType,
+            @RequestParam(required = false) String requiredExperience,
+            @RequestParam(required = false) String status) {
+        UUID userId = jwtCookieExtractor.extractUserId(request);
+        return ApiResponse.success(
+                "Projects fetched",
+                projectService.discoverProjects(userId, techStack, projectType, requiredExperience, status));
     }
 
     @PostMapping("/{id}/invitations")
@@ -96,14 +123,59 @@ public class ProjectController {
     }
 
     @GetMapping("/{id}/members")
-    public ApiResponse<List<ProjectMemberResponseDto>> members(@PathVariable UUID id) {
-        return ApiResponse.success("Members fetched", projectService.getProjectMembers(id));
+    public ApiResponse<List<ProjectMemberResponseDto>> members(HttpServletRequest request, @PathVariable UUID id) {
+        UUID userId = jwtCookieExtractor.extractUserId(request);
+        return ApiResponse.success("Members fetched", projectService.getProjectMembers(id, userId));
     }
 
     @GetMapping("/{id}/members/{userId}/check")
     public ApiResponse<MembershipCheckResponse> checkMembership(
             @PathVariable UUID id, @PathVariable UUID userId) {
         return ApiResponse.success("Membership checked", projectService.checkMembership(id, userId));
+    }
+
+    // ── JOIN REQUESTS ──────────────────────────
+
+    @PostMapping("/{id}/join-requests")
+    public ResponseEntity<ApiResponse<ProjectJoinRequestResponseDto>> requestToJoin(
+            HttpServletRequest request, @PathVariable UUID id) {
+        UUID userId = jwtCookieExtractor.extractUserId(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Join request sent", projectService.requestToJoin(userId, id)));
+    }
+
+    @GetMapping("/{id}/join-requests")
+    public ApiResponse<List<ProjectJoinRequestResponseDto>> pendingJoinRequests(
+            HttpServletRequest request, @PathVariable UUID id) {
+        UUID userId = jwtCookieExtractor.extractUserId(request);
+        return ApiResponse.success("Join requests fetched", projectService.getPendingJoinRequests(userId, id));
+    }
+
+    @PutMapping("/join-requests/{joinRequestId}/accept")
+    public ApiResponse<ProjectMemberResponseDto> acceptJoinRequest(
+            HttpServletRequest request, @PathVariable UUID joinRequestId) {
+        UUID userId = jwtCookieExtractor.extractUserId(request);
+        return ApiResponse.success("Join request accepted", projectService.acceptJoinRequest(userId, joinRequestId));
+    }
+
+    @PutMapping("/join-requests/{joinRequestId}/reject")
+    public ApiResponse<ProjectJoinRequestResponseDto> rejectJoinRequest(
+            HttpServletRequest request, @PathVariable UUID joinRequestId) {
+        UUID userId = jwtCookieExtractor.extractUserId(request);
+        return ApiResponse.success("Join request rejected", projectService.rejectJoinRequest(userId, joinRequestId));
+    }
+
+    @PutMapping("/join-requests/{joinRequestId}/cancel")
+    public ApiResponse<ProjectJoinRequestResponseDto> cancelJoinRequest(
+            HttpServletRequest request, @PathVariable UUID joinRequestId) {
+        UUID userId = jwtCookieExtractor.extractUserId(request);
+        return ApiResponse.success("Join request cancelled", projectService.cancelJoinRequest(userId, joinRequestId));
+    }
+
+    @GetMapping("/join-requests/my")
+    public ApiResponse<List<ProjectJoinRequestResponseDto>> myJoinRequests(HttpServletRequest request) {
+        UUID userId = jwtCookieExtractor.extractUserId(request);
+        return ApiResponse.success("Your join requests fetched", projectService.getMyJoinRequests(userId));
     }
 
     @GetMapping("/health")

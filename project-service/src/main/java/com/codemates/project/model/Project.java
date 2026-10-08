@@ -2,7 +2,11 @@ package com.codemates.project.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.ColumnDefault;
 
@@ -15,6 +19,7 @@ import java.util.UUID;
 @Table(name = "projects")
 public class Project {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @ColumnDefault("gen_random_uuid()")
     @Column(name = "id", nullable = false)
     private UUID id;
@@ -55,6 +60,16 @@ public class Project {
     @Column(name = "max_members")
     private Integer maxMembers;
 
+
+    @Column(name = "project_type")
+    private String projectType;          // e.g. "Open Source", "Hackathon" — matches DiscoverProjectFilters' options
+
+    @Column(name = "required_experience")
+    private String requiredExperience;   // e.g. "Beginner", "Intermediate" — matches DiscoverProjectFilters' options
+
+    @Column(name = "required_roles")
+    private String requiredRoles;
+
     @jakarta.validation.constraints.NotNull
     @ColumnDefault("false")
     @Column(name = "is_deleted", nullable = false)
@@ -72,5 +87,18 @@ public class Project {
     @ColumnDefault("now()")
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    @PrePersist
+    void onCreate() {
+        Instant now = Instant.now();
+        if (createdAt == null) createdAt = now;
+        if (updatedAt == null) updatedAt = now;
+        if (isDeleted == null) isDeleted = false;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        updatedAt = Instant.now();
+    }
 
 }

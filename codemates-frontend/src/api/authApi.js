@@ -16,11 +16,11 @@
  *                                     check "is the session still valid?" — see its comments.
  *   POST /api/auth/forgot-password   ForgotPasswordRequest{email} → ApiResponse<Void>,
  *                                     always succeeds; never reveals whether the email exists.
- *                                     Sending an actual email isn't implemented server-side yet —
- *                                     AuthService only logs the reset token (log.info), so right
- *                                     now the only way to get a real token to test with is to
- *                                     read it out of the backend's server console.
- *   POST /api/auth/reset-password    ResetPasswordRequest{token,newPassword} → ApiResponse<Void>,
+ *                                     EmailService actually sends this one (JavaMailSender, real
+ *                                     HTML email) — runs @Async so a slow/failed SMTP send never
+ *                                     delays or changes the response, which is also why the
+ *                                     response can't confirm delivery either way.
+ *   POST /api/auth/reset-password    ResetPasswordRequest{email,code,newPassword} → ApiResponse<Void>,
  *                                     clears cookies (forces a fresh login).
  *
  * Not called here, on purpose:
@@ -49,7 +49,7 @@
  *
  * Error shape: the API replies { success: false, message, data: null } with one
  * message string — there's no per-field detail. request() below turns that into
- * an Error with `.status` and `.message`, and makes a best-effort guess at which
+ * an Error with .status and .message, and makes a best-effort guess at which
  * field the message is about (see guessField) so Register/Reset Password can
  * still highlight the right input. That guess is inherently unreliable; a
  * backend change to return field-level codes would let it be removed.
@@ -57,14 +57,40 @@
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
-const apiError = (message, status, fieldErrors) => Object.assign(new Error(message), { status, fieldErrors });
+/**
+ * Where a "Continue with GitHub" control should navigate the browser —
+ * a full page redirect, NOT a fetch() call (GithubAuthController's own
+ * comment is explicit about this: it's a standard OAuth redirect flow, not
+ * a JSON endpoint). Use it as an <a href> target, never an onClick handler.
+ *
+ * Flow: this URL -> GitHub's consent screen -> GET /api/auth/github/callback
+ * (sets the session cookies server-side) -> the browser is redirected again,
+ * to whichever of these two URLs the backend's own config points at:
+ *   success -> frontend.oauth-success-redirect
+ *   failure -> frontend.oauth-failure-redirect + "?error=" one of
+ *              state_mismatch | no_verified_email | oauth_failed
+ * Neither of those two config values is visible from the frontend, so where
+ * they land in this app is an assumption — Login.jsx and Register.jsx both
+ * check for ?error= on mount defensively, in case either turns out to be the
+ * real target.
+ *
+ * Because this is a redirect (not a fetch this code controls), the backend
+ * never hands the frontend a UserInfoResponse for a GitHub login the way
+ * login()/register() below do — see useAuth.js's session-bootstrap comments
+ * for what that means and the same missing-profile-endpoint gap it's already
+ * flagged for cookie-only session restore.
+ */
+export const GITHUB_AUTH_URL = `${API_BASE}/api/auth/github`;
+
+const apiError = (message, status, fieldErrors) =>
+    Object.assign(new Error(message), { status, fieldErrors });
 
 /**
  * Best-effort guess at which form field a single backend message is about.
  * Order matters: email/username/token are checked before password, since a
  * login failure message ("Invalid email or password") would otherwise match
  * both email and password — callers that show a banner only (Login) never
- * read `.fieldErrors`, so this ambiguity only affects Register/Reset Password,
+ * read .fieldErrors, so this ambiguity only affects Register/Reset Password,
  * whose messages are about one field at a time in practice.
  */
 function guessField(message = '') {
@@ -79,9 +105,9 @@ function guessField(message = '') {
 /**
  * POSTs JSON to the backend and unwraps the ApiResponse envelope.
  * @param {string} path e.g. '/api/auth/login'
- * @param {{ body?: object, raw?: boolean }} [opts] `raw: true` resolves with
+ * @param {{ body?: object, raw?: boolean }} [opts] raw: true resolves with
  *   the full envelope ({ success, message, data, timestamp }) instead of just
- *   `data`, for callers that want the server's own message (forgot/reset password).
+ *   data, for callers that want the server's own message (forgot/reset password).
  */
 async function request(path, { body, raw = false } = {}) {
   let res;
@@ -152,8 +178,9 @@ export function refreshSession() {
 
 /**
  * Always resolves — the backend never reveals whether the email is registered.
- * Sending an email isn't implemented yet; the reset token only reaches the
- * backend's server-side logs (see the header comment above).
+ * A real email is sent (see the header comment above) with a link to
+ * frontend.reset-password-url?email=...&code=... — should match ResetPassword.jsx's
+ * /reset-password route. The email also contains the 8-digit code to type in by hand.
  * @param {string} email
  * @returns {Promise<{success: boolean, message: string, data: null}>} raw envelope,
  *   so the page can show the backend's own confirmation wording.
@@ -163,10 +190,11 @@ export function forgotPassword(email) {
 }
 
 /**
- * @param {string} token
- * @param {string} newPassword
+ * @param {{ email: string, code: string, newPassword: string }} payload
+ *   code is the 8-digit code from the reset email (ResetPassword.jsx passes it
+ *   in from the form or from ?email=...&code=... in the emailed link).
  * @returns {Promise<{success: boolean, message: string, data: null}>} raw envelope
  */
-export function resetPassword(token, newPassword) {
-  return request('/api/auth/reset-password', { body: { token, newPassword }, raw: true });
+export function resetPassword({ email, code, newPassword }) {
+  return request('/api/auth/reset-password', { body: { email, code, newPassword }, raw: true });
 }

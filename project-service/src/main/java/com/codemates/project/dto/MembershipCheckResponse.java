@@ -1,5 +1,6 @@
 package com.codemates.project.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -11,6 +12,8 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class MembershipCheckResponse {
+    @JsonProperty("isMember")
     private boolean isMember;
+
     private String role; // null when isMember is false
 }

@@ -9,17 +9,22 @@ import Spinner from "../components/ui/Spinner";
 import EmptyState from "../components/ui/EmptyState";
 
 import { useConnections } from "../hooks/useConnections";
+import useUserDirectory from "../hooks/useUserDirectory";
 
-// ⚠️ Temporary display fallback. ConnectionSummaryDto/ConnectionResponseDto
-// only ever carry raw UUIDs — never a name, avatar, or skills. Real
-// resolution needs user-profile-service, which hasn't been provided yet.
-function placeholderDeveloper(userId) {
+// Builds the card's "developer" from a resolved profile. ConnectionSummaryDto /
+// ConnectionResponseDto only carry raw userIds, so names/avatars/skills come
+// from useUserDirectory. Name fallback: fullName → username → "User 1234abcd".
+function toDeveloper(userId, profile) {
+  const short = userId?.slice(0, 8) ?? "unknown";
   return {
     id: userId,
-    name: `User ${userId?.slice(0, 8)}`,
-    username: userId?.slice(0, 8) ?? "unknown",
-    avatarUrl: undefined,
-    skills: [],
+    name: profile?.fullName?.trim() || profile?.username || `User ${short}`,
+    username: profile?.username ?? short,
+    avatarUrl: profile?.avatarUrl || undefined,
+    role: profile?.headline || profile?.title || undefined,
+    skills: (profile?.skills ?? [])
+        .map((skill) => (typeof skill === "string" ? skill : skill?.name))
+        .filter(Boolean),
   };
 }
 
@@ -52,113 +57,77 @@ export default function Connections() {
     removeConnection,
   } = useConnections();
 
+  // Resolve every userId on the page in one batched call. Must run before the
+  // early returns below so hook order stays stable.
+  const { directory } = useUserDirectory([
+    ...connections.map((c) => c.otherUserId),
+    ...incomingRequests.map((r) => r.senderUserId),
+  ]);
+
   if (isLoading) {
     return (
-      <div className="flex justify-center py-20">
-        <Spinner size="lg" />
-      </div>
+        <div className="flex justify-center py-20">
+          <Spinner size="lg" />
+        </div>
     );
   }
 
   if (isError) {
     return (
-      <EmptyState
-        icon={AlertTriangle}
-        title="Couldn't load connections"
-        description={error?.message || "Please try again."}
-      />
+        <EmptyState
+            icon={AlertTriangle}
+            title="Couldn't load connections"
+            description={error?.message || "Please try again."}
+        />
     );
   }
 
   const enrichedConnections = connections.map((c) => ({
     ...c,
-    developer: placeholderDeveloper(c.otherUserId),
+    developer: toDeveloper(c.otherUserId, directory[c.otherUserId]),
   }));
 
   const enrichedIncoming = incomingRequests.map((r) => ({
     ...r,
-    developer: placeholderDeveloper(r.senderUserId),
+    developer: toDeveloper(r.senderUserId, directory[r.senderUserId]),
   }));
 
   const filteredConnections = enrichedConnections.filter((c) => {
     const term = search.trim().toLowerCase();
     if (!term) return true;
     return (
-      c.developer.name.toLowerCase().includes(term) ||
-      c.developer.username.toLowerCase().includes(term)
+        c.developer.name.toLowerCase().includes(term) ||
+        c.developer.username.toLowerCase().includes(term)
     );
   });
 
   return (
-<<<<<<< Updated upstream
-    <div className="connections-page flex flex-col gap-8">
-      <ConnectionsHeader
-        totalConnections={connections.length}
-        pendingCount={incomingRequests.length}
-      />
+      <div className="connections-page flex flex-col gap-8">
+        <ConnectionsHeader
+            totalConnections={connections.length}
+            pendingCount={incomingRequests.length}
+        />
 
-      <ConnectionRequests
-        incoming={enrichedIncoming}
-        onAccept={(request) => acceptConnectionRequest(request.id)}
-        onReject={(request) => rejectConnectionRequest(request.id)}
-        onBlock={(request) => blockConnection(request.id)}
-      />
-
-      <div>
-        <h2 className="mb-4 text-sm font-semibold text-[var(--cm-text)]">
-          Your Connections
-        </h2>
-        <div className="mb-4">
-          <ConnectionFilters search={search} onSearchChange={setSearch} />
-=======
-  <div className="connections-page flex flex-col gap-6">
-    <ConnectionsHeader
-      totalConnections={connections.length}
-      pendingCount={incomingRequests.length}
-    />
-
-    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-      {/* Left: search + connections */}
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <ConnectionFilters search={search} onSearchChange={setSearch} />
+        <ConnectionRequests
+            incoming={enrichedIncoming}
+            onAccept={(request) => acceptConnectionRequest(request.id)}
+            onReject={(request) => rejectConnectionRequest(request.id)}
+            onBlock={(request) => blockConnection(request.id)}
+        />
 
         <div>
           <h2 className="mb-4 text-sm font-semibold text-[var(--cm-text)]">
             Your Connections
           </h2>
+          <div className="mb-4">
+            <ConnectionFilters search={search} onSearchChange={setSearch} />
+          </div>
           <ConnectionList
-            connections={filteredConnections}
-            onRemove={(connection) => removeConnection(connection.connectionId)}
-            onBlock={(connection) => blockConnection(connection.connectionId)}
+              connections={filteredConnections}
+              onRemove={(connection) => removeConnection(connection.connectionId)}
+              onBlock={(connection) => blockConnection(connection.connectionId)}
           />
->>>>>>> Stashed changes
         </div>
-        <ConnectionList
-          connections={filteredConnections}
-          onRemove={(connection) => removeConnection(connection.connectionId)}
-          onBlock={(connection) => blockConnection(connection.connectionId)}
-        />
       </div>
-<<<<<<< Updated upstream
-    </div>
   );
-=======
-
-      {/* Right: incoming requests in a vertical box */}
-      <aside
-        className="w-full shrink-0 rounded-xl border border-[var(--cm-border)]
-                   bg-[var(--cm-surface)] p-4 lg:sticky lg:top-4 lg:w-80
-                   lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto"
-      >
-        <ConnectionRequests
-          incoming={enrichedIncoming}
-          onAccept={(request) => acceptConnectionRequest(request.id)}
-          onReject={(request) => rejectConnectionRequest(request.id)}
-          onBlock={(request) => blockConnection(request.id)}
-        />
-      </aside>
-    </div>
-  </div>
-);
->>>>>>> Stashed changes
 }

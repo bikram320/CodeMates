@@ -1,0 +1,20 @@
+[
+  "language_jaccard",
+  "topic_jaccard",
+  "primary_language_match",
+  "account_age_days_absdiff",
+  "account_age_days_sum",
+  "account_age_days_min",
+  "public_repos_sum_log",
+  "public_gists_sum_log",
+  "followers_sum_log",
+  "following_sum_log",
+  "public_repos_min_log",
+  "public_gists_min_log",
+  "followers_min_log",
+  "following_min_log",
+  "public_repos_absdiff_log",
+  "public_gists_absdiff_log",
+  "followers_absdiff_log",
+  "following_absdiff_log"
+]
